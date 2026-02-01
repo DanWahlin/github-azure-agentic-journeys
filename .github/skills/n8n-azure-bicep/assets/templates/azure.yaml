@@ -1,0 +1,23 @@
+# Azure Developer CLI (azd) configuration for n8n deployment
+# Documentation: https://learn.microsoft.com/azure/developer/azure-developer-cli/
+
+name: n8n-azure
+
+# Use Bicep as the infrastructure provider
+infra:
+  provider: bicep
+  path: infra
+
+# Post-provision hooks to configure WEBHOOK_URL
+# These run automatically after `azd up` completes
+hooks:
+  postprovision:
+    posix:
+      shell: sh
+      run: ./infra/hooks/postprovision.sh
+    windows:
+      shell: pwsh
+      run: ./infra/hooks/postprovision.ps1
+
+# NOTE: No services section needed - we use pre-built n8n Docker image
+# The container image is specified directly in the Bicep files (n8nImage parameter)
