@@ -1,0 +1,16 @@
+name: n8n-azure
+metadata:
+  template: n8n-azure-container-apps
+
+infra:
+  provider: bicep
+  path: infra
+
+hooks:
+  postprovision:
+    posix:
+      shell: sh
+      run: ./infra/hooks/postprovision.sh
+    windows:
+      shell: pwsh
+      run: ./infra/hooks/postprovision.ps1

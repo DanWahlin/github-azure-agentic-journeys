@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "postgresPassword": {
+      "value": "${POSTGRES_PASSWORD}"
+    },
+    "n8nBasicAuthPassword": {
+      "value": "${N8N_BASIC_AUTH_PASSWORD}"
+    }
+  }
+}

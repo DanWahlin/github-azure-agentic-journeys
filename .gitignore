@@ -2,8 +2,8 @@
 .azure/
 
 # Bicep
-*.parameters.json
-!*.parameters.json.example
+# Note: main.parameters.json uses ${VAR} interpolation (no secrets), so it's tracked
+!infra/main.parameters.json
 
 # Terraform
 *.tfstate

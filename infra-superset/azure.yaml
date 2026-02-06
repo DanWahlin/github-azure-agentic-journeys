@@ -1,0 +1,30 @@
+name: superset-azure-aks
+metadata:
+  template: superset-azure-aks
+
+infra:
+  provider: bicep
+  path: .
+
+hooks:
+  postprovision:
+    posix:
+      shell: sh
+      run: |
+        echo "=========================================="
+        echo "Superset Deployment Complete!"
+        echo "=========================================="
+        echo ""
+        echo "Getting AKS credentials..."
+        az aks get-credentials -g $AZURE_RESOURCE_GROUP -n $AKS_CLUSTER_NAME --overwrite-existing --admin
+        echo ""
+        echo "Checking Superset status..."
+        kubectl get pods -n superset
+        echo ""
+        echo "Getting external IP..."
+        EXTERNAL_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "pending")
+        echo ""
+        echo "=========================================="
+        echo "Superset URL: http://$EXTERNAL_IP"
+        echo "Admin User: $SUPERSET_ADMIN_USER"
+        echo "=========================================="
