@@ -1,9 +1,10 @@
 # Azure Developer CLI
 .azure/
 
-# Bicep
-# Note: main.parameters.json uses ${VAR} interpolation (no secrets), so it's tracked
-!infra/main.parameters.json
+# Compiled ARM templates (regenerated from Bicep)
+**/main.json
+
+# Bicep parameters are tracked (use ${VAR} interpolation, no secrets)
 
 # Terraform
 *.tfstate

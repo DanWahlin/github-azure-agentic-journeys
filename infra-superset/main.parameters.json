@@ -9,13 +9,13 @@
       "value": "${AZURE_LOCATION}"
     },
     "postgresPassword": {
-      "value": "${postgresPassword}"
+      "value": "${POSTGRES_PASSWORD}"
     },
     "supersetSecretKey": {
-      "value": "${supersetSecretKey}"
+      "value": "${SUPERSET_SECRET_KEY}"
     },
     "supersetAdminPassword": {
-      "value": "${supersetAdminPassword}"
+      "value": "${SUPERSET_ADMIN_PASSWORD}"
     }
   }
 }

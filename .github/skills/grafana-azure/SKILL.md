@@ -1,6 +1,11 @@
+---
+name: grafana-azure
+description: Deploy Grafana OSS to Azure Container Apps. Use when deploying Grafana for metrics, logs, and traces visualization with optional PostgreSQL backend.
+---
+
 # Grafana Azure Deployment Skill
 
-Deploy Grafana OSS to Azure Container Apps using Azure CLI with Bicep.
+Deploy Grafana OSS to Azure Container Apps using Bicep and Azure Developer CLI (azd).
 
 > **Reproducibility Verified**: This deployment has been tested multiple times from scratch. Deploy time: ~2 minutes.
 
@@ -26,50 +31,35 @@ Grafana is an open-source observability platform for metrics, logs, and traces v
 └─────────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
-
-### Deploy with Azure CLI (Recommended)
+## Quick Start (Verified)
 
 ```bash
-cd ~/projects/oss-to-azure/infra-grafana
+# 1. Register providers (one-time per subscription)
+az provider register --namespace Microsoft.App
+az provider register --namespace Microsoft.OperationalInsights
 
-# Generate a secure password
-GRAFANA_PASSWORD=$(openssl rand -base64 16)
-echo "Admin password: $GRAFANA_PASSWORD"
+# 2. Create environment
+azd env new my-grafana-env
 
-# Deploy
-az deployment sub create \
-  --name grafana-$(date +%s) \
-  --location westus \
-  --template-file main.bicep \
-  --parameters environmentName=grafana-prod \
-               location=westus \
-               grafanaAdminPassword="$GRAFANA_PASSWORD" \
-  --query "properties.outputs" \
-  -o json
-```
+# 3. Set required variables
+azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+azd env set AZURE_LOCATION "westus"
+azd env set GRAFANA_ADMIN_PASSWORD "$(openssl rand -base64 16)"
 
-### Alternative: Azure Developer CLI (azd)
-
-> **Note**: azd has a bug with `--no-prompt` and secure parameters. Use interactive mode or Azure CLI instead.
-
-```bash
-cd ~/projects/oss-to-azure
-
-# Create azure.yaml pointing to infra-grafana
-cat > azure.yaml << 'EOF'
-name: grafana-azure
-metadata:
-  template: grafana-azure-container-apps
-infra:
-  provider: bicep
-  path: infra-grafana
-EOF
-
-# Interactive deploy (will prompt for values)
-azd init -e grafana-prod
+# 4. Deploy (~2 minutes)
 azd up
+
+# 5. Access Grafana
+azd env get-value GRAFANA_URL
+# Login: admin / <your GRAFANA_ADMIN_PASSWORD>
 ```
+
+**Deployment time breakdown:**
+- Resource Group: ~4s
+- Log Analytics: ~25s
+- Container Apps Environment: ~38s
+- Grafana Container App: ~10s
+- **Total: ~2 minutes**
 
 ## Parameters
 
@@ -135,12 +125,10 @@ By default, Grafana uses SQLite which stores data in the container. For producti
 ## Tear Down
 
 ```bash
-# Option 1: Delete resource group
-az group delete --name rg-grafana-prod --yes --no-wait
-
-# Option 2: azd
 azd down --force --purge
 ```
+
+**Note:** Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
 ## Comparison with n8n Deployment
 
@@ -152,22 +140,6 @@ azd down --force --purge
 | Complexity | Simple | Moderate |
 | Deploy Time | ~2 minutes | ~5 minutes |
 
-## Lessons Learned
-
-Based on multiple deployment iterations:
-
-1. **Use Azure CLI over azd**: The `azd` CLI has a bug where `--no-prompt` panics on secure parameters. Azure CLI with Bicep is more reliable.
-
-2. **Simple passwords work best**: Avoid special shell characters (`!`, `$`, etc.) in passwords when passing via command line. Use alphanumeric or properly escape.
-
-3. **Grafana starts fast**: Unlike n8n (which needs PostgreSQL), Grafana with SQLite starts in ~30 seconds.
-
-4. **Resource group deletion takes time**: Container Apps environments can take 3-5 minutes to delete. Use `--no-wait` and move on.
-
-5. **Health endpoint is reliable**: `/api/health` returns immediately when Grafana is ready - good for probes.
-
-6. **Scale-to-zero works well**: First request after idle takes ~30-60 seconds due to cold start, but saves costs.
-
 ## Troubleshooting
 
-See [troubleshooting.md](troubleshooting.md) for common issues.
+See [troubleshooting.md](troubleshooting.md) for common issues and lessons learned.

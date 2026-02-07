@@ -1,14 +1,10 @@
-// ========================================
-// Managed Identity
-// ========================================
-
-@description('Name of the managed identity')
+@description('Managed identity name')
 param name string
 
-@description('Location for the resource')
+@description('Azure region')
 param location string
 
-@description('Tags to apply to the resource')
+@description('Resource tags')
 param tags object = {}
 
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
@@ -18,6 +14,5 @@ resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-
 }
 
 output id string = managedIdentity.id
-output name string = managedIdentity.name
 output principalId string = managedIdentity.properties.principalId
 output clientId string = managedIdentity.properties.clientId

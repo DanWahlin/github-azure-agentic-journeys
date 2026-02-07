@@ -1,5 +1,6 @@
 {
-  "aksCluster": "aks",
+  "containerApp": "app",
+  "containerAppsEnvironment": "cae",
   "logAnalyticsWorkspace": "log",
   "postgreSQLServer": "psql",
   "managedIdentity": "id",

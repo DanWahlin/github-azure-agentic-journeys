@@ -9,7 +9,7 @@ Deploy Apache Superset data visualization platform on Azure Kubernetes Service.
 
 > **Complexity Note**: Superset is the most complex deployment in this project due to psycopg2 requirements and AKS architecture. Deploy time: ~15-20 minutes.
 
-## Quick Start
+## Quick Start (Verified)
 
 ```bash
 # 1. Register providers (one-time per subscription)
@@ -17,28 +17,22 @@ az provider register --namespace Microsoft.ContainerService
 az provider register --namespace Microsoft.DBforPostgreSQL
 az provider register --namespace Microsoft.OperationalInsights
 
-# 2. Deploy infrastructure (PostgreSQL + AKS)
-cd ~/projects/oss-to-azure/infra-superset
-az deployment sub create \
-  --name superset-$(date +%s) \
-  --location westus \
-  --template-file main.bicep \
-  --parameters environmentName=superset-prod \
-               location=westus \
-               postgresPassword="$(openssl rand -base64 16)"
+# 2. Create environment
+azd env new my-superset-env
 
-# 3. Get AKS credentials
-az aks get-credentials -g rg-superset-prod -n <aks-name> --overwrite-existing
+# 3. Set required variables
+azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+azd env set AZURE_LOCATION "westus"
+azd env set POSTGRES_PASSWORD "$(openssl rand -base64 16)"
+azd env set SUPERSET_SECRET_KEY "$(openssl rand -base64 32)"
+azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -base64 16)"
 
-# 4. Deploy Kubernetes resources
-kubectl apply -f kubernetes/
+# 4. Deploy (~15-20 minutes)
+azd up
 
-# 5. Get external IP
-kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-
-# 6. Access Superset
-# URL: http://<EXTERNAL_IP>/login/
-# Default: admin / <your admin password>
+# 5. Access Superset
+azd env get-value SUPERSET_URL
+# Login: admin / <your SUPERSET_ADMIN_PASSWORD>
 ```
 
 **Deployment time breakdown:**
@@ -101,133 +95,30 @@ Apache Superset is a modern data exploration and visualization platform. It requ
                     └──────────────────────────────┘
 ```
 
-## ⚠️ Critical: psycopg2-binary Installation
-
-The official `apache/superset:latest` image does NOT include psycopg2 for PostgreSQL connections. Without it, Superset falls back to SQLite.
-
-### The Problem
-- The image's virtualenv at `/app/.venv` is read-only
-- `pip install --user` installs to a location the venv Python doesn't see
-- PYTHONPATH alone doesn't work because the venv ignores it
-
-### The Solution
-1. Install psycopg2-binary to a writable emptyDir volume:
-   ```bash
-   pip install psycopg2-binary --target=/psycopg2-lib
-   ```
-
-2. Set PYTHONPATH to include this directory in BOTH init and main containers:
-   ```yaml
-   env:
-   - name: PYTHONPATH
-     value: "/psycopg2-lib"
-   ```
-
-3. Mount the emptyDir in both containers so init installs it and main uses it:
-   ```yaml
-   volumes:
-   - name: psycopg2-install
-     emptyDir: {}
-   ```
-
 ## Critical Configuration
 
-### 1. superset_config.py (ConfigMap)
+### psycopg2-binary (REQUIRED)
 
-Superset does NOT read SQLALCHEMY_DATABASE_URI from environment directly. You MUST create a config file:
+The official Superset image does NOT include psycopg2 for PostgreSQL. Without it, Superset falls back to SQLite. See [references/psycopg2-installation.md](references/psycopg2-installation.md) for the full solution.
 
-```python
-import os
+**TL;DR**: Install to emptyDir volume with `--target=/psycopg2-lib`, set `PYTHONPATH=/psycopg2-lib` in both init and main containers.
 
-SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI', 'sqlite:////app/superset_home/superset.db')
-SECRET_KEY = os.environ.get('SUPERSET_SECRET_KEY', 'change-me')
-
-WTF_CSRF_ENABLED = True
-WTF_CSRF_EXEMPT_LIST = []
-WTF_CSRF_TIME_LIMIT = 60 * 60 * 24 * 365
-
-FEATURE_FLAGS = {
-    "DASHBOARD_NATIVE_FILTERS": True,
-    "DASHBOARD_CROSS_FILTERS": True,
-    "ENABLE_TEMPLATE_PROCESSING": True,
-}
-```
-
-Mount this at `/app/pythonpath/superset_config.py` and set:
-```yaml
-env:
-- name: SUPERSET_CONFIG_PATH
-  value: /app/pythonpath/superset_config.py
-```
-
-### 2. Environment Variables
+### Environment Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `SQLALCHEMY_DATABASE_URI` | PostgreSQL connection string | `postgresql://...` |
+| `SQLALCHEMY_DATABASE_URI` | PostgreSQL connection string | `postgresql://USER:PASS@HOST:5432/DB?sslmode=require` |
 | `SUPERSET_SECRET_KEY` | Flask secret key (required) | 32+ char random string |
 | `SUPERSET_CONFIG_PATH` | Path to config file | `/app/pythonpath/superset_config.py` |
 | `PYTHONPATH` | Include psycopg2 location | `/psycopg2-lib` |
 
-### 3. Database Connection String Format
+See [config/environment-variables.md](config/environment-variables.md) for full details.
 
-```
-postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
-```
+**Critical**: Azure PostgreSQL requires `sslmode=require` in the connection string.
 
-**Critical**: Azure PostgreSQL requires `sslmode=require`
+### Kubernetes Manifests
 
-### 4. Complete Kubernetes Manifest Pattern
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-spec:
-  template:
-    spec:
-      volumes:
-      - name: psycopg2-install
-        emptyDir: {}
-      - name: superset-config
-        configMap:
-          name: superset-config
-      initContainers:
-      - name: superset-init
-        image: apache/superset:latest
-        command: ["/bin/sh", "-c"]
-        args:
-          - |
-            pip install psycopg2-binary --target=/psycopg2-lib
-            PYTHONPATH=/psycopg2-lib superset db upgrade
-            PYTHONPATH=/psycopg2-lib superset fab create-admin --username admin --firstname Admin --lastname User --email admin@example.com --password "$ADMIN_PASSWORD" || true
-            PYTHONPATH=/psycopg2-lib superset init
-        env:
-        - name: SUPERSET_CONFIG_PATH
-          value: /app/pythonpath/superset_config.py
-        volumeMounts:
-        - name: psycopg2-install
-          mountPath: /psycopg2-lib
-        - name: superset-config
-          mountPath: /app/pythonpath
-      containers:
-      - name: superset
-        image: apache/superset:latest
-        command: ["/bin/sh", "-c"]
-        args:
-          - |
-            export PYTHONPATH=/psycopg2-lib:$PYTHONPATH
-            exec gunicorn --bind 0.0.0.0:8088 --workers 2 --timeout 120 "superset.app:create_app()"
-        env:
-        - name: SUPERSET_CONFIG_PATH
-          value: /app/pythonpath/superset_config.py
-        - name: PYTHONPATH
-          value: "/psycopg2-lib"
-        volumeMounts:
-        - name: psycopg2-install
-          mountPath: /psycopg2-lib
-        - name: superset-config
-          mountPath: /app/pythonpath
-```
+See [references/kubernetes-manifests.md](references/kubernetes-manifests.md) for complete Deployment, ConfigMap, and Ingress patterns.
 
 ## Health Checks
 
@@ -328,55 +219,29 @@ For testing only (change in production):
 ## Tear Down
 
 ```bash
-# Option 1: Delete resource group (includes AKS + PostgreSQL)
-az group delete --name rg-superset-prod --yes --no-wait
-
-# Option 2: Delete Kubernetes resources only
-kubectl delete namespace superset
-kubectl delete namespace ingress-nginx
+azd down --force --purge
 ```
 
-**Note:** Resource group deletion takes 5-10 minutes.
+**Note:** Teardown takes 5-10 minutes (AKS + PostgreSQL deletion is slow).
 
-## Verification Checklist
+## Verification
 
 After deployment completes:
 
 ```bash
-# 1. Check pod status
+# 1. Check pod status (expected: 1/1 Running)
 kubectl get pods -n superset
-# Expected: 1/1 Running
 
-# 2. Verify PostgreSQL (not SQLite)
+# 2. Verify PostgreSQL (expected: "Context impl PostgresqlImpl")
 kubectl logs -n superset <pod> -c superset-init | grep -i "PostgresqlImpl"
-# Expected: "Context impl PostgresqlImpl"
 
-# 3. Check config loaded
-kubectl logs -n superset <pod> -c superset | grep -i "Loaded"
-# Expected: "Loaded your LOCAL configuration"
-
-# 4. Test health endpoint
-EXTERNAL_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -I http://$EXTERNAL_IP/health
-# Expected: HTTP/1.1 200 OK
-
-# 5. Test login page
-curl -I http://$EXTERNAL_IP/login/
-# Expected: HTTP/1.1 200 OK
-```
-
-## Verification Commands
-
-```bash
-# Check if using PostgreSQL (should show PostgresqlImpl)
-kubectl logs -n superset <pod> -c superset | grep -i impl
-
-# Verify psycopg2 is installed
+# 3. Verify psycopg2 installed
 kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"
 
-# Check pod status
-kubectl get pods -n superset
+# 4. Test health endpoint (expected: HTTP 200)
+EXTERNAL_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+curl -I http://$EXTERNAL_IP/health
 
-# Test URL
-curl -I http://<EXTERNAL_IP>/login/
+# 5. Test login page (expected: HTTP 200)
+curl -I http://$EXTERNAL_IP/login/
 ```

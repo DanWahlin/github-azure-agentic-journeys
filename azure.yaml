@@ -1,16 +1,14 @@
-name: n8n-azure
-metadata:
-  template: n8n-azure-container-apps
+name: superset-azure
 
 infra:
   provider: bicep
-  path: infra-grafana
+  path: infra-superset
 
 hooks:
   postprovision:
     posix:
       shell: sh
-      run: ./infra-grafana/hooks/postprovision.sh
+      run: ./infra-superset/hooks/postprovision.sh
     windows:
       shell: pwsh
-      run: ./infra-grafana/hooks/postprovision.ps1
+      run: ./infra-superset/hooks/postprovision.ps1

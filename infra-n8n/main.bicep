@@ -11,12 +11,12 @@ param location string
 param postgresPassword string
 
 @secure()
-@description('Superset Flask secret key')
-param supersetSecretKey string
+@description('n8n basic auth password')
+param n8nBasicAuthPassword string
 
 @secure()
-@description('Superset admin password')
-param supersetAdminPassword string
+@description('n8n encryption key (auto-generated if not provided)')
+param n8nEncryptionKey string = newGuid()
 
 // Load abbreviations for consistent naming
 var abbrs = loadJsonContent('abbreviations.json')
@@ -30,7 +30,7 @@ var tags = {
 
 // Resource Group
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
-  name: '${abbrs.resourceGroup}-superset-${environmentName}'
+  name: '${abbrs.resourceGroup}-n8n-${environmentName}'
   location: location
   tags: tags
 }
@@ -57,6 +57,19 @@ module managedIdentity 'modules/managed-identity.bicep' = {
   }
 }
 
+// Container Apps Environment
+module containerAppsEnv 'modules/container-apps-environment.bicep' = {
+  name: 'container-apps-env'
+  scope: rg
+  params: {
+    name: '${abbrs.containerAppsEnvironment}-${resourceToken}'
+    location: location
+    tags: tags
+    logAnalyticsCustomerId: logAnalytics.outputs.customerId
+    logAnalyticsSharedKey: logAnalytics.outputs.primarySharedKey
+  }
+}
+
 // PostgreSQL Flexible Server
 module postgresql 'modules/postgresql.bicep' = {
   name: 'postgresql'
@@ -65,31 +78,35 @@ module postgresql 'modules/postgresql.bicep' = {
     serverName: '${abbrs.postgreSQLServer}-${resourceToken}'
     location: location
     tags: tags
-    adminUser: 'superset'
+    adminUser: 'n8n'
     adminPassword: postgresPassword
-    databaseName: 'superset'
+    databaseName: 'n8n'
   }
 }
 
-// AKS Cluster
-module aks 'modules/aks.bicep' = {
-  name: 'aks-cluster'
+// n8n Container App
+module n8nApp 'modules/n8n-container-app.bicep' = {
+  name: 'n8n-container-app'
   scope: rg
   params: {
-    name: '${abbrs.aksCluster}-${resourceToken}'
+    name: '${abbrs.containerApp}-n8n-${resourceToken}'
     location: location
     tags: tags
-    logAnalyticsWorkspaceId: logAnalytics.outputs.id
+    containerAppsEnvironmentId: containerAppsEnv.outputs.id
+    managedIdentityId: managedIdentity.outputs.id
+    postgresHost: postgresql.outputs.fqdn
+    postgresUser: 'n8n'
+    postgresPassword: postgresPassword
+    postgresDatabase: 'n8n'
+    n8nEncryptionKey: n8nEncryptionKey
+    n8nBasicAuthPassword: n8nBasicAuthPassword
   }
 }
 
 // Outputs (SCREAMING_SNAKE_CASE for azd)
 output RESOURCE_GROUP_NAME string = rg.name
-output AKS_CLUSTER_NAME string = aks.outputs.name
+output N8N_CONTAINER_APP_NAME string = n8nApp.outputs.name
+output N8N_URL string = n8nApp.outputs.url
+output N8N_FQDN string = n8nApp.outputs.fqdn
 output POSTGRES_FQDN string = postgresql.outputs.fqdn
-output POSTGRES_DATABASE_NAME string = postgresql.outputs.databaseName
-output POSTGRES_ADMIN_USER string = 'superset'
-output POSTGRES_PASSWORD string = postgresPassword
-output SUPERSET_SECRET_KEY string = supersetSecretKey
-output SUPERSET_ADMIN_PASSWORD string = supersetAdminPassword
 output LOG_ANALYTICS_WORKSPACE_ID string = logAnalytics.outputs.id

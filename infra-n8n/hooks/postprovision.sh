@@ -4,7 +4,7 @@ set -e
 echo "Running post-deployment configuration..."
 
 # Retrieve azd outputs
-CONTAINER_APP_NAME=$(azd env get-value GRAFANA_CONTAINER_APP_NAME)
+CONTAINER_APP_NAME=$(azd env get-value N8N_CONTAINER_APP_NAME)
 RESOURCE_GROUP_NAME=$(azd env get-value RESOURCE_GROUP_NAME)
 
 # Get Container App FQDN
@@ -22,17 +22,17 @@ fi
 
 echo "App URL: https://$APP_FQDN"
 
-# Update GF_SERVER_ROOT_URL (circular dependency: needs FQDN which isn't known until after creation)
-echo "Updating GF_SERVER_ROOT_URL environment variable..."
+# Update WEBHOOK_URL (circular dependency: needs FQDN which isn't known until after creation)
+echo "Updating WEBHOOK_URL environment variable..."
 az containerapp update \
   --name "$CONTAINER_APP_NAME" \
   --resource-group "$RESOURCE_GROUP_NAME" \
-  --set-env-vars "GF_SERVER_ROOT_URL=https://$APP_FQDN" \
+  --set-env-vars "WEBHOOK_URL=https://$APP_FQDN" \
   --output none
 
 echo "Post-deployment configuration completed!"
 echo ""
-echo "Grafana deployment complete!"
+echo "n8n deployment complete!"
 echo "Access your app at: https://$APP_FQDN"
-echo "Login: admin / <your GRAFANA_ADMIN_PASSWORD>"
+echo "Login: admin / <your N8N_BASIC_AUTH_PASSWORD>"
 echo ""

@@ -50,12 +50,23 @@ Reference skills for implementation patterns:
 - `grafana-azure` - Grafana visualization (Container Apps, optional PostgreSQL)
 - `superset-azure` - Apache Superset BI platform (AKS + PostgreSQL)
 
+**Infrastructure directory pattern:**
+Each app has its own infra directory: `infra-n8n/`, `infra-grafana/`, `infra-superset/`
+
+Update `azure.yaml` to point to the correct directory:
+```yaml
+infra:
+  provider: bicep
+  path: infra-n8n    # or infra-grafana, infra-superset
+```
+
 **Key patterns to apply:**
-- Modular structure (infra/modules/ for Bicep, separate .tf files for Terraform)
+- Modular structure (`infra-<app>/modules/` for Bicep)
 - Managed identity for service-to-service auth
 - Extended health probes for slow-starting apps (initialDelaySeconds: 60, failureThreshold: 30)
 - SSL/TLS enabled for databases (DB_POSTGRESDB_SSL_ENABLED=true)
 - Post-provision hooks for circular dependencies (e.g., WEBHOOK_URL configuration)
+- `${VAR}` syntax in `main.parameters.json` for azd parameter mapping
 
 ### 5. Validate
 
@@ -71,8 +82,11 @@ Before deployment:
 
 ### 6. Deploy
 
-Run deployment:
+Update `azure.yaml` to point to the correct infra directory, then deploy:
 ```bash
+# Ensure azure.yaml points to the right infra path
+# infra.path: infra-n8n | infra-grafana | infra-superset
+
 azd up  # Provisions infrastructure and deploys app
 ```
 
@@ -88,9 +102,9 @@ Confirm success:
 
 | User Request | Your Action |
 |--------------|-------------|
-| "Deploy n8n to Azure" | Follow golden path, load `n8n-azure` skill (Container Apps) |
-| "Deploy Grafana to Azure" | Follow golden path, load `grafana-azure` skill (Container Apps) |
-| "Deploy Superset to Azure" | Follow golden path, load `superset-azure` skill (AKS) |
+| "Deploy n8n to Azure" | Follow golden path, load `n8n-azure` skill, generate Bicep in `infra-n8n/`, set `azure.yaml` → `infra-n8n` |
+| "Deploy Grafana to Azure" | Follow golden path, load `grafana-azure` skill, generate Bicep in `infra-grafana/`, set `azure.yaml` → `infra-grafana` |
+| "Deploy Superset to Azure" | Follow golden path, load `superset-azure` skill, generate Bicep in `infra-superset/`, set `azure.yaml` → `infra-superset` |
 | "It's in CrashLoopBackOff" | Check health probe timing, review logs, adjust `initialDelaySeconds` |
 | "Database connection failed" | Verify SSL config, check FQDN, test connection string |
 | "Add monitoring" | Reference `azure-bicep-generation` for Log Analytics pattern |

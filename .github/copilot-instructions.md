@@ -69,11 +69,27 @@ az provider register --namespace Microsoft.OperationalInsights
 
 ## Architecture
 
-- **Infrastructure as Code**: Bicep with modular structure in `infra/modules/`
+- **Infrastructure as Code**: Bicep with modular structure per app
 - **Deployment Tool**: Azure Developer CLI (azd) configured via `azure.yaml`
-- **Container Hosting**: Azure Container Apps with scale-to-zero
-- **Database**: Azure Database for PostgreSQL Flexible Server
-- **Post-provisioning**: Hooks in `infra/hooks/` configure WEBHOOK_URL after deployment
+- **Container Hosting**: Azure Container Apps (n8n, Grafana) or AKS (Superset)
+- **Database**: Azure Database for PostgreSQL Flexible Server (n8n, Superset)
+- **Post-provisioning**: Hooks configure app-specific settings after deployment (e.g., WEBHOOK_URL)
+
+### Infrastructure Directory Pattern
+
+Each app has its own infra directory:
+```
+infra-n8n/          # n8n Bicep modules + hooks
+infra-grafana/      # Grafana Bicep modules + hooks
+infra-superset/     # Superset Bicep modules + hooks + kubernetes/
+```
+
+The `azure.yaml` at the project root is updated to point to the correct infra directory before deployment:
+```yaml
+infra:
+  provider: bicep
+  path: infra-n8n    # or infra-grafana, infra-superset
+```
 
 ---
 
@@ -116,41 +132,80 @@ To add a new application (e.g., Gitea, Plausible):
 Create `.github/skills/<app>-azure/` with:
 ```
 <app>-azure/
-├── SKILL.md              # Overview, quick start, architecture
+├── SKILL.md              # Overview, quick start, architecture, verification
 ├── config/
 │   ├── environment-variables.md  # App-specific env vars
 │   └── health-probes.md          # Startup timing requirements
 └── troubleshooting.md            # Common issues
 ```
 
-### Step 2: Reuse Generic Skills
+**SKILL.md must include YAML frontmatter:**
+```yaml
+---
+name: <app>-azure
+description: Deploy <App> to Azure. Use when deploying <App> for <purpose>.
+---
+```
+
+### Step 2: Create Infrastructure Directory
+
+Create `infra-<app>/` with Bicep modules:
+```
+infra-<app>/
+├── main.bicep
+├── main.parameters.json    # Use ${VAR} azd syntax
+├── abbreviations.json
+├── modules/
+│   ├── log-analytics.bicep
+│   ├── container-apps-environment.bicep  # or aks.bicep
+│   └── <app>-container-app.bicep
+└── hooks/
+    ├── postprovision.sh
+    └── postprovision.ps1
+```
+
+### Step 3: Reuse Generic Skills
 
 Reference existing skills for implementation:
 - `azure-bicep-generation` for Container Apps, PostgreSQL, Log Analytics patterns
+- `azure-aks-deployment` for AKS patterns (if app needs Kubernetes)
 - `azd-deployment` for azure.yaml and hooks
 
-### Step 3: Document App Quirks
+### Step 4: Document App Quirks
 
 In the app-specific skill, document:
-- Required environment variables
-- Health probe timing (how long does the app take to start?)
+- Required environment variables (detailed in `config/environment-variables.md`)
+- Health probe timing (detailed in `config/health-probes.md`)
 - Database requirements (SSL, connection strings)
 - Post-deployment configuration needs
 
-### Example: Adding Gitea
-
-1. Create `.github/skills/gitea-azure/SKILL.md`
-2. Document Gitea's environment variables (SSH port, root URL, etc.)
-3. Note Gitea's startup time for health probe configuration
-4. Use existing `azure-bicep-generation` patterns for infrastructure
-
-**The goal:** Generic patterns stay in `azure-bicep-generation`, app-specific quirks go in the app skill.
+**The goal:** Generic patterns stay in `azure-bicep-generation`, app-specific quirks go in the app skill. All deployments use `azd up` / `azd down`.
 
 ---
 
 ## Project Structure
 
 ```
+azure.yaml                        # azd config (update infra.path per app)
+infra-n8n/                        # n8n Bicep infrastructure
+│   ├── main.bicep
+│   ├── main.parameters.json
+│   ├── abbreviations.json
+│   ├── modules/
+│   └── hooks/
+infra-grafana/                    # Grafana Bicep infrastructure
+│   ├── main.bicep
+│   ├── main.parameters.json
+│   ├── abbreviations.json
+│   ├── modules/
+│   └── hooks/
+infra-superset/                   # Superset Bicep + Kubernetes
+│   ├── main.bicep
+│   ├── main.parameters.json
+│   ├── abbreviations.json
+│   ├── modules/
+│   ├── hooks/
+│   └── kubernetes/
 .github/
 ├── copilot-instructions.md       # This file (always loaded)
 ├── agents/
