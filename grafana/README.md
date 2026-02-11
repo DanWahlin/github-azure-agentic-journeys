@@ -7,7 +7,7 @@ In this chapter, you'll deploy [Grafana OSS](https://grafana.com/oss/grafana/) â
 ## Learning Objectives
 
 - Deploy Grafana to Azure Container Apps using the agent or pre-built Bicep
-- Understand why Grafana is simpler than n8n (no database dependency, fast startup)
+- Understand why Grafana is simpler than n8n (no external database dependency, fast startup)
 - Evaluate SQLite vs PostgreSQL for different environments
 - Use `/api/health` for reliable health probes
 - Handle scale-to-zero cold starts gracefully
@@ -160,7 +160,7 @@ Once the agent reports success, ask it to verify:
 > Verify the Grafana deployment is working. Check the health endpoint.
 ```
 
-You can also verify manually:
+You can also verify manually (open a new terminal or exit Copilot CLI with `Ctrl+C` first):
 
 ```bash
 GRAFANA_URL=$(azd env get-value GRAFANA_URL)
@@ -357,9 +357,9 @@ Verify health probes aren't too aggressive. The Bicep templates in `../infra-gra
 2. Switch to PostgreSQL backend (recommended for production)
 3. Export dashboards as JSON and use Grafana provisioning
 
-### Post-Deployment Issues
+---
 
-These issues relate to using Grafana after deployment, not the deployment itself.
+> **Post-Deployment Issues:** The following issues relate to *using* Grafana after deployment, not the deployment itself.
 
 ### Can't Connect to Data Sources
 
@@ -384,6 +384,7 @@ resources: {
 
 ```bash
 GRAFANA_URL=$(azd env get-value GRAFANA_URL)
+GRAFANA_ADMIN_PASSWORD=$(azd env get-value GRAFANA_ADMIN_PASSWORD)
 
 # Health check (expect HTTP 200 with JSON)
 curl "$GRAFANA_URL/api/health"

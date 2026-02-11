@@ -206,14 +206,17 @@ Once the agent reports success, ask it to verify:
 > Verify the Superset deployment is working. Check that it's using PostgreSQL not SQLite.
 ```
 
-You can also verify manually:
+You can also verify manually (open a new terminal or exit Copilot CLI with `Ctrl+C` first):
 
 ```bash
 # Check pod status (expect 1/1 Running)
 kubectl get pods -n superset
 
+# Get the pod name
+POD=$(kubectl get pods -n superset -o jsonpath='{.items[0].metadata.name}')
+
 # Verify PostgreSQL is being used (not SQLite — look for "PostgresqlImpl")
-kubectl logs -n superset <pod> -c superset-init | grep -i "PostgresqlImpl"
+kubectl logs -n superset $POD -c superset-init | grep -i "PostgresqlImpl"
 
 # Get the external URL
 SUPERSET_URL=$(azd env get-value SUPERSET_URL)
@@ -232,7 +235,7 @@ The agent will use `azure_deploy_app_logs` to diagnose whether it's a PostgreSQL
 
 ## Path 2: Deploy Pre-Built Infrastructure
 
-> **No GitHub Copilot CLI required.** This path uses only Azure CLI and Azure Developer CLI.
+> **No GitHub Copilot CLI required.** This path uses Azure CLI, Azure Developer CLI, and `kubectl`.
 
 ### 1. Register Azure Resource Providers
 
@@ -331,7 +334,7 @@ SECRET_KEY = os.environ.get('SUPERSET_SECRET_KEY', 'change-me')
 
 WTF_CSRF_ENABLED = True
 WTF_CSRF_EXEMPT_LIST = []
-WTF_CSRF_TIME_LIMIT = 60 * 60 * 24 * 365
+WTF_CSRF_TIME_LIMIT = 60 * 60 * 24 * 365  # 1 year — extended for long dashboard sessions
 
 FEATURE_FLAGS = {
     "DASHBOARD_NATIVE_FILTERS": True,

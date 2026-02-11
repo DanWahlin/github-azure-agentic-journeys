@@ -172,7 +172,7 @@ The agent will:
 5. If anything fails (provider not registered, Bicep error, etc.) — diagnose and fix automatically
 6. Run the post-provision hooks to configure `WEBHOOK_URL`
 
-> **What just happened?** Run `cat azure.yaml` to see the updated configuration, and `ls -R infra-n8n/` to explore the generated Bicep modules.
+> **What just happened?** The agent updated `azure.yaml`, registered providers, set environment variables, and ran `azd up`. Run `cat azure.yaml` to see the configuration and `azd env get-values` to see all the variables that were set.
 
 ### Step 6: Verify
 
@@ -184,7 +184,7 @@ Once the agent reports success, ask it to verify:
 
 The agent will use `azure_deploy_app_logs` to fetch logs and confirm everything is healthy.
 
-You can also verify manually:
+You can also verify manually (open a new terminal or exit Copilot CLI with `Ctrl+C` first):
 
 ```bash
 N8N_URL=$(azd env get-value N8N_URL)
@@ -395,10 +395,10 @@ az provider register --namespace Microsoft.OperationalInsights
 `newGuid()` can only be used as a **parameter default value**:
 
 ```bicep
-# ❌ Wrong
+// ❌ Wrong
 var encryptionKey = newGuid()
 
-# ✅ Correct
+// ✅ Correct
 @secure()
 param n8nEncryptionKey string = newGuid()
 ```
@@ -469,7 +469,7 @@ Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently delet
 
 ## What's Next
 
-In [Chapter 02: Grafana](../grafana/README.md), you'll deploy a metrics and visualization platform — the simplest deployment in the project (~2 minutes, no database required). You'll see how the same agent and skill system adapts to a completely different application.
+In [Chapter 02: Grafana](../grafana/README.md), you'll deploy a metrics and visualization platform — the simplest deployment in the project (~2 minutes, no external database required). You'll see how the same agent and skill system adapts to a completely different application.
 
 ---
 

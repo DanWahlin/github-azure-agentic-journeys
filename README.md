@@ -83,15 +83,18 @@ Before deploying any app, ensure you have:
 ✅ **Azure MCP Server Plugin** — Install in Copilot CLI for real-time Azure intelligence:
 
 ```bash
-# Install the Azure MCP Server plugin (inside Copilot CLI)
-/plugin install microsoft/github-copilot-for-azure:plugin
-
 # Verify installations
 az --version
 azd version
 
 # Login to Azure
 az login
+```
+
+The Azure MCP Server plugin is installed from inside Copilot CLI (see [Quick Start](#quick-start) below):
+
+```
+> /plugin install microsoft/github-copilot-for-azure:plugin
 ```
 
 ## Quick Start
@@ -129,6 +132,9 @@ azd down --force --purge
 Or use the agent for an interactive, guided experience:
 
 ```bash
+# Make sure you're in the repo root
+cd oss-to-azure
+
 # Start Copilot CLI
 copilot
 
