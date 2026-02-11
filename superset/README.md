@@ -13,6 +13,10 @@ In this final chapter, you'll deploy [Apache Superset](https://superset.apache.o
 - Debug AKS-specific issues: init container failures, CrashLoopBackOff, SQLite fallback
 
 > ⏱️ **Estimated Time**: ~30 minutes (Path 1) or ~20 minutes (Path 2)
+>
+> 💰 **Estimated Cost**: ~$135-185/month (see [Cost Breakdown](#cost-breakdown)) — remember to clean up with `azd down` when done!
+>
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, `kubectl`, and optionally GitHub Copilot CLI. See [root README prerequisites](../README.md#prerequisites) for installation links.
 
 ---
 
@@ -88,11 +92,21 @@ Superset requires:
 
 These patterns are natural in Kubernetes but complex or unavailable in Container Apps.
 
+> **Where does NGINX come from?** The post-provision hook installs the NGINX Ingress Controller into the cluster using Helm. It provides HTTP routing and a public Load Balancer IP for external access.
+
 ---
 
 ## Path 1: Generate Infrastructure with the Agent
 
 ### Step 1: Start Copilot and Install the Azure MCP Plugin
+
+Make sure you're in the repo root first:
+
+```bash
+cd oss-to-azure
+```
+
+Then start Copilot CLI:
 
 ```bash
 copilot
@@ -103,6 +117,8 @@ Once inside the interactive session, install the Azure MCP plugin:
 ```
 > /plugin install microsoft/github-copilot-for-azure:plugin
 ```
+
+> **Already installed?** If you completed a previous chapter, the plugin persists across sessions — skip this step.
 
 ### Step 2: Select the Agent
 
@@ -216,6 +232,8 @@ The agent will use `azure_deploy_app_logs` to diagnose whether it's a PostgreSQL
 
 ## Path 2: Deploy Pre-Built Infrastructure
 
+> **No GitHub Copilot CLI required.** This path uses only Azure CLI and Azure Developer CLI.
+
 ### 1. Register Azure Resource Providers
 
 ```bash
@@ -230,14 +248,14 @@ az provider register --namespace Microsoft.OperationalInsights
 azd env new my-superset-env
 azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 azd env set AZURE_LOCATION "westus"
-azd env set POSTGRES_PASSWORD "$(openssl rand -base64 16)"
-azd env set SUPERSET_SECRET_KEY "$(openssl rand -base64 32)"
-azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -base64 16)"
+azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
+azd env set SUPERSET_SECRET_KEY "$(openssl rand -hex 32)"
+azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -hex 16)"
 ```
 
 ### 3. Update azure.yaml
 
-Make sure the root `azure.yaml` points to the Superset infra directory:
+Edit the existing `azure.yaml` in the repo root to point to the Superset infra directory:
 
 ```yaml
 name: superset-azure
@@ -466,17 +484,20 @@ kubectl run -it --rm debug-pg --image=postgres:15 --restart=Never -- \
 ## Verification Checklist
 
 ```bash
+# Get pod name first
+POD=$(kubectl get pods -n superset -o jsonpath='{.items[0].metadata.name}')
+
 # 1. Pod is running (expect 1/1 Running)
 kubectl get pods -n superset
 
 # 2. Using PostgreSQL not SQLite (expect "PostgresqlImpl")
-kubectl logs -n superset <pod> -c superset-init | grep -i "PostgresqlImpl"
+kubectl logs -n superset $POD -c superset-init | grep -i "PostgresqlImpl"
 
 # 3. Config file loaded (expect "Loaded your LOCAL configuration")
-kubectl logs -n superset <pod> -c superset | grep -i "Loaded"
+kubectl logs -n superset $POD -c superset | grep -i "Loaded"
 
 # 4. psycopg2 installed
-kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"
+kubectl exec -n superset $POD -c superset -- python -c "import psycopg2; print('OK')"
 
 # 5. Health endpoint (expect HTTP 200)
 EXTERNAL_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \

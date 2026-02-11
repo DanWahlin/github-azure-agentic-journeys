@@ -1,6 +1,6 @@
 # Chapter 02: Grafana — Metrics & Visualization on Azure Container Apps
 
-> **The simplest deployment in the project — zero database dependency, two minutes to production.**
+> **The simplest deployment in the project — no external database required, two minutes to production.**
 
 In this chapter, you'll deploy [Grafana OSS](https://grafana.com/oss/grafana/) — the industry-standard observability platform — to Azure Container Apps. With no external database required and a ~2 minute deploy time, Grafana is the perfect second chapter: same agent, same skills system, dramatically simpler architecture. You'll also explore the SQLite vs PostgreSQL decision point for production readiness.
 
@@ -13,6 +13,10 @@ In this chapter, you'll deploy [Grafana OSS](https://grafana.com/oss/grafana/) �
 - Handle scale-to-zero cold starts gracefully
 
 > ⏱️ **Estimated Time**: ~15 minutes (Path 1) or ~5 minutes (Path 2)
+>
+> 💰 **Estimated Cost**: ~$10-20/month (see [Cost Breakdown](#cost-breakdown)) — remember to clean up with `azd down` when done!
+>
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and optionally GitHub Copilot CLI. See [root README prerequisites](../README.md#prerequisites) for installation links.
 
 ---
 
@@ -66,6 +70,14 @@ graph TB
 
 ### Step 1: Start Copilot and Install the Azure MCP Plugin
 
+Make sure you're in the repo root first:
+
+```bash
+cd oss-to-azure
+```
+
+Then start Copilot CLI:
+
 ```bash
 copilot
 ```
@@ -75,6 +87,8 @@ Once inside the interactive session, install the Azure MCP plugin:
 ```
 > /plugin install microsoft/github-copilot-for-azure:plugin
 ```
+
+> **Already installed?** If you completed a previous chapter, the plugin persists across sessions — skip this step.
 
 ### Step 2: Select the Agent
 
@@ -166,6 +180,8 @@ The agent will use `azure_deploy_app_logs` to check if it's a cold start issue (
 
 ## Path 2: Deploy Pre-Built Infrastructure
 
+> **No GitHub Copilot CLI required.** This path uses only Azure CLI and Azure Developer CLI.
+
 ### 1. Register Azure Resource Providers
 
 ```bash
@@ -179,12 +195,12 @@ az provider register --namespace Microsoft.OperationalInsights
 azd env new my-grafana-env
 azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 azd env set AZURE_LOCATION "westus"
-azd env set GRAFANA_ADMIN_PASSWORD "$(openssl rand -base64 16)"
+azd env set GRAFANA_ADMIN_PASSWORD "$(openssl rand -hex 16)"
 ```
 
 ### 3. Update azure.yaml
 
-Make sure the root `azure.yaml` points to the Grafana infra directory:
+Edit the existing `azure.yaml` in the repo root to point to the Grafana infra directory:
 
 ```yaml
 name: grafana-azure
@@ -319,7 +335,7 @@ Verify health probes aren't too aggressive. The Bicep templates in `../infra-gra
 
 ### 502 Bad Gateway
 
-**Cause:** Container still starting from scale-to-zero (cold start takes 30-60s).
+**Cause:** This typically happens on the first request after the container scales from zero. Cold start takes 30-60s — this is a one-time delay, not a persistent issue.
 
 **Fix:** Wait 30-60 seconds and retry. For production, set `minReplicas: 1` to keep one instance warm.
 
@@ -340,6 +356,10 @@ Verify health probes aren't too aggressive. The Bicep templates in `../infra-gra
 1. Add Azure Files volume mount for `/var/lib/grafana`
 2. Switch to PostgreSQL backend (recommended for production)
 3. Export dashboards as JSON and use Grafana provisioning
+
+### Post-Deployment Issues
+
+These issues relate to using Grafana after deployment, not the deployment itself.
 
 ### Can't Connect to Data Sources
 
@@ -363,14 +383,17 @@ resources: {
 ## Verification Checklist
 
 ```bash
+GRAFANA_URL=$(azd env get-value GRAFANA_URL)
+
 # Health check (expect HTTP 200 with JSON)
-curl https://<GRAFANA_FQDN>/api/health
+curl "$GRAFANA_URL/api/health"
 
 # Admin login test
-curl -u admin:YourPassword https://<GRAFANA_FQDN>/api/org
+curl -u admin:$GRAFANA_ADMIN_PASSWORD "$GRAFANA_URL/api/org"
 
 # Container status
-az containerapp show --name <app-name> --resource-group <rg> \
+az containerapp show --name $(azd env get-value GRAFANA_CONTAINER_APP_NAME) \
+  --resource-group $(azd env get-value RESOURCE_GROUP_NAME) \
   --query "properties.runningStatus"
 ```
 

@@ -69,6 +69,8 @@ Try it: start `copilot`, run `/agent`, select `oss-to-azure-deployer`, and ask *
 
 Each chapter has two paths: **generate infrastructure with the agent** (primary) or **deploy pre-built Bicep** (quick start). Both include architecture diagrams, configuration reference, cost breakdowns, and troubleshooting guides.
 
+> **Note:** Deploy times listed are for Path 2 (pre-built Bicep). Path 1 (agent-guided generation) adds ~10-15 minutes for the interactive infrastructure generation step.
+
 ## Prerequisites
 
 Before deploying any app, ensure you have:
@@ -76,6 +78,7 @@ Before deploying any app, ensure you have:
 ✅ **Azure Subscription** — [Create one free](https://azure.microsoft.com/free/)<br>
 ✅ **Azure CLI** (`az`) — [Install](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)<br>
 ✅ **Azure Developer CLI** (`azd`) — [Install](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd)<br>
+✅ **kubectl** — [Install](https://kubernetes.io/docs/tasks/tools/) (required for Chapter 03: Superset on AKS)<br>
 ✅ **GitHub Copilot CLI** — [Install](https://docs.github.com/copilot/how-tos/copilot-cli/cli-getting-started) for AI-assisted deployment with `@oss-to-azure-deployer`<br>
 ✅ **Azure MCP Server Plugin** — Install in Copilot CLI for real-time Azure intelligence:
 
@@ -113,7 +116,8 @@ azd env new my-app-env
 azd env set AZURE_LOCATION "westus"
 
 # 5. Update azure.yaml to point to the right infra directory
-#    infra.path: infra-n8n | infra-grafana | infra-superset
+#    Edit the `infra.path` value: infra-n8n | infra-grafana | infra-superset
+#    See each chapter's README for the full azure.yaml configuration
 
 # 6. Deploy
 azd up

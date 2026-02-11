@@ -2,7 +2,7 @@
 
 > **What if deploying a production workflow automation platform to Azure was as simple as having a conversation?**
 
-In this chapter, you'll deploy [n8n](https://n8n.io) — a powerful workflow automation platform — to Azure Container Apps with a managed PostgreSQL database. You'll do it two ways: first by using the `@oss-to-azure-deployer` Copilot agent to *generate* the infrastructure, then by deploying pre-built Bicep templates with a single command. Along the way, you'll learn how the agent uses Azure MCP tools to look up schemas, get best practices, and plan deployments — all from inside GitHub Copilot CLI.
+In this chapter, you'll deploy [n8n](https://n8n.io) — a powerful workflow automation platform (think Zapier, but self-hosted and open-source) — to Azure Container Apps with a managed PostgreSQL database. You'll do it two ways: first by using the `@oss-to-azure-deployer` Copilot agent to *generate* the infrastructure, then by deploying pre-built Bicep templates with a single command. Along the way, you'll learn how the agent uses Azure MCP tools to look up schemas, get best practices, and plan deployments — all from inside GitHub Copilot CLI.
 
 ## Learning Objectives
 
@@ -13,6 +13,10 @@ In this chapter, you'll deploy [n8n](https://n8n.io) — a powerful workflow aut
 - Troubleshoot common deployment issues using Azure MCP tools and container logs
 
 > ⏱️ **Estimated Time**: ~20 minutes (Path 1) or ~10 minutes (Path 2)
+>
+> 💰 **Estimated Cost**: ~$25-35/month (see [Cost Breakdown](#cost-breakdown)) — remember to clean up with `azd down` when done!
+>
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and optionally GitHub Copilot CLI. See [root README prerequisites](../README.md#prerequisites) for installation links.
 
 ---
 
@@ -74,6 +78,14 @@ This is the primary tutorial path. You'll use `@oss-to-azure-deployer` in GitHub
 
 The agent uses Azure MCP tools to look up Bicep schemas, get deployment best practices, and plan deployments. Install the plugin first:
 
+Make sure you're in the repo root first:
+
+```bash
+cd oss-to-azure
+```
+
+Then start Copilot CLI:
+
 ```bash
 copilot
 ```
@@ -83,6 +95,8 @@ Once inside the interactive session:
 ```
 > /plugin install microsoft/github-copilot-for-azure:plugin
 ```
+
+> **Already installed?** If you completed a previous chapter, the plugin persists across sessions — skip this step.
 
 > **What this does:** Gives the agent access to tools like `azure_bicep_schema`, `azure_deploy_iac_guidance`, `azure_deploy_plan`, and `azure_deploy_app_logs`. The agent can look up real Azure resource schemas instead of guessing.
 
@@ -158,6 +172,8 @@ The agent will:
 5. If anything fails (provider not registered, Bicep error, etc.) — diagnose and fix automatically
 6. Run the post-provision hooks to configure `WEBHOOK_URL`
 
+> **What just happened?** Run `cat azure.yaml` to see the updated configuration, and `ls -R infra-n8n/` to explore the generated Bicep modules.
+
 ### Step 6: Verify
 
 Once the agent reports success, ask it to verify:
@@ -185,6 +201,8 @@ If something goes wrong, just ask — you're still in the same session with full
 
 ## Path 2: Deploy Pre-Built Infrastructure
 
+> **No GitHub Copilot CLI required.** This path uses only Azure CLI and Azure Developer CLI.
+
 Already have the `infra-n8n/` code and just want to deploy? Follow these steps.
 
 ### 1. Register Azure Resource Providers
@@ -203,13 +221,13 @@ az provider register --namespace Microsoft.OperationalInsights
 azd env new my-n8n-env
 azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 azd env set AZURE_LOCATION "westus"
-azd env set POSTGRES_PASSWORD "$(openssl rand -base64 16)"
-azd env set N8N_BASIC_AUTH_PASSWORD "$(openssl rand -base64 16)"
+azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
+azd env set N8N_BASIC_AUTH_PASSWORD "$(openssl rand -hex 16)"
 ```
 
 ### 3. Update azure.yaml
 
-Make sure the root `azure.yaml` points to the n8n infra directory:
+Edit the existing `azure.yaml` in the repo root to point to the n8n infra directory:
 
 ```yaml
 name: n8n-azure
@@ -392,8 +410,13 @@ param n8nEncryptionKey string = newGuid()
 After `azd up` completes:
 
 ```bash
-# 1. Get URL
+# Set up variables
+APP_NAME=$(azd env get-value N8N_CONTAINER_APP_NAME)
+RG=$(azd env get-value RESOURCE_GROUP_NAME)
 N8N_URL=$(azd env get-value N8N_URL)
+
+# 1. Get URL
+echo $N8N_URL
 
 # 2. Test HTTP response (expect 200)
 curl -s -o /dev/null -w "%{http_code}" "$N8N_URL"
@@ -417,7 +440,7 @@ az containerapp logs show --name $APP_NAME --resource-group $RG --tail 20
 azd down --force --purge
 ```
 
-Teardown takes 5-10 minutes (PostgreSQL deletion is slow). This permanently deletes all data — export workflows first.
+Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently deletes all data — export workflows first.
 
 ---
 
