@@ -141,45 +141,45 @@ You can ask follow-up questions in the same session:
 
 The agent explains that n8n needs 60+ seconds to start — without proper probes, Azure kills the container before initialization completes (CrashLoopBackOff).
 
-### Step 5: Deploy with azd
+### Step 5: Deploy to Azure
 
-Exit the Copilot session (`/exit`) and deploy:
+Stay in the same Copilot session and ask the agent to deploy:
 
-```bash
-# Register providers (one-time per subscription)
-az provider register --namespace Microsoft.App
-az provider register --namespace Microsoft.DBforPostgreSQL
-az provider register --namespace Microsoft.OperationalInsights
-
-# Create environment and set variables
-azd env new my-n8n-env
-azd env set AZURE_LOCATION "westus"
-azd env set POSTGRES_PASSWORD "$(openssl rand -base64 16)"
-azd env set N8N_BASIC_AUTH_PASSWORD "$(openssl rand -base64 16)"
-
-# Make sure azure.yaml points to infra-n8n
-# Then deploy (~7 minutes)
-azd up
+```
+> Run azd up for the n8n infrastructure you just generated. Set the location to westus and generate secure passwords for all credentials. If there are any issues, resolve them.
 ```
 
-> **What happens:** azd reads `azure.yaml`, provisions all resources defined in the Bicep templates, then runs the post-provision hooks to configure `WEBHOOK_URL`.
+The agent will:
+
+1. Update `azure.yaml` to point to `infra-n8n`
+2. Register required Azure resource providers
+3. Create an azd environment and set variables (location, passwords)
+4. Run `azd up` (~7 minutes)
+5. If anything fails (provider not registered, Bicep error, etc.) — diagnose and fix automatically
+6. Run the post-provision hooks to configure `WEBHOOK_URL`
 
 ### Step 6: Verify
 
-After deployment, verify everything works:
+Once the agent reports success, ask it to verify:
+
+```
+> Verify the n8n deployment is working. Check the health endpoint and container logs.
+```
+
+The agent will use `azure_deploy_app_logs` to fetch logs and confirm everything is healthy.
+
+You can also verify manually:
 
 ```bash
 N8N_URL=$(azd env get-value N8N_URL)
 curl -s -o /dev/null -w "%{http_code}" "$N8N_URL"  # Expect 200
 ```
 
-If something goes wrong, start another Copilot session with the agent and ask:
+If something goes wrong, just ask — you're still in the same session with full context:
 
 ```
 > The container is in CrashLoopBackOff, what's happening?
 ```
-
-The agent will use `azure_deploy_app_logs` to fetch Log Analytics logs and diagnose the issue — typically a health probe timing problem or database connection failure.
 
 ---
 

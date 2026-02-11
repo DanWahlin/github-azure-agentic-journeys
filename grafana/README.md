@@ -128,24 +128,25 @@ You can ask follow-up questions in the same session:
 
 The agent explains: SQLite is fine for dev/testing but dashboards are lost on container restart. For production, either mount Azure Files to `/var/lib/grafana` or switch to PostgreSQL.
 
-### Step 5: Deploy with azd
+### Step 5: Deploy to Azure
 
-Exit the Copilot session (`/exit`) and deploy:
+Stay in the same Copilot session and ask the agent to deploy:
 
-```bash
-az provider register --namespace Microsoft.App
-az provider register --namespace Microsoft.OperationalInsights
-
-azd env new my-grafana-env
-azd env set AZURE_LOCATION "westus"
-azd env set GRAFANA_ADMIN_PASSWORD "$(openssl rand -base64 16)"
-
-azd up
+```
+> Run azd up for the Grafana infrastructure you just generated. Set the location to westus and generate a secure admin password. If there are any issues, resolve them.
 ```
 
-> **This is the simplest deployment** — no database provisioning means ~2 minutes instead of ~7.
+The agent will handle everything: update `azure.yaml`, register providers, create the azd environment, set variables, and run `azd up` (~2 minutes). If anything fails, it diagnoses and fixes automatically.
 
 ### Step 6: Verify
+
+Once the agent reports success, ask it to verify:
+
+```
+> Verify the Grafana deployment is working. Check the health endpoint.
+```
+
+You can also verify manually:
 
 ```bash
 GRAFANA_URL=$(azd env get-value GRAFANA_URL)
@@ -153,7 +154,7 @@ curl -s "$GRAFANA_URL/api/health"
 # Expected: {"commit":"...","database":"ok","version":"10.x.x"}
 ```
 
-If something goes wrong, start another Copilot session with the agent and ask:
+If something goes wrong, just ask — you're still in the same session:
 
 ```
 > Grafana is returning 502 errors

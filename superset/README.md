@@ -165,30 +165,32 @@ You can ask follow-up questions in the same session:
 
 The agent explains: The official `apache/superset:latest` image doesn't include psycopg2 for PostgreSQL. Without it, Superset silently falls back to SQLite. The init container installs `psycopg2-binary` to an emptyDir volume, then the main container adds that path to `PYTHONPATH`.
 
-### Step 5: Deploy with azd
+### Step 5: Deploy to Azure
 
-Exit the Copilot session (`/exit`) and deploy:
+Stay in the same Copilot session and ask the agent to deploy:
 
-```bash
-# Register providers (one-time per subscription)
-az provider register --namespace Microsoft.ContainerService
-az provider register --namespace Microsoft.DBforPostgreSQL
-az provider register --namespace Microsoft.OperationalInsights
-
-# Create environment and set variables
-azd env new my-superset-env
-azd env set AZURE_LOCATION "westus"
-azd env set POSTGRES_PASSWORD "$(openssl rand -base64 16)"
-azd env set SUPERSET_SECRET_KEY "$(openssl rand -base64 32)"
-azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -base64 16)"
-
-# Deploy (~15-20 minutes)
-azd up
+```
+> Run azd up for the Superset infrastructure you just generated. Set the location to westus and generate secure passwords for all credentials. If there are any issues, resolve them.
 ```
 
-> **What happens:** azd provisions the AKS cluster and PostgreSQL first (Bicep), then the post-provision hook runs `kubectl apply` to deploy the Kubernetes manifests (namespace, configmap, deployment, service, ingress) and waits for the external IP.
+The agent will:
+
+1. Update `azure.yaml` to point to `infra-superset`
+2. Register required providers (`Microsoft.ContainerService`, `Microsoft.DBforPostgreSQL`, `Microsoft.OperationalInsights`)
+3. Create an azd environment and set variables (location, passwords, secret key)
+4. Run `azd up` (~15-20 minutes)
+5. If anything fails — diagnose and fix automatically
+6. Run the post-provision hooks (`kubectl apply` for Kubernetes manifests, wait for external IP)
 
 ### Step 6: Verify
+
+Once the agent reports success, ask it to verify:
+
+```
+> Verify the Superset deployment is working. Check that it's using PostgreSQL not SQLite.
+```
+
+You can also verify manually:
 
 ```bash
 # Check pod status (expect 1/1 Running)
@@ -202,13 +204,13 @@ SUPERSET_URL=$(azd env get-value SUPERSET_URL)
 curl -I "$SUPERSET_URL/health"  # Expect HTTP 200
 ```
 
-If the pod is stuck, start another Copilot session with the agent and ask:
+If the pod is stuck, just ask — you're still in the same session:
 
 ```
 > My Superset pod is stuck in Init:0/1
 ```
 
-The agent will use `azure_deploy_app_logs` to fetch Log Analytics logs and check if it's a PostgreSQL connection issue, psycopg2 installation failure, or credential problem.
+The agent will use `azure_deploy_app_logs` to diagnose whether it's a PostgreSQL connection issue, psycopg2 installation failure, or credential problem.
 
 ---
 

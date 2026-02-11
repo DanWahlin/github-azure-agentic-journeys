@@ -135,8 +135,11 @@ copilot
 > /agent
 # Choose: oss-to-azure-deployer
 
-# Ask it to deploy
+# Ask it to generate infrastructure and deploy
 > Deploy n8n to Azure using Bicep and azd
+
+# Once infrastructure is generated, deploy it
+> Run azd up for the n8n infrastructure. Set location to westus and generate secure passwords. If there are any issues, resolve them.
 ```
 
 See each chapter's README for detailed walkthroughs.
