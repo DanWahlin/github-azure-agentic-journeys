@@ -1,37 +1,30 @@
 $ErrorActionPreference = "Stop"
 
-Write-Host "Running post-deployment configuration..." -ForegroundColor Cyan
+Write-Host "Running post-provision hook: configuring GF_SERVER_ROOT_URL..."
 
-# Retrieve azd outputs
-$CONTAINER_APP_NAME = azd env get-value GRAFANA_CONTAINER_APP_NAME
-$RESOURCE_GROUP_NAME = azd env get-value RESOURCE_GROUP_NAME
+# Get resource names from azd outputs
+$APP_NAME = azd env get-value GRAFANA_CONTAINER_APP_NAME
+$RG_NAME = azd env get-value RESOURCE_GROUP_NAME
 
-# Get Container App FQDN
-Write-Host "Retrieving Container App URL..." -ForegroundColor Cyan
-$APP_FQDN = az containerapp show `
-  --name $CONTAINER_APP_NAME `
-  --resource-group $RESOURCE_GROUP_NAME `
-  --query "properties.configuration.ingress.fqdn" `
-  -o tsv
+# Get the Container App FQDN
+$GRAFANA_FQDN = az containerapp show `
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
+  --query "properties.configuration.ingress.fqdn" -o tsv
 
-if ([string]::IsNullOrEmpty($APP_FQDN)) {
-  Write-Host "Error: Could not retrieve Container App FQDN" -ForegroundColor Red
+if ([string]::IsNullOrEmpty($GRAFANA_FQDN)) {
+  Write-Host "Error: Could not retrieve Container App FQDN"
   exit 1
 }
 
-Write-Host "App URL: https://$APP_FQDN" -ForegroundColor Green
+Write-Host "Setting GF_SERVER_ROOT_URL to https://$GRAFANA_FQDN"
 
-# Update GF_SERVER_ROOT_URL
-Write-Host "Updating GF_SERVER_ROOT_URL environment variable..." -ForegroundColor Cyan
+# Update the Container App with the root URL
 az containerapp update `
-  --name $CONTAINER_APP_NAME `
-  --resource-group $RESOURCE_GROUP_NAME `
-  --set-env-vars "GF_SERVER_ROOT_URL=https://$APP_FQDN" `
+  --name $APP_NAME `
+  --resource-group $RG_NAME `
+  --set-env-vars "GF_SERVER_ROOT_URL=https://$GRAFANA_FQDN" `
   --output none
 
-Write-Host "Post-deployment configuration completed!" -ForegroundColor Green
-Write-Host ""
-Write-Host "Grafana deployment complete!" -ForegroundColor Green
-Write-Host "Access your app at: https://$APP_FQDN" -ForegroundColor Cyan
-Write-Host "Login: admin / <your GRAFANA_ADMIN_PASSWORD>" -ForegroundColor Cyan
-Write-Host ""
+Write-Host "Post-provision configuration completed."
+Write-Host "Access Grafana at: https://$GRAFANA_FQDN"

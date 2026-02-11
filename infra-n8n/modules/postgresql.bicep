@@ -1,5 +1,5 @@
-@description('PostgreSQL server name')
-param serverName string
+@description('Name of the PostgreSQL server')
+param name string
 
 @description('Azure region')
 param location string
@@ -7,19 +7,18 @@ param location string
 @description('Resource tags')
 param tags object = {}
 
-@description('Admin username')
-param adminUser string
+@description('PostgreSQL administrator login')
+param administratorLogin string
 
+@description('PostgreSQL administrator password')
 @secure()
-@description('Admin password')
-param adminPassword string
+param administratorLoginPassword string
 
-@description('Database name')
+@description('Name of the database to create')
 param databaseName string
 
-// PostgreSQL Flexible Server
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-preview' = {
-  name: serverName
+  name: name
   location: location
   tags: tags
   sku: {
@@ -28,8 +27,8 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-pr
   }
   properties: {
     version: '16'
-    administratorLogin: adminUser
-    administratorLoginPassword: adminPassword
+    administratorLogin: administratorLogin
+    administratorLoginPassword: administratorLoginPassword
     storage: {
       storageSizeGB: 32
     }
@@ -47,8 +46,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-pr
   }
 }
 
-// Firewall rule: Allow Azure services
-resource firewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-12-01-preview' = {
+resource firewallAllowAzure 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-12-01-preview' = {
   parent: postgresServer
   name: 'AllowAzureServices'
   properties: {
@@ -57,28 +55,15 @@ resource firewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2
   }
 }
 
-// SSL configuration: Require SSL
-resource sslConfig 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2023-12-01-preview' = {
-  parent: postgresServer
-  name: 'require_secure_transport'
-  dependsOn: [firewallRule]
-  properties: {
-    value: 'ON'
-    source: 'user-override'
-  }
-}
-
-// Database
 resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-12-01-preview' = {
   parent: postgresServer
   name: databaseName
-  dependsOn: [sslConfig]
   properties: {
     charset: 'UTF8'
     collation: 'en_US.utf8'
   }
 }
 
-output fqdn string = postgresServer.properties.fullyQualifiedDomainName
 output serverName string = postgresServer.name
+output fqdn string = postgresServer.properties.fullyQualifiedDomainName
 output databaseName string = database.name

@@ -92,32 +92,48 @@ These patterns are natural in Kubernetes but complex or unavailable in Container
 
 ## Path 1: Generate Infrastructure with the Agent
 
-### Step 1: Install the Azure MCP Plugin
+### Step 1: Start Copilot and Install the Azure MCP Plugin
 
 ```bash
-/plugin install microsoft/github-copilot-for-azure:plugin
+copilot
 ```
 
-### Step 2: Start a Session with the Agent
+Once inside the interactive session, install the Azure MCP plugin:
 
-```bash
-copilot --agent oss-to-azure-deployer
 ```
+> /plugin install microsoft/github-copilot-for-azure:plugin
+```
+
+### Step 2: Select the Agent
+
+```
+> /agent
+```
+
+Select **`oss-to-azure-deployer`** from the list.
 
 ### Step 3: Ask the Agent to Deploy Superset
 
-> Deploy Apache Superset to Azure with PostgreSQL
+```
+> Deploy Apache Superset to Azure using Bicep and azd
+```
 
 The agent will:
 
-1. **Load the right skills** — `superset-azure` for Superset-specific configuration, `azure-aks-deployment` for AKS patterns, `azure-bicep-generation` for Bicep conventions, and `azd-deployment` for azure.yaml setup
+1. **Load the right skills** — `superset-azure`, `azure-aks-deployment`, `azure-bicep-generation`, and `azd-deployment`
 2. **Recommend AKS over Container Apps** — it knows Superset needs init containers, shared volumes, and ConfigMap mounting
-3. **Use `azure_deploy_iac_guidance`** with `resource_type=aks` to get AKS-specific Bicep best practices
-4. **Use `azure_bicep_schema`** to look up the latest API versions for `Microsoft.ContainerService/managedClusters` and `Microsoft.DBforPostgreSQL/flexibleServers`
+3. **Use Azure MCP tools** — `azure_bicep_schema` for API versions, `azure_deploy_iac_guidance` with `resource_type=aks` for AKS-specific best practices
+4. **Generate the Bicep + Kubernetes infrastructure** in `infra-superset/`
 
 ### Step 4: Review the Generated Infrastructure
 
-The agent generates a more complex structure than Chapters 01-02:
+Once the agent finishes, check what it created:
+
+```bash
+ls -R infra-superset/
+```
+
+You should see a more complex structure than Chapters 01-02:
 
 ```
 infra-superset/
@@ -141,23 +157,17 @@ infra-superset/
     └── postprovision.ps1
 ```
 
-Ask the agent about the psycopg2 challenge:
+You can ask follow-up questions in the same session:
 
+```
 > Why do you need an init container for psycopg2?
+```
 
-> The agent explains: The official `apache/superset:latest` image doesn't include psycopg2 for PostgreSQL. Without it, Superset silently falls back to SQLite. The init container installs `psycopg2-binary` to an emptyDir volume, then the main container adds that path to `PYTHONPATH`. Both containers must mount the same volume.
+The agent explains: The official `apache/superset:latest` image doesn't include psycopg2 for PostgreSQL. Without it, Superset silently falls back to SQLite. The init container installs `psycopg2-binary` to an emptyDir volume, then the main container adds that path to `PYTHONPATH`.
 
-### Step 5: Validate and Plan the Deployment
+### Step 5: Deploy with azd
 
-> Create a deployment plan for the Superset AKS deployment
-
-The agent will:
-1. **Use `azure_deploy_plan`** with `target=AKS`, `provisioning_tool=AZD`, `iac_option=bicep`
-2. Show the deployment order: Resource Group → PostgreSQL → AKS Cluster → Kubernetes manifests
-3. Warn about the longer deployment time (~15-20 minutes) and higher cost (~$135-185/month)
-4. Validate Bicep with `az bicep build --file infra-superset/main.bicep`
-
-### Step 6: Deploy
+Exit the Copilot session (`/exit`) and deploy:
 
 ```bash
 # Register providers (one-time per subscription)
@@ -167,7 +177,6 @@ az provider register --namespace Microsoft.OperationalInsights
 
 # Create environment and set variables
 azd env new my-superset-env
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 azd env set AZURE_LOCATION "westus"
 azd env set POSTGRES_PASSWORD "$(openssl rand -base64 16)"
 azd env set SUPERSET_SECRET_KEY "$(openssl rand -base64 32)"
@@ -177,21 +186,29 @@ azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -base64 16)"
 azd up
 ```
 
-### Step 7: Verify and Troubleshoot
+> **What happens:** azd provisions the AKS cluster and PostgreSQL first (Bicep), then the post-provision hook runs `kubectl apply` to deploy the Kubernetes manifests (namespace, configmap, deployment, service, ingress) and waits for the external IP.
+
+### Step 6: Verify
 
 ```bash
-# Check pod status
+# Check pod status (expect 1/1 Running)
 kubectl get pods -n superset
 
-# Verify PostgreSQL is being used (not SQLite)
+# Verify PostgreSQL is being used (not SQLite — look for "PostgresqlImpl")
 kubectl logs -n superset <pod> -c superset-init | grep -i "PostgresqlImpl"
+
+# Get the external URL
+SUPERSET_URL=$(azd env get-value SUPERSET_URL)
+curl -I "$SUPERSET_URL/health"  # Expect HTTP 200
 ```
 
-If the pod is stuck, ask the agent:
+If the pod is stuck, start another Copilot session with the agent and ask:
 
+```
 > My Superset pod is stuck in Init:0/1
+```
 
-The agent will **use `azure_deploy_app_logs`** to fetch Log Analytics logs and check if it's a PostgreSQL connection issue, psycopg2 installation failure, or credential problem.
+The agent will use `azure_deploy_app_logs` to fetch Log Analytics logs and check if it's a PostgreSQL connection issue, psycopg2 installation failure, or credential problem.
 
 ---
 

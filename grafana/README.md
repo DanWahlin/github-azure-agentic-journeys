@@ -64,32 +64,47 @@ graph TB
 
 ## Path 1: Generate Infrastructure with the Agent
 
-### Step 1: Install the Azure MCP Plugin
+### Step 1: Start Copilot and Install the Azure MCP Plugin
 
 ```bash
-/plugin install microsoft/github-copilot-for-azure:plugin
+copilot
 ```
 
-### Step 2: Start a Session with the Agent
+Once inside the interactive session, install the Azure MCP plugin:
 
-```bash
-copilot --agent oss-to-azure-deployer
 ```
+> /plugin install microsoft/github-copilot-for-azure:plugin
+```
+
+### Step 2: Select the Agent
+
+```
+> /agent
+```
+
+Select **`oss-to-azure-deployer`** from the list.
 
 ### Step 3: Ask the Agent to Deploy Grafana
 
-> Deploy Grafana to Azure Container Apps
+```
+> Deploy Grafana to Azure using Bicep and azd
+```
 
 The agent will:
 
-1. **Load the right skills** — `grafana-azure` for Grafana-specific configuration, `azure-container-apps` for Container Apps patterns, `azure-bicep-generation` for Bicep conventions, and `azd-deployment` for azure.yaml setup
-2. **Use `azure_deploy_iac_guidance`** to get Bicep best practices (`deployment_tool=AZD`, `iac_type=bicep`, `resource_type=containerapp`)
-3. **Use `azure_bicep_schema`** to look up the latest API versions for `Microsoft.App/containerApps` and `Microsoft.App/managedEnvironments`
-4. **Notice it's simpler** — no PostgreSQL module needed (SQLite is default)
+1. **Load the right skills** — `grafana-azure`, `azure-container-apps`, `azure-bicep-generation`, and `azd-deployment`
+2. **Use Azure MCP tools** — `azure_bicep_schema` for API versions, `azure_deploy_iac_guidance` for Bicep best practices
+3. **Generate a leaner structure** than n8n — no PostgreSQL module needed (SQLite is default)
 
 ### Step 4: Review the Generated Infrastructure
 
-The agent generates a leaner structure than n8n — no database module:
+Once the agent finishes, check what it created:
+
+```bash
+ls -R infra-grafana/
+```
+
+You should see:
 
 ```
 infra-grafana/
@@ -105,34 +120,30 @@ infra-grafana/
     └── postprovision.ps1
 ```
 
-Ask the agent about the SQLite decision:
+You can ask follow-up questions in the same session:
 
+```
 > Should I use PostgreSQL instead of SQLite for Grafana?
+```
 
-> The agent explains: SQLite is fine for dev/testing but dashboards are lost on container restart. For production, either mount Azure Files to `/var/lib/grafana` or switch to PostgreSQL. It can generate the PostgreSQL module if you want.
+The agent explains: SQLite is fine for dev/testing but dashboards are lost on container restart. For production, either mount Azure Files to `/var/lib/grafana` or switch to PostgreSQL.
 
-### Step 5: Validate and Deploy
+### Step 5: Deploy with azd
 
-> Validate and create a deployment plan
-
-The agent will:
-1. Run `az bicep build --file infra-grafana/main.bicep`
-2. **Use `azure_deploy_plan`** (`target=ContainerApp`, `provisioning_tool=AZD`)
-3. Show that this is a simpler deployment — no database provisioning means ~2 minutes instead of ~7
-
-Then deploy:
+Exit the Copilot session (`/exit`) and deploy:
 
 ```bash
 az provider register --namespace Microsoft.App
 az provider register --namespace Microsoft.OperationalInsights
 
 azd env new my-grafana-env
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 azd env set AZURE_LOCATION "westus"
 azd env set GRAFANA_ADMIN_PASSWORD "$(openssl rand -base64 16)"
 
 azd up
 ```
+
+> **This is the simplest deployment** — no database provisioning means ~2 minutes instead of ~7.
 
 ### Step 6: Verify
 
@@ -142,11 +153,13 @@ curl -s "$GRAFANA_URL/api/health"
 # Expected: {"commit":"...","database":"ok","version":"10.x.x"}
 ```
 
-If something goes wrong, ask the agent:
+If something goes wrong, start another Copilot session with the agent and ask:
 
+```
 > Grafana is returning 502 errors
+```
 
-The agent will **use `azure_deploy_app_logs`** to check if it's a cold start issue (scale-from-zero takes 30-60s) or a real problem.
+The agent will use `azure_deploy_app_logs` to check if it's a cold start issue (scale-from-zero takes 30-60s) or a real problem.
 
 ---
 

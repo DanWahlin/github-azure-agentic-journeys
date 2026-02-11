@@ -75,35 +75,48 @@ This is the primary tutorial path. You'll use `@oss-to-azure-deployer` in GitHub
 The agent uses Azure MCP tools to look up Bicep schemas, get deployment best practices, and plan deployments. Install the plugin first:
 
 ```bash
-/plugin install microsoft/github-copilot-for-azure:plugin
+copilot
 ```
 
-> **What this does:** Gives the agent access to tools like `azure_bicep_schema`, `azure_deploy_iac_guidance`, `azure_deploy_plan`, and `azure_deploy_app_logs`. These are the "pantry inventory" from our analogy — the agent can look up real Azure resource schemas instead of guessing.
+Once inside the interactive session:
 
-### Step 2: Start a Session with the Agent
-
-```bash
-copilot --agent oss-to-azure-deployer
+```
+> /plugin install microsoft/github-copilot-for-azure:plugin
 ```
 
-You're now in an interactive session with the deployment agent. It knows about n8n, Grafana, Superset, and the full Azure deployment lifecycle.
+> **What this does:** Gives the agent access to tools like `azure_bicep_schema`, `azure_deploy_iac_guidance`, `azure_deploy_plan`, and `azure_deploy_app_logs`. The agent can look up real Azure resource schemas instead of guessing.
+
+### Step 2: Select the Agent
+
+Use the `/agent` command to see available agents and select the deployer:
+
+```
+> /agent
+```
+
+Select **`oss-to-azure-deployer`** from the list. You're now in an interactive session with the deployment agent. It knows about n8n, Grafana, Superset, and the full Azure deployment lifecycle.
 
 ### Step 3: Ask the Agent to Deploy n8n
 
-Start with a simple prompt:
-
-> Deploy n8n to Azure Container Apps with PostgreSQL
+```
+> Deploy n8n to Azure using Bicep and azd
+```
 
 The agent will:
 
 1. **Load the right skills** — `n8n-azure` for n8n-specific configuration, `azure-container-apps` for Container Apps patterns, `azure-bicep-generation` for Bicep conventions, and `azd-deployment` for azure.yaml setup
-2. **Use `azure_deploy_iac_guidance`** to get Bicep best practices with azd compatibility (`deployment_tool=AZD`, `iac_type=bicep`, `resource_type=containerapp`)
-3. **Use `azure_bicep_schema`** to look up the latest API versions and property definitions for `Microsoft.App/containerApps` and `Microsoft.DBforPostgreSQL/flexibleServers`
-4. **Ask you for requirements** — location, budget, environment name
+2. **Use Azure MCP tools** — `azure_bicep_schema` for the latest API versions, `azure_deploy_iac_guidance` for Bicep best practices with azd compatibility
+3. **Generate the Bicep infrastructure** in `infra-n8n/` with all required modules, parameters, and hooks
 
 ### Step 4: Review the Generated Infrastructure
 
-The agent generates a modular Bicep structure in `infra-n8n/`:
+Once the agent finishes, check what it created:
+
+```bash
+ls -R infra-n8n/
+```
+
+You should see a modular Bicep structure:
 
 ```
 infra-n8n/
@@ -120,31 +133,17 @@ infra-n8n/
     └── postprovision.ps1         # Windows equivalent
 ```
 
-You can ask follow-up questions:
+You can ask follow-up questions in the same session:
 
+```
 > Why did you set the liveness probe to 60 seconds?
+```
 
-> The agent explains that n8n needs 60+ seconds to start — without proper probes, Azure kills the container before initialization completes (CrashLoopBackOff).
+The agent explains that n8n needs 60+ seconds to start — without proper probes, Azure kills the container before initialization completes (CrashLoopBackOff).
 
-> What Azure MCP tools did you use?
+### Step 5: Deploy with azd
 
-> The agent shows it used `azure_bicep_schema` for the latest Container Apps API version, `azure_deploy_iac_guidance` for azd-compatible Bicep patterns, and the `n8n-azure` skill for health probe timing.
-
-### Step 5: Validate and Plan the Deployment
-
-Ask the agent to validate:
-
-> Validate the Bicep and create a deployment plan
-
-The agent will:
-
-1. Run `az bicep build --file infra-n8n/main.bicep` to catch syntax errors
-2. **Use `azure_deploy_plan`** to generate a deployment plan (`target=ContainerApp`, `provisioning_tool=AZD`, `iac_option=bicep`)
-3. Show you the resource list, estimated cost, and deployment order
-
-### Step 6: Deploy with azd
-
-The agent will guide you through the deployment:
+Exit the Copilot session (`/exit`) and deploy:
 
 ```bash
 # Register providers (one-time per subscription)
@@ -154,7 +153,6 @@ az provider register --namespace Microsoft.OperationalInsights
 
 # Create environment and set variables
 azd env new my-n8n-env
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 azd env set AZURE_LOCATION "westus"
 azd env set POSTGRES_PASSWORD "$(openssl rand -base64 16)"
 azd env set N8N_BASIC_AUTH_PASSWORD "$(openssl rand -base64 16)"
@@ -164,7 +162,9 @@ azd env set N8N_BASIC_AUTH_PASSWORD "$(openssl rand -base64 16)"
 azd up
 ```
 
-### Step 7: Verify and Troubleshoot
+> **What happens:** azd reads `azure.yaml`, provisions all resources defined in the Bicep templates, then runs the post-provision hooks to configure `WEBHOOK_URL`.
+
+### Step 6: Verify
 
 After deployment, verify everything works:
 
@@ -173,11 +173,13 @@ N8N_URL=$(azd env get-value N8N_URL)
 curl -s -o /dev/null -w "%{http_code}" "$N8N_URL"  # Expect 200
 ```
 
-If something goes wrong, ask the agent:
+If something goes wrong, start another Copilot session with the agent and ask:
 
+```
 > The container is in CrashLoopBackOff, what's happening?
+```
 
-The agent will **use `azure_deploy_app_logs`** to fetch Log Analytics logs and diagnose the issue — typically a health probe timing problem or database connection failure.
+The agent will use `azure_deploy_app_logs` to fetch Log Analytics logs and diagnose the issue — typically a health probe timing problem or database connection failure.
 
 ---
 

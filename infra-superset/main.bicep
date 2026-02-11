@@ -1,95 +1,85 @@
 targetScope = 'subscription'
 
-@description('Environment name used for resource naming')
+@description('Environment name (used for resource naming)')
 param environmentName string
 
 @description('Azure region for all resources')
 param location string
 
+@description('PostgreSQL administrator password')
 @secure()
-@description('PostgreSQL admin password')
 param postgresPassword string
 
+@description('Superset Flask secret key (32+ chars)')
 @secure()
-@description('Superset Flask secret key')
 param supersetSecretKey string
 
-@secure()
 @description('Superset admin password')
+@secure()
 param supersetAdminPassword string
+
+@description('Superset container image')
+param supersetImage string = 'docker.io/apache/superset:latest'
 
 // Load abbreviations for consistent naming
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = uniqueString(subscription().id, environmentName, location)
-
-// Tags applied to all resources
+var suffix = take(resourceToken, 6)
 var tags = {
   'azd-env-name': environmentName
-  environment: environmentName
 }
 
-// Resource Group
-resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
-  name: '${abbrs.resourceGroup}-superset-${environmentName}'
+// PostgreSQL configuration
+var postgresUser = 'superset'
+var postgresDatabase = 'superset'
+
+resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
+  name: 'rg-${environmentName}'
   location: location
   tags: tags
 }
 
-// Log Analytics Workspace
 module logAnalytics 'modules/log-analytics.bicep' = {
   name: 'log-analytics'
-  scope: rg
+  scope: resourceGroup
   params: {
-    name: '${abbrs.logAnalyticsWorkspace}-${resourceToken}'
+    name: '${abbrs.logAnalyticsWorkspace}-${suffix}'
     location: location
     tags: tags
   }
 }
 
-// Managed Identity
-module managedIdentity 'modules/managed-identity.bicep' = {
-  name: 'managed-identity'
-  scope: rg
-  params: {
-    name: '${abbrs.managedIdentity}-${resourceToken}'
-    location: location
-    tags: tags
-  }
-}
-
-// PostgreSQL Flexible Server
 module postgresql 'modules/postgresql.bicep' = {
   name: 'postgresql'
-  scope: rg
+  scope: resourceGroup
   params: {
-    serverName: '${abbrs.postgreSQLServer}-${resourceToken}'
+    name: '${abbrs.postgreSQLServer}-${suffix}'
     location: location
     tags: tags
-    adminUser: 'superset'
-    adminPassword: postgresPassword
-    databaseName: 'superset'
+    administratorLogin: postgresUser
+    administratorLoginPassword: postgresPassword
+    databaseName: postgresDatabase
   }
 }
 
-// AKS Cluster
-module aks 'modules/aks.bicep' = {
+module aksCluster 'modules/aks-cluster.bicep' = {
   name: 'aks-cluster'
-  scope: rg
+  scope: resourceGroup
   params: {
-    name: '${abbrs.aksCluster}-${resourceToken}'
+    name: '${abbrs.aksCluster}-${suffix}'
     location: location
     tags: tags
     logAnalyticsWorkspaceId: logAnalytics.outputs.id
   }
 }
 
-// Outputs (SCREAMING_SNAKE_CASE for azd)
-output RESOURCE_GROUP_NAME string = rg.name
-output AKS_CLUSTER_NAME string = aks.outputs.name
-output POSTGRES_FQDN string = postgresql.outputs.fqdn
-output POSTGRES_DATABASE_NAME string = postgresql.outputs.databaseName
-output POSTGRES_ADMIN_USER string = 'superset'
-output POSTGRES_PASSWORD string = postgresPassword
-output SUPERSET_SECRET_KEY string = supersetSecretKey
-output SUPERSET_ADMIN_PASSWORD string = supersetAdminPassword
+// Outputs (SCREAMING_SNAKE_CASE for azd convention)
+output RESOURCE_GROUP_NAME string = resourceGroup.name
 output LOG_ANALYTICS_WORKSPACE_ID string = logAnalytics.outputs.id
+output POSTGRES_SERVER_NAME string = postgresql.outputs.serverName
+output POSTGRES_FQDN string = postgresql.outputs.fqdn
+output POSTGRES_DATABASE string = postgresql.outputs.databaseName
+output POSTGRES_USER string = postgresUser
+output AKS_CLUSTER_NAME string = aksCluster.outputs.name
+output SUPERSET_IMAGE string = supersetImage
+output SUPERSET_URL string = 'http://<pending-ingress-ip>'

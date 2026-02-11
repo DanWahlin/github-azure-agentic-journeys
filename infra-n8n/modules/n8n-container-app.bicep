@@ -1,4 +1,4 @@
-@description('Container App name')
+@description('Name of the Container App')
 param name string
 
 @description('Azure region')
@@ -7,51 +7,45 @@ param location string
 @description('Resource tags')
 param tags object = {}
 
-@description('Container Apps Environment resource ID')
-param containerAppsEnvironmentId string
-
-@description('Managed Identity resource ID')
-param managedIdentityId string
-
-@description('PostgreSQL server FQDN')
-param postgresHost string
-
-@description('PostgreSQL admin user')
-param postgresUser string
-
-@secure()
-@description('PostgreSQL admin password')
-param postgresPassword string
-
-@description('PostgreSQL database name')
-param postgresDatabase string
-
-@secure()
-@description('n8n encryption key')
-param n8nEncryptionKey string
-
-@secure()
-@description('n8n basic auth password')
-param n8nBasicAuthPassword string
+@description('Container Apps Environment ID')
+param containerAppEnvironmentId string
 
 @description('n8n container image')
 param containerImage string = 'docker.io/n8nio/n8n:latest'
 
-@description('n8n basic auth username')
+@description('PostgreSQL FQDN')
+param postgresHost string
+
+@description('PostgreSQL database name')
+param postgresDatabase string
+
+@description('PostgreSQL user')
+param postgresUser string
+
+@description('PostgreSQL password')
+@secure()
+param postgresPassword string
+
+@description('n8n encryption key')
+@secure()
+param n8nEncryptionKey string
+
+@description('Enable n8n basic auth')
+param n8nBasicAuthActive bool = true
+
+@description('n8n basic auth user')
 param n8nBasicAuthUser string = 'admin'
 
-resource n8nApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
+@description('n8n basic auth password')
+@secure()
+param n8nBasicAuthPassword string
+
+resource containerApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
   name: name
   location: location
   tags: tags
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${managedIdentityId}': {}
-    }
-  }
   properties: {
-    managedEnvironmentId: containerAppsEnvironmentId
+    managedEnvironmentId: containerAppEnvironmentId
     configuration: {
       ingress: {
         external: true
@@ -85,30 +79,16 @@ resource n8nApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
             { name: 'DB_POSTGRESDB_SSL_ENABLED', value: 'true' }
             { name: 'DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED', value: 'false' }
             { name: 'DB_POSTGRESDB_CONNECTION_TIMEOUT', value: '60000' }
-            // n8n core
-            { name: 'N8N_ENCRYPTION_KEY', secretRef: 'n8n-encryption-key' }
+            // n8n Core
             { name: 'N8N_PORT', value: '5678' }
             { name: 'N8N_PROTOCOL', value: 'https' }
+            { name: 'N8N_ENCRYPTION_KEY', secretRef: 'n8n-encryption-key' }
             // Authentication
-            { name: 'N8N_BASIC_AUTH_ACTIVE', value: 'true' }
+            { name: 'N8N_BASIC_AUTH_ACTIVE', value: string(n8nBasicAuthActive) }
             { name: 'N8N_BASIC_AUTH_USER', value: n8nBasicAuthUser }
             { name: 'N8N_BASIC_AUTH_PASSWORD', secretRef: 'n8n-auth-password' }
-            // Node.js SSL
-            { name: 'NODE_TLS_REJECT_UNAUTHORIZED', value: '0' }
           ]
           probes: [
-            {
-              type: 'startup'
-              httpGet: {
-                port: 5678
-                path: '/'
-                scheme: 'HTTP'
-              }
-              periodSeconds: 10
-              timeoutSeconds: 5
-              failureThreshold: 30
-              initialDelaySeconds: 30
-            }
             {
               type: 'liveness'
               httpGet: {
@@ -133,6 +113,17 @@ resource n8nApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
               failureThreshold: 3
               successThreshold: 1
             }
+            {
+              type: 'startup'
+              httpGet: {
+                port: 5678
+                path: '/'
+                scheme: 'HTTP'
+              }
+              periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 30
+            }
           ]
         }
       ]
@@ -144,6 +135,6 @@ resource n8nApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
   }
 }
 
-output name string = n8nApp.name
-output fqdn string = n8nApp.properties.configuration.ingress.fqdn
-output url string = 'https://${n8nApp.properties.configuration.ingress.fqdn}'
+output name string = containerApp.name
+output fqdn string = containerApp.properties.configuration.ingress.fqdn
+output url string = 'https://${containerApp.properties.configuration.ingress.fqdn}'

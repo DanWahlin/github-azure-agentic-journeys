@@ -2,7 +2,6 @@
   "containerApp": "app",
   "containerAppsEnvironment": "cae",
   "logAnalyticsWorkspace": "log",
-  "postgreSQLServer": "psql",
-  "managedIdentity": "id",
-  "resourceGroup": "rg"
+  "postgreSQLServer": "pg",
+  "managedIdentity": "id"
 }

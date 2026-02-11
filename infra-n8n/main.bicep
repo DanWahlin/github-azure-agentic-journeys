@@ -1,112 +1,99 @@
 targetScope = 'subscription'
 
-@description('Environment name used for resource naming')
+@description('Environment name (used for resource naming)')
 param environmentName string
 
 @description('Azure region for all resources')
 param location string
 
+@description('PostgreSQL administrator password')
 @secure()
-@description('PostgreSQL admin password')
 param postgresPassword string
 
-@secure()
 @description('n8n basic auth password')
+@secure()
 param n8nBasicAuthPassword string
 
-@secure()
 @description('n8n encryption key (auto-generated if not provided)')
+@secure()
 param n8nEncryptionKey string = newGuid()
 
 // Load abbreviations for consistent naming
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = uniqueString(subscription().id, environmentName, location)
-
-// Tags applied to all resources
+var suffix = take(resourceToken, 6)
 var tags = {
   'azd-env-name': environmentName
-  environment: environmentName
 }
 
-// Resource Group
-resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
-  name: '${abbrs.resourceGroup}-n8n-${environmentName}'
+// PostgreSQL configuration
+var postgresUser = 'n8n'
+var postgresDatabase = 'n8n'
+
+resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
+  name: 'rg-${environmentName}'
   location: location
   tags: tags
 }
 
-// Log Analytics Workspace
 module logAnalytics 'modules/log-analytics.bicep' = {
   name: 'log-analytics'
-  scope: rg
+  scope: resourceGroup
   params: {
-    name: '${abbrs.logAnalyticsWorkspace}-${resourceToken}'
+    name: '${abbrs.logAnalyticsWorkspace}-${suffix}'
     location: location
     tags: tags
   }
 }
 
-// Managed Identity
-module managedIdentity 'modules/managed-identity.bicep' = {
-  name: 'managed-identity'
-  scope: rg
+module containerAppsEnvironment 'modules/container-apps-environment.bicep' = {
+  name: 'container-apps-environment'
+  scope: resourceGroup
   params: {
-    name: '${abbrs.managedIdentity}-${resourceToken}'
-    location: location
-    tags: tags
-  }
-}
-
-// Container Apps Environment
-module containerAppsEnv 'modules/container-apps-environment.bicep' = {
-  name: 'container-apps-env'
-  scope: rg
-  params: {
-    name: '${abbrs.containerAppsEnvironment}-${resourceToken}'
+    name: '${abbrs.containerAppsEnvironment}-${suffix}'
     location: location
     tags: tags
     logAnalyticsCustomerId: logAnalytics.outputs.customerId
-    logAnalyticsSharedKey: logAnalytics.outputs.primarySharedKey
+    logAnalyticsSharedKey: logAnalytics.outputs.sharedKey
   }
 }
 
-// PostgreSQL Flexible Server
 module postgresql 'modules/postgresql.bicep' = {
   name: 'postgresql'
-  scope: rg
+  scope: resourceGroup
   params: {
-    serverName: '${abbrs.postgreSQLServer}-${resourceToken}'
+    name: '${abbrs.postgreSQLServer}-${suffix}'
     location: location
     tags: tags
-    adminUser: 'n8n'
-    adminPassword: postgresPassword
-    databaseName: 'n8n'
+    administratorLogin: postgresUser
+    administratorLoginPassword: postgresPassword
+    databaseName: postgresDatabase
   }
 }
 
-// n8n Container App
-module n8nApp 'modules/n8n-container-app.bicep' = {
+module n8nContainerApp 'modules/n8n-container-app.bicep' = {
   name: 'n8n-container-app'
-  scope: rg
+  scope: resourceGroup
   params: {
-    name: '${abbrs.containerApp}-n8n-${resourceToken}'
+    name: '${abbrs.containerApp}-${suffix}'
     location: location
     tags: tags
-    containerAppsEnvironmentId: containerAppsEnv.outputs.id
-    managedIdentityId: managedIdentity.outputs.id
+    containerAppEnvironmentId: containerAppsEnvironment.outputs.id
     postgresHost: postgresql.outputs.fqdn
-    postgresUser: 'n8n'
+    postgresDatabase: postgresql.outputs.databaseName
+    postgresUser: postgresUser
     postgresPassword: postgresPassword
-    postgresDatabase: 'n8n'
     n8nEncryptionKey: n8nEncryptionKey
     n8nBasicAuthPassword: n8nBasicAuthPassword
   }
 }
 
-// Outputs (SCREAMING_SNAKE_CASE for azd)
-output RESOURCE_GROUP_NAME string = rg.name
-output N8N_CONTAINER_APP_NAME string = n8nApp.outputs.name
-output N8N_URL string = n8nApp.outputs.url
-output N8N_FQDN string = n8nApp.outputs.fqdn
-output POSTGRES_FQDN string = postgresql.outputs.fqdn
+// Outputs (SCREAMING_SNAKE_CASE for azd convention)
+output RESOURCE_GROUP_NAME string = resourceGroup.name
 output LOG_ANALYTICS_WORKSPACE_ID string = logAnalytics.outputs.id
+output CONTAINER_APPS_ENVIRONMENT_NAME string = containerAppsEnvironment.outputs.name
+output POSTGRES_SERVER_NAME string = postgresql.outputs.serverName
+output POSTGRES_FQDN string = postgresql.outputs.fqdn
+output N8N_CONTAINER_APP_NAME string = n8nContainerApp.outputs.name
+output N8N_URL string = n8nContainerApp.outputs.url
+output N8N_FQDN string = n8nContainerApp.outputs.fqdn

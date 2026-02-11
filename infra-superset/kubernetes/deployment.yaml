@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superset
+  namespace: superset
+  labels:
+    app: superset
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset
+  template:
+    metadata:
+      labels:
+        app: superset
+    spec:
+      volumes:
+        - name: psycopg2-install
+          emptyDir: {}
+        - name: superset-config
+          configMap:
+            name: superset-config
+      initContainers:
+        - name: superset-init
+          image: SUPERSET_IMAGE_PLACEHOLDER
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              pip install psycopg2-binary --target=/psycopg2-lib &&
+              PYTHONPATH=/psycopg2-lib superset db upgrade &&
+              PYTHONPATH=/psycopg2-lib superset fab create-admin \
+                --username "$ADMIN_USERNAME" \
+                --firstname Admin \
+                --lastname User \
+                --email admin@example.com \
+                --password "$ADMIN_PASSWORD" || true &&
+              PYTHONPATH=/psycopg2-lib superset init
+          env:
+            - name: SUPERSET_CONFIG_PATH
+              value: /app/pythonpath/superset_config.py
+            - name: SQLALCHEMY_DATABASE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: superset-secrets
+                  key: database-uri
+            - name: SUPERSET_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: superset-secrets
+                  key: secret-key
+            - name: ADMIN_USERNAME
+              value: "admin"
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: superset-secrets
+                  key: admin-password
+          volumeMounts:
+            - name: psycopg2-install
+              mountPath: /psycopg2-lib
+            - name: superset-config
+              mountPath: /app/pythonpath
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+      containers:
+        - name: superset
+          image: SUPERSET_IMAGE_PLACEHOLDER
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              export PYTHONPATH=/psycopg2-lib:$PYTHONPATH
+              exec gunicorn --bind 0.0.0.0:8088 --workers 2 --timeout 120 "superset.app:create_app()"
+          ports:
+            - containerPort: 8088
+          env:
+            - name: SUPERSET_CONFIG_PATH
+              value: /app/pythonpath/superset_config.py
+            - name: PYTHONPATH
+              value: "/psycopg2-lib"
+            - name: SQLALCHEMY_DATABASE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: superset-secrets
+                  key: database-uri
+            - name: SUPERSET_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: superset-secrets
+                  key: secret-key
+          volumeMounts:
+            - name: psycopg2-install
+              mountPath: /psycopg2-lib
+            - name: superset-config
+              mountPath: /app/pythonpath
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8088
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8088
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+            successThreshold: 1
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8088
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60

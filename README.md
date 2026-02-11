@@ -57,7 +57,7 @@ The agent uses these tools from the [Azure MCP Server plugin](https://github.com
 | `azure_deploy_architecture` | Generate Mermaid architecture diagrams for deployments |
 | `azure_deploy_pipeline` | Get CI/CD pipeline guidance for GitHub Actions with azd |
 
-Try it: open GitHub Copilot CLI and ask `@oss-to-azure-deployer` — *"Deploy n8n to Azure"* or *"My Superset pod is in CrashLoopBackOff"*.
+Try it: start `copilot`, run `/agent`, select `oss-to-azure-deployer`, and ask *"Deploy n8n to Azure using Bicep and azd"*.
 
 ## Deployments
 
@@ -125,11 +125,18 @@ azd down --force --purge
 Or use the agent for an interactive, guided experience:
 
 ```bash
-# Start a session with the deployment agent
-copilot --agent oss-to-azure-deployer
+# Start Copilot CLI
+copilot
 
-# Then ask:
-> Deploy n8n to Azure Container Apps with PostgreSQL
+# Install the Azure MCP plugin (first time only)
+> /plugin install microsoft/github-copilot-for-azure:plugin
+
+# Select the deployment agent
+> /agent
+# Choose: oss-to-azure-deployer
+
+# Ask it to deploy
+> Deploy n8n to Azure using Bicep and azd
 ```
 
 See each chapter's README for detailed walkthroughs.

@@ -1,4 +1,4 @@
-@description('Container Apps Environment name')
+@description('Name of the Container Apps Environment')
 param name string
 
 @description('Azure region')
@@ -7,14 +7,14 @@ param location string
 @description('Resource tags')
 param tags object = {}
 
-@description('Log Analytics customer ID')
+@description('Log Analytics workspace customer ID')
 param logAnalyticsCustomerId string
 
+@description('Log Analytics workspace shared key')
 @secure()
-@description('Log Analytics shared key')
 param logAnalyticsSharedKey string
 
-resource containerAppsEnv 'Microsoft.App/managedEnvironments@2023-11-02-preview' = {
+resource containerAppEnvironment 'Microsoft.App/managedEnvironments@2023-11-02-preview' = {
   name: name
   location: location
   tags: tags
@@ -29,5 +29,5 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2023-11-02-preview'
   }
 }
 
-output id string = containerAppsEnv.id
-output name string = containerAppsEnv.name
+output id string = containerAppEnvironment.id
+output name string = containerAppEnvironment.name

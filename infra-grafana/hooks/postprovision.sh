@@ -1,38 +1,31 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
-echo "Running post-deployment configuration..."
+echo "Running post-provision hook: configuring GF_SERVER_ROOT_URL..."
 
-# Retrieve azd outputs
-CONTAINER_APP_NAME=$(azd env get-value GRAFANA_CONTAINER_APP_NAME)
-RESOURCE_GROUP_NAME=$(azd env get-value RESOURCE_GROUP_NAME)
+# Get resource names from azd outputs
+APP_NAME=$(azd env get-value GRAFANA_CONTAINER_APP_NAME)
+RG_NAME=$(azd env get-value RESOURCE_GROUP_NAME)
 
-# Get Container App FQDN
-echo "Retrieving Container App URL..."
-APP_FQDN=$(az containerapp show \
-  --name "$CONTAINER_APP_NAME" \
-  --resource-group "$RESOURCE_GROUP_NAME" \
-  --query "properties.configuration.ingress.fqdn" \
-  -o tsv)
+# Get the Container App FQDN
+GRAFANA_FQDN=$(az containerapp show \
+  --name "$APP_NAME" \
+  --resource-group "$RG_NAME" \
+  --query "properties.configuration.ingress.fqdn" -o tsv)
 
-if [ -z "$APP_FQDN" ]; then
+if [ -z "$GRAFANA_FQDN" ]; then
   echo "Error: Could not retrieve Container App FQDN"
   exit 1
 fi
 
-echo "App URL: https://$APP_FQDN"
+echo "Setting GF_SERVER_ROOT_URL to https://$GRAFANA_FQDN"
 
-# Update GF_SERVER_ROOT_URL (circular dependency: needs FQDN which isn't known until after creation)
-echo "Updating GF_SERVER_ROOT_URL environment variable..."
+# Update the Container App with the root URL
 az containerapp update \
-  --name "$CONTAINER_APP_NAME" \
-  --resource-group "$RESOURCE_GROUP_NAME" \
-  --set-env-vars "GF_SERVER_ROOT_URL=https://$APP_FQDN" \
+  --name "$APP_NAME" \
+  --resource-group "$RG_NAME" \
+  --set-env-vars "GF_SERVER_ROOT_URL=https://$GRAFANA_FQDN" \
   --output none
 
-echo "Post-deployment configuration completed!"
-echo ""
-echo "Grafana deployment complete!"
-echo "Access your app at: https://$APP_FQDN"
-echo "Login: admin / <your GRAFANA_ADMIN_PASSWORD>"
-echo ""
+echo "Post-provision configuration completed."
+echo "Access Grafana at: https://$GRAFANA_FQDN"
