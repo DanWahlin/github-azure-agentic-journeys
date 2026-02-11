@@ -4,31 +4,31 @@
 
 # OSS to Azure
 
-Deploy open-source applications to Azure using **GitHub Copilot CLI agents, skills, and Azure MCP tools** — powered by Infrastructure as Code (Bicep) and Azure Developer CLI (azd).
+Deploy open-source applications to Azure using **GitHub Copilot CLI agents, skills, and Azure MCP tools**, powered by Infrastructure as Code (Bicep) and Azure Developer CLI (azd).
 
 ## What You'll Learn
 
-This repo demonstrates how to use **GitHub Copilot CLI's agent and skill system** — enhanced by the **Azure MCP Server plugin** — to deploy real-world open-source applications to Azure. Instead of reading docs and piecing together infrastructure manually, you use the **`@oss-to-azure-deployer` agent** — it knows the architecture, the gotchas, and the deployment patterns for each app.
+This repo demonstrates how to use **GitHub Copilot CLI's agent and skill system**, enhanced by the **Azure MCP Server plugin**, to deploy real-world open-source applications to Azure. Instead of reading docs and piecing together infrastructure manually, you use the **`@oss-to-azure-deployer` agent**. It knows the architecture, the gotchas, and the deployment patterns for each app.
 
 Each deployment includes:
 
-- **A Copilot agent** that orchestrates the entire deployment journey — from requirements to verification
+- **A Copilot agent** that orchestrates the entire deployment journey, from requirements to verification
 - **App-specific skills** that teach Copilot the configuration quirks of each application
 - **Generic infrastructure skills** for reusable Bicep and azd patterns
 - **Azure MCP tools** for real-time schema lookups, deployment planning, IaC best practices, and log analysis
-- **Bicep infrastructure** — Modular, production-ready Azure resource definitions
+- **Bicep infrastructure**: Modular, production-ready Azure resource definitions
 - **One-command deployment** with `azd up`
-- **Troubleshooting guides** — Every issue we hit and how the agent resolves them
+- **Troubleshooting guides**: Every issue we hit and how the agent resolves them
 
-**The idea:** You tell the agent what you want to deploy. It picks the right skills, uses Azure MCP tools to look up schemas and best practices, generates infrastructure, handles the edge cases, and walks you through verification. The skills are the reusable knowledge — the agent is the orchestrator — the MCP tools are the real-time intelligence.
+**The idea:** You tell the agent what you want to deploy. It picks the right skills, uses Azure MCP tools to look up schemas and best practices, generates infrastructure, handles the edge cases, and walks you through verification. The skills are the reusable knowledge. The agent is the orchestrator. The MCP tools are the real-time intelligence.
 
 ## How It Works: Agent + Skills + Azure MCP
 
-This repo uses **GitHub Copilot CLI's agent and skill architecture** — combined with the **Azure MCP Server plugin** — to encode deployment knowledge into reusable, AI-consumable components.
+This repo uses **GitHub Copilot CLI's agent and skill architecture**, combined with the **Azure MCP Server plugin**, to encode deployment knowledge into reusable, AI-consumable components.
 
-- **Agents** define *who* does the work — personas with specific goals and workflows
-- **Skills** define *how* — reusable patterns the agent loads based on context
-- **Azure MCP tools** provide *real-time intelligence* — schema lookups, deployment plans, IaC guidance, and log analysis
+- **Agents** define *who* does the work: personas with specific goals and workflows
+- **Skills** define *how*: reusable patterns the agent loads based on context
+- **Azure MCP tools** provide *real-time intelligence*: schema lookups, deployment plans, IaC guidance, and log analysis
 
 The **`@oss-to-azure-deployer`** [agent](.github/agents/oss-to-azure-deployer.agent.md) orchestrates the full deployment lifecycle. It automatically loads the right skills and uses Azure MCP tools based on which app you're deploying:
 
@@ -52,7 +52,7 @@ The agent uses these tools from the [Azure MCP Server plugin](https://github.com
 |------|-------------|
 | `azure_bicep_schema` | Look up latest API versions and property definitions for any Azure resource type |
 | `azure_deploy_iac_guidance` | Get Bicep/Terraform best practices with azd compatibility |
-| `azure_deploy_plan` | Generate deployment plans — validates resources, dependencies, and configuration |
+| `azure_deploy_plan` | Generate deployment plans. Validates resources, dependencies, and configuration |
 | `azure_deploy_app_logs` | Fetch Log Analytics logs for post-deployment troubleshooting |
 | `azure_deploy_architecture` | Generate Mermaid architecture diagrams for deployments |
 | `azure_deploy_pipeline` | Get CI/CD pipeline guidance for GitHub Actions with azd |
@@ -204,7 +204,7 @@ Want to deploy a different OSS app? The agent/skill pattern is designed to be ex
 
 1. **Create an app-specific skill** in `.github/skills/<app>-azure/` with SKILL.md, config, and troubleshooting
 2. **Create an infra directory** (`infra-<app>/`) with Bicep modules
-3. **The agent picks it up automatically** — no changes to the agent definition needed
+3. **The agent picks it up automatically**. No changes to the agent definition needed
 
 See [`.github/copilot-instructions.md`](.github/copilot-instructions.md) for the full guide on adding new applications.
 

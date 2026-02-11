@@ -2,7 +2,7 @@
 
 > **What if deploying a production workflow automation platform to Azure was as simple as having a conversation?**
 
-In this chapter, you'll deploy [n8n](https://n8n.io) — a powerful workflow automation platform (think Zapier, but self-hosted and open-source) — to Azure Container Apps with a managed PostgreSQL database. You'll do it two ways: first by using the `@oss-to-azure-deployer` Copilot agent to *generate* the infrastructure, then by deploying pre-built Bicep templates with a single command. Along the way, you'll learn how the agent uses Azure MCP tools to look up schemas, get best practices, and plan deployments — all from inside GitHub Copilot CLI.
+In this chapter, you'll deploy [n8n](https://n8n.io), a powerful workflow automation platform (think Zapier, but self-hosted and open-source), to Azure Container Apps with a managed PostgreSQL database. You'll do it two ways: first by using the `@oss-to-azure-deployer` Copilot agent to *generate* the infrastructure, then by deploying pre-built Bicep templates with a single command. Along the way, you'll learn how the agent uses Azure MCP tools to look up schemas, get best practices, and plan deployments, all from inside GitHub Copilot CLI.
 
 ## Learning Objectives
 
@@ -14,7 +14,7 @@ In this chapter, you'll deploy [n8n](https://n8n.io) — a powerful workflow aut
 
 > ⏱️ **Estimated Time**: ~20 minutes (Path 1) or ~10 minutes (Path 2)
 >
-> 💰 **Estimated Cost**: ~$25-35/month (see [Cost Breakdown](#cost-breakdown)) — remember to clean up with `azd down` when done!
+> 💰 **Estimated Cost**: ~$25-35/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
 >
 > 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and optionally GitHub Copilot CLI. See [root README prerequisites](../README.md#prerequisites) for installation links.
 
@@ -22,7 +22,7 @@ In this chapter, you'll deploy [n8n](https://n8n.io) — a powerful workflow aut
 
 ## Real-World Analogy: The Sous Chef
 
-Imagine you're a head chef who wants to add a new dish to the menu. You *could* research every ingredient, technique, and timing yourself. Or you could tell your sous chef what you want and let them handle the details — they know the recipes, the pantry, and the kitchen equipment.
+Imagine you're a head chef who wants to add a new dish to the menu. You *could* research every ingredient, technique, and timing yourself. Or you could tell your sous chef what you want and let them handle the details. They know the recipes, the pantry, and the kitchen equipment.
 
 | Kitchen | Azure Deployment |
 |---------|-----------------|
@@ -96,7 +96,7 @@ Once inside the interactive session:
 > /plugin install microsoft/github-copilot-for-azure:plugin
 ```
 
-> **Already installed?** If you completed a previous chapter, the plugin persists across sessions — skip this step.
+> **Already installed?** If you completed a previous chapter, the plugin persists across sessions. Skip this step.
 
 > **What this does:** Gives the agent access to tools like `azure_bicep_schema`, `azure_deploy_iac_guidance`, `azure_deploy_plan`, and `azure_deploy_app_logs`. The agent can look up real Azure resource schemas instead of guessing.
 
@@ -118,8 +118,8 @@ Select **`oss-to-azure-deployer`** from the list. You're now in an interactive s
 
 The agent will:
 
-1. **Load the right skills** — `n8n-azure` for n8n-specific configuration, `azure-container-apps` for Container Apps patterns, `azure-bicep-generation` for Bicep conventions, and `azd-deployment` for azure.yaml setup
-2. **Use Azure MCP tools** — `azure_bicep_schema` for the latest API versions, `azure_deploy_iac_guidance` for Bicep best practices with azd compatibility
+1. **Load the right skills**: `n8n-azure` for n8n-specific configuration, `azure-container-apps` for Container Apps patterns, `azure-bicep-generation` for Bicep conventions, and `azd-deployment` for azure.yaml setup
+2. **Use Azure MCP tools**: `azure_bicep_schema` for the latest API versions, `azure_deploy_iac_guidance` for Bicep best practices with azd compatibility
 3. **Generate the Bicep infrastructure** in `infra-n8n/` with all required modules, parameters, and hooks
 
 ### Step 4: Review the Generated Infrastructure
@@ -153,7 +153,7 @@ You can ask follow-up questions in the same session:
 > Why did you set the liveness probe to 60 seconds?
 ```
 
-The agent explains that n8n needs 60+ seconds to start — without proper probes, Azure kills the container before initialization completes (CrashLoopBackOff).
+The agent explains that n8n needs 60+ seconds to start. Without proper probes, Azure kills the container before initialization completes (CrashLoopBackOff).
 
 ### Step 5: Deploy to Azure
 
@@ -169,7 +169,7 @@ The agent will:
 2. Register required Azure resource providers
 3. Create an azd environment and set variables (location, passwords)
 4. Run `azd up` (~7 minutes)
-5. If anything fails (provider not registered, Bicep error, etc.) — diagnose and fix automatically
+5. If anything fails (provider not registered, Bicep error, etc.), it diagnoses and fixes automatically
 6. Run the post-provision hooks to configure `WEBHOOK_URL`
 
 > **What just happened?** The agent updated `azure.yaml`, registered providers, set environment variables, and ran `azd up`. Run `cat azure.yaml` to see the configuration and `azd env get-values` to see all the variables that were set.
@@ -191,7 +191,7 @@ N8N_URL=$(azd env get-value N8N_URL)
 curl -s -o /dev/null -w "%{http_code}" "$N8N_URL"  # Expect 200
 ```
 
-If something goes wrong, just ask — you're still in the same session with full context:
+If something goes wrong, just ask. You're still in the same session with full context:
 
 ```
 > The container is in CrashLoopBackOff, what's happening?
@@ -342,7 +342,7 @@ Scale-to-zero keeps costs low during idle periods. For production with `minRepli
 
 **Symptom:** Container restarts repeatedly, logs show health check failures.
 
-**Cause:** n8n needs 60+ seconds to start — default health probes kill it too early.
+**Cause:** n8n needs 60+ seconds to start, and default health probes kill it too early.
 
 **Fix:** Ensure health probes are configured with `initialDelaySeconds: 60` on liveness and `failureThreshold: 30` on startup. The Bicep templates in `../infra-n8n/` already include this.
 
@@ -369,7 +369,7 @@ az containerapp logs show --name $APP_NAME --resource-group $RG --follow
 
 **Symptom:** Webhooks don't work, static assets fail to load.
 
-**Cause:** Circular dependency — FQDN isn't known until Container App is created.
+**Cause:** Circular dependency: the FQDN isn't known until Container App is created.
 
 **Fix:** The post-provision hook handles this automatically. Manual fix:
 
@@ -440,7 +440,7 @@ az containerapp logs show --name $APP_NAME --resource-group $RG --tail 20
 azd down --force --purge
 ```
 
-Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently deletes all data — export workflows first.
+Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently deletes all data. Export workflows first.
 
 ---
 

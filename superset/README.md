@@ -1,8 +1,8 @@
 # Chapter 03: Apache Superset — BI Platform on Azure Kubernetes Service
 
-> **When Container Apps isn't enough, Kubernetes steps in — and the agent knows exactly when and why.**
+> **When Container Apps isn't enough, Kubernetes steps in, and the agent knows exactly when and why.**
 
-In this final chapter, you'll deploy [Apache Superset](https://superset.apache.org/) — a powerful data exploration and BI platform — to Azure Kubernetes Service (AKS). This is the most complex deployment in the project: init containers, shared volumes, psycopg2 installation, ConfigMap mounting, and a managed PostgreSQL database. You'll learn why some applications *need* Kubernetes and how the agent handles the complexity for you.
+In this final chapter, you'll deploy [Apache Superset](https://superset.apache.org/), a powerful data exploration and BI platform, to Azure Kubernetes Service (AKS). This is the most complex deployment in the project: init containers, shared volumes, psycopg2 installation, ConfigMap mounting, and a managed PostgreSQL database. You'll learn why some applications *need* Kubernetes and how the agent handles the complexity for you.
 
 ## Learning Objectives
 
@@ -14,7 +14,7 @@ In this final chapter, you'll deploy [Apache Superset](https://superset.apache.o
 
 > ⏱️ **Estimated Time**: ~30 minutes (Path 1) or ~20 minutes (Path 2)
 >
-> 💰 **Estimated Cost**: ~$135-185/month (see [Cost Breakdown](#cost-breakdown)) — remember to clean up with `azd down` when done!
+> 💰 **Estimated Cost**: ~$135-185/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
 >
 > 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, `kubectl`, and optionally GitHub Copilot CLI. See [root README prerequisites](../README.md#prerequisites) for installation links.
 
@@ -22,7 +22,7 @@ In this final chapter, you'll deploy [Apache Superset](https://superset.apache.o
 
 ## Real-World Analogy: The Factory vs The Workshop
 
-Chapters 01 and 02 used Container Apps — like a workshop where you bring in equipment and start working. Superset needs a factory: assembly lines (init containers), shared storage rooms (emptyDir volumes), instruction manuals bolted to the wall (ConfigMaps), and a loading dock (NGINX Ingress).
+Chapters 01 and 02 used Container Apps, like a workshop where you bring in equipment and start working. Superset needs a factory: assembly lines (init containers), shared storage rooms (emptyDir volumes), instruction manuals bolted to the wall (ConfigMaps), and a loading dock (NGINX Ingress).
 
 | Factory | Superset on AKS |
 |---------|----------------|
@@ -118,7 +118,7 @@ Once inside the interactive session, install the Azure MCP plugin:
 > /plugin install microsoft/github-copilot-for-azure:plugin
 ```
 
-> **Already installed?** If you completed a previous chapter, the plugin persists across sessions — skip this step.
+> **Already installed?** If you completed a previous chapter, the plugin persists across sessions. Skip this step.
 
 ### Step 2: Select the Agent
 
@@ -136,9 +136,9 @@ Select **`oss-to-azure-deployer`** from the list.
 
 The agent will:
 
-1. **Load the right skills** — `superset-azure`, `azure-aks-deployment`, `azure-bicep-generation`, and `azd-deployment`
-2. **Recommend AKS over Container Apps** — it knows Superset needs init containers, shared volumes, and ConfigMap mounting
-3. **Use Azure MCP tools** — `azure_bicep_schema` for API versions, `azure_deploy_iac_guidance` with `resource_type=aks` for AKS-specific best practices
+1. **Load the right skills**: `superset-azure`, `azure-aks-deployment`, `azure-bicep-generation`, and `azd-deployment`
+2. **Recommend AKS over Container Apps**. It knows Superset needs init containers, shared volumes, and ConfigMap mounting
+3. **Use Azure MCP tools**: `azure_bicep_schema` for API versions, `azure_deploy_iac_guidance` with `resource_type=aks` for AKS-specific best practices
 4. **Generate the Bicep + Kubernetes infrastructure** in `infra-superset/`
 
 ### Step 4: Review the Generated Infrastructure
@@ -195,7 +195,7 @@ The agent will:
 2. Register required providers (`Microsoft.ContainerService`, `Microsoft.DBforPostgreSQL`, `Microsoft.OperationalInsights`)
 3. Create an azd environment and set variables (location, passwords, secret key)
 4. Run `azd up` (~15-20 minutes)
-5. If anything fails — diagnose and fix automatically
+5. If anything fails, it diagnoses and fixes automatically
 6. Run the post-provision hooks (`kubectl apply` for Kubernetes manifests, wait for external IP)
 
 ### Step 6: Verify
@@ -223,7 +223,7 @@ SUPERSET_URL=$(azd env get-value SUPERSET_URL)
 curl -I "$SUPERSET_URL/health"  # Expect HTTP 200
 ```
 
-If the pod is stuck, just ask — you're still in the same session:
+If the pod is stuck, just ask. You're still in the same session:
 
 ```
 > My Superset pod is stuck in Init:0/1
@@ -437,7 +437,7 @@ kubectl logs -n superset <pod> -c superset-init | grep -i impl
 
 **Symptom:** Superset uses SQLite even though the env var is set.
 
-**Cause:** Superset doesn't read env vars directly — it needs `superset_config.py`.
+**Cause:** Superset doesn't read env vars directly. It needs `superset_config.py`.
 
 **Fix:** Create a ConfigMap with `superset_config.py` that reads `os.environ.get('SQLALCHEMY_DATABASE_URI')`, mount it, and set `SUPERSET_CONFIG_PATH`.
 
