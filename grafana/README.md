@@ -6,20 +6,21 @@ Deploy [Grafana OSS](https://grafana.com/oss/grafana/) (metrics, logs, and trace
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                  Resource Group                         │
-│  ┌─────────────────┐    ┌─────────────────────────────┐ │
-│  │ Log Analytics   │───▶│ Container Apps Environment  │ │
-│  │ Workspace       │    │                             │ │
-│  └─────────────────┘    │  ┌───────────────────────┐  │ │
-│                         │  │ Grafana Container App │  │ │
-│                         │  │ - Port 3000           │  │ │
-│                         │  │ - SQLite (default)    │  │ │
-│                         │  │ - Scale 0-3 replicas  │  │ │
-│                         │  └───────────────────────┘  │ │
-│                         └─────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph RG["Azure Resource Group"]
+        LA["Log Analytics Workspace"]
+        subgraph CAE["Container Apps Environment"]
+            GF["Grafana Container App<br/>Port 3000 · SQLite (default)<br/>Scale 0-3 replicas"]
+        end
+    end
+
+    LA -->|logs & metrics| CAE
+
+    style RG fill:#e8f4fd,stroke:#0078D4
+    style CAE fill:#f0f9ff,stroke:#50e6ff
+    style GF fill:#fff,stroke:#0078D4
+    style LA fill:#fff,stroke:#50e6ff
 ```
 
 **Azure resources created:**

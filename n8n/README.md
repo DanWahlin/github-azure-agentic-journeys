@@ -6,20 +6,24 @@ Deploy [n8n](https://n8n.io) (workflow automation platform) to Azure using Bicep
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Azure Container Apps                      │
-│  ┌─────────────────────┐    ┌─────────────────────────────┐ │
-│  │  n8n Container App  │────│  Log Analytics Workspace    │ │
-│  │  (0-3 replicas)     │    │  (monitoring)               │ │
-│  └─────────┬───────────┘    └─────────────────────────────┘ │
-└────────────┼────────────────────────────────────────────────┘
-             │ SSL/TLS (port 5678)
-             ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Azure Database for PostgreSQL Flexible Server              │
-│  (B_Standard_B1ms, 32GB, version 16)                       │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph RG["Azure Resource Group"]
+        subgraph CAE["Container Apps Environment"]
+            N8N["n8n Container App<br/>(0-3 replicas)"]
+        end
+        LA["Log Analytics Workspace<br/>(monitoring)"]
+        PG["Azure PostgreSQL Flexible Server<br/>(B_Standard_B1ms, 32GB, v16)"]
+    end
+
+    CAE -->|logs & metrics| LA
+    N8N -->|SSL/TLS port 5678| PG
+
+    style RG fill:#e8f4fd,stroke:#0078D4
+    style CAE fill:#f0f9ff,stroke:#50e6ff
+    style N8N fill:#fff,stroke:#0078D4
+    style LA fill:#fff,stroke:#50e6ff
+    style PG fill:#fff,stroke:#0078D4
 ```
 
 **Azure resources created:**

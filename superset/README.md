@@ -6,32 +6,37 @@ Deploy [Apache Superset](https://superset.apache.org/) (data exploration and BI 
 
 ## Architecture
 
-```
-                    ┌──────────────────────────────────┐
-                    │        Load Balancer             │
-                    │     (Public IP: External)        │
-                    └──────────────┬───────────────────┘
-                                   │
-              ┌────────────────────┼────────────────────┐
-              │              AKS Cluster               │
-              │    ┌───────────────┴───────────────┐   │
-              │    │     NGINX Ingress Controller   │   │
-              │    └───────────────┬───────────────┘   │
-              │                    │                    │
-              │    ┌───────────────┴───────────────┐   │
-              │    │     Superset Deployment        │   │
-              │    │    - Init Container (migrate)  │   │
-              │    │    - Main Container (web)      │   │
-              │    │    - ConfigMap (config.py)     │   │
-              │    │    - emptyDir (psycopg2)       │   │
-              │    │    Port: 8088                  │   │
-              │    └───────────────┬───────────────┘   │
-              └────────────────────┼────────────────────┘
-                                   │
-                    ┌──────────────┴───────────────┐
-                    │   PostgreSQL Flexible Server  │
-                    │     (Azure Managed PaaS)      │
-                    └──────────────────────────────┘
+```mermaid
+graph TB
+    LB["Load Balancer<br/>(Public IP)"]
+
+    subgraph RG["Azure Resource Group"]
+        LA["Log Analytics Workspace"]
+        subgraph AKS["AKS Cluster"]
+            NGINX["NGINX Ingress Controller"]
+            subgraph POD["Superset Pod"]
+                INIT["Init Container<br/>(migrate + psycopg2)"]
+                MAIN["Main Container<br/>(Gunicorn · port 8088)"]
+                CM["ConfigMap<br/>(superset_config.py)"]
+                VOL["emptyDir<br/>(psycopg2-lib)"]
+            end
+        end
+        PG["Azure PostgreSQL Flexible Server<br/>(Managed PaaS)"]
+    end
+
+    LB --> NGINX --> POD
+    INIT --> VOL
+    MAIN --> VOL
+    MAIN --> CM
+    POD -->|sslmode=require| PG
+    AKS -->|logs & metrics| LA
+
+    style RG fill:#e8f4fd,stroke:#0078D4
+    style AKS fill:#f0f9ff,stroke:#50e6ff
+    style POD fill:#fff,stroke:#0078D4
+    style LB fill:#fff,stroke:#0078D4
+    style PG fill:#fff,stroke:#0078D4
+    style LA fill:#fff,stroke:#50e6ff
 ```
 
 **Azure resources created:**
