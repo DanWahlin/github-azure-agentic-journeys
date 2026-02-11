@@ -1,8 +1,37 @@
-# 🔄 n8n on Azure Container Apps
+# Chapter 01: n8n — Workflow Automation on Azure Container Apps
 
-Deploy [n8n](https://n8n.io) (workflow automation platform) to Azure using Bicep and Azure Developer CLI (azd).
+> **What if deploying a production workflow automation platform to Azure was as simple as having a conversation?**
 
-> **Deploy time:** ~7 minutes | **Cost:** ~$25-35/month (dev) | **Complexity:** Medium
+In this chapter, you'll deploy [n8n](https://n8n.io) — a powerful workflow automation platform — to Azure Container Apps with a managed PostgreSQL database. You'll do it two ways: first by using the `@oss-to-azure-deployer` Copilot agent to *generate* the infrastructure, then by deploying pre-built Bicep templates with a single command. Along the way, you'll learn how the agent uses Azure MCP tools to look up schemas, get best practices, and plan deployments — all from inside GitHub Copilot CLI.
+
+## Learning Objectives
+
+- Use `@oss-to-azure-deployer` in GitHub Copilot CLI to generate Azure infrastructure through conversation
+- Understand how the agent loads app-specific and generic skills to build Bicep templates
+- Deploy n8n to Azure Container Apps with PostgreSQL using `azd up`
+- Configure health probes for slow-starting containers
+- Troubleshoot common deployment issues using Azure MCP tools and container logs
+
+> ⏱️ **Estimated Time**: ~20 minutes (Path 1) or ~10 minutes (Path 2)
+
+---
+
+## Real-World Analogy: The Sous Chef
+
+Imagine you're a head chef who wants to add a new dish to the menu. You *could* research every ingredient, technique, and timing yourself. Or you could tell your sous chef what you want and let them handle the details — they know the recipes, the pantry, and the kitchen equipment.
+
+| Kitchen | Azure Deployment |
+|---------|-----------------|
+| Head chef (you) | Developer using GitHub Copilot CLI |
+| Sous chef | `@oss-to-azure-deployer` agent |
+| Recipes | Skills (`n8n-azure`, `azure-bicep-generation`, etc.) |
+| Pantry inventory | Azure MCP tools (`azure_bicep_schema`, `azure_deploy_iac_guidance`) |
+| Plating the dish | `azd up` — one command to deploy everything |
+| Taste test | Verification checklist and `azure_deploy_app_logs` |
+
+The agent knows the recipes. You just tell it what you want to cook.
+
+---
 
 ## Architecture
 
@@ -35,14 +64,126 @@ graph TB
 
 **Infrastructure directory:** [`../infra-n8n/`](../infra-n8n/)
 
-## Prerequisites
+---
 
-- **Azure Subscription** with permissions to create resources
-- **Azure CLI** (`az`) — [Install](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
-- **Azure Developer CLI** (`azd`) — [Install](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd)
-- **Bash or PowerShell** for running deployment scripts
+## Path 1: Generate Infrastructure with the Agent
 
-## Quick Start
+This is the primary tutorial path. You'll use `@oss-to-azure-deployer` in GitHub Copilot CLI to generate the entire infrastructure through conversation.
+
+### Step 1: Install the Azure MCP Plugin
+
+The agent uses Azure MCP tools to look up Bicep schemas, get deployment best practices, and plan deployments. Install the plugin first:
+
+```bash
+/plugin install microsoft/github-copilot-for-azure:plugin
+```
+
+> **What this does:** Gives the agent access to tools like `azure_bicep_schema`, `azure_deploy_iac_guidance`, `azure_deploy_plan`, and `azure_deploy_app_logs`. These are the "pantry inventory" from our analogy — the agent can look up real Azure resource schemas instead of guessing.
+
+### Step 2: Start a Session with the Agent
+
+```bash
+copilot --agent oss-to-azure-deployer
+```
+
+You're now in an interactive session with the deployment agent. It knows about n8n, Grafana, Superset, and the full Azure deployment lifecycle.
+
+### Step 3: Ask the Agent to Deploy n8n
+
+Start with a simple prompt:
+
+> Deploy n8n to Azure Container Apps with PostgreSQL
+
+The agent will:
+
+1. **Load the right skills** — `n8n-azure` for n8n-specific configuration, `azure-container-apps` for Container Apps patterns, `azure-bicep-generation` for Bicep conventions, and `azd-deployment` for azure.yaml setup
+2. **Use `azure_deploy_iac_guidance`** to get Bicep best practices with azd compatibility (`deployment_tool=AZD`, `iac_type=bicep`, `resource_type=containerapp`)
+3. **Use `azure_bicep_schema`** to look up the latest API versions and property definitions for `Microsoft.App/containerApps` and `Microsoft.DBforPostgreSQL/flexibleServers`
+4. **Ask you for requirements** — location, budget, environment name
+
+### Step 4: Review the Generated Infrastructure
+
+The agent generates a modular Bicep structure in `infra-n8n/`:
+
+```
+infra-n8n/
+├── main.bicep                    # Orchestrates all modules
+├── main.parameters.json          # azd parameter mapping (${VAR} syntax)
+├── abbreviations.json            # Naming conventions
+├── modules/
+│   ├── log-analytics.bicep       # Log Analytics Workspace
+│   ├── container-apps-environment.bicep  # Container Apps Environment
+│   ├── n8n-container-app.bicep   # n8n Container App with probes
+│   └── postgresql.bicep          # PostgreSQL Flexible Server
+└── hooks/
+    ├── postprovision.sh          # Sets WEBHOOK_URL after deployment
+    └── postprovision.ps1         # Windows equivalent
+```
+
+You can ask follow-up questions:
+
+> Why did you set the liveness probe to 60 seconds?
+
+> The agent explains that n8n needs 60+ seconds to start — without proper probes, Azure kills the container before initialization completes (CrashLoopBackOff).
+
+> What Azure MCP tools did you use?
+
+> The agent shows it used `azure_bicep_schema` for the latest Container Apps API version, `azure_deploy_iac_guidance` for azd-compatible Bicep patterns, and the `n8n-azure` skill for health probe timing.
+
+### Step 5: Validate and Plan the Deployment
+
+Ask the agent to validate:
+
+> Validate the Bicep and create a deployment plan
+
+The agent will:
+
+1. Run `az bicep build --file infra-n8n/main.bicep` to catch syntax errors
+2. **Use `azure_deploy_plan`** to generate a deployment plan (`target=ContainerApp`, `provisioning_tool=AZD`, `iac_option=bicep`)
+3. Show you the resource list, estimated cost, and deployment order
+
+### Step 6: Deploy with azd
+
+The agent will guide you through the deployment:
+
+```bash
+# Register providers (one-time per subscription)
+az provider register --namespace Microsoft.App
+az provider register --namespace Microsoft.DBforPostgreSQL
+az provider register --namespace Microsoft.OperationalInsights
+
+# Create environment and set variables
+azd env new my-n8n-env
+azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+azd env set AZURE_LOCATION "westus"
+azd env set POSTGRES_PASSWORD "$(openssl rand -base64 16)"
+azd env set N8N_BASIC_AUTH_PASSWORD "$(openssl rand -base64 16)"
+
+# Make sure azure.yaml points to infra-n8n
+# Then deploy (~7 minutes)
+azd up
+```
+
+### Step 7: Verify and Troubleshoot
+
+After deployment, verify everything works:
+
+```bash
+N8N_URL=$(azd env get-value N8N_URL)
+curl -s -o /dev/null -w "%{http_code}" "$N8N_URL"  # Expect 200
+```
+
+If something goes wrong, ask the agent:
+
+> The container is in CrashLoopBackOff, what's happening?
+
+The agent will **use `azure_deploy_app_logs`** to fetch Log Analytics logs and diagnose the issue — typically a health probe timing problem or database connection failure.
+
+---
+
+## Path 2: Deploy Pre-Built Infrastructure
+
+Already have the `infra-n8n/` code and just want to deploy? Follow these steps.
 
 ### 1. Register Azure Resource Providers
 
@@ -91,11 +232,6 @@ hooks:
 azd up
 ```
 
-This will:
-1. Create all Azure resources (Container Apps, PostgreSQL, Log Analytics)
-2. Deploy the n8n container
-3. Run post-provision hooks to configure `WEBHOOK_URL`
-
 **Deployment time breakdown:**
 | Stage | Time |
 |-------|------|
@@ -113,7 +249,9 @@ azd env get-value N8N_URL
 # Login: admin / <your N8N_BASIC_AUTH_PASSWORD>
 ```
 
-## Configuration
+---
+
+## Configuration Reference
 
 ### Environment Variables
 
@@ -163,6 +301,8 @@ Sensitive values are stored as Container App secrets and referenced via `secretR
 - `n8n-encryption-key` → `N8N_ENCRYPTION_KEY`
 - `n8n-auth-password` → `N8N_BASIC_AUTH_PASSWORD`
 
+---
+
 ## Cost Breakdown
 
 | Resource | SKU | Monthly Cost |
@@ -173,6 +313,8 @@ Sensitive values are stored as Container App secrets and referenced via `secretR
 | **Total** | | **~$25-35/month** |
 
 Scale-to-zero keeps costs low during idle periods. For production with `minReplicas: 1`, expect ~$60-80/month for Container Apps alone.
+
+---
 
 ## Troubleshooting
 
@@ -190,6 +332,8 @@ APP_NAME=$(azd env get-value N8N_CONTAINER_APP_NAME)
 RG=$(azd env get-value RESOURCE_GROUP_NAME)
 az containerapp logs show --name $APP_NAME --resource-group $RG --follow
 ```
+
+> **Agent tip:** Ask `@oss-to-azure-deployer` — *"My n8n container keeps restarting"* — and it will use `azure_deploy_app_logs` to pull logs and diagnose the issue.
 
 ### Database Connection Refused
 
@@ -239,6 +383,8 @@ var encryptionKey = newGuid()
 param n8nEncryptionKey string = newGuid()
 ```
 
+---
+
 ## Verification Checklist
 
 After `azd up` completes:
@@ -261,6 +407,8 @@ az containerapp show --name $APP_NAME --resource-group $RG \
 az containerapp logs show --name $APP_NAME --resource-group $RG --tail 20
 ```
 
+---
+
 ## Cleanup
 
 ```bash
@@ -269,17 +417,7 @@ azd down --force --purge
 
 Teardown takes 5-10 minutes (PostgreSQL deletion is slow). This permanently deletes all data — export workflows first.
 
-## 🤖 Copilot Agent & Skills
-
-This deployment is powered by the **`@oss-to-azure-deployer`** Copilot agent ([`.github/agents/oss-to-azure-deployer.agent.md`](../.github/agents/oss-to-azure-deployer.agent.md)) with these skills:
-
-| Skill | Purpose |
-|-------|---------|
-| [`n8n-azure`](../.github/skills/n8n-azure/SKILL.md) | n8n-specific configuration, environment variables, health probes, troubleshooting |
-| [`azure-bicep-generation`](../.github/skills/azure-bicep-generation/SKILL.md) | Bicep patterns for Container Apps, PostgreSQL, Log Analytics, naming conventions |
-| [`azd-deployment`](../.github/skills/azd-deployment/SKILL.md) | azure.yaml configuration, post-provision hooks, deployment workflows |
-
-Ask `@oss-to-azure-deployer` in GitHub Copilot to deploy n8n, troubleshoot issues, or modify the infrastructure.
+---
 
 ## Key Learnings
 
@@ -289,6 +427,26 @@ Ask `@oss-to-azure-deployer` in GitHub Copilot to deploy n8n, troubleshoot issue
 - **Post-provision hooks** solve the WEBHOOK_URL circular dependency
 - **Register providers first** — prevents 409 conflicts during deployment
 - **`newGuid()`** only works as a Bicep parameter default value
+- **Azure MCP tools** give the agent real-time access to schemas and best practices — it's not guessing
+
+---
+
+## Assignment
+
+**Practice what you learned:**
+
+1. Deploy n8n using **Path 2** (pre-built infrastructure) — get comfortable with the `azd` workflow
+2. After it's running, start a Copilot CLI session with `@oss-to-azure-deployer` and ask: *"How would I add a custom domain to my n8n deployment?"*
+3. Try breaking something on purpose — change `initialDelaySeconds` to `5` in the liveness probe and redeploy. Watch it crash. Then ask the agent to diagnose it.
+4. Clean up with `azd down --force --purge`
+
+---
+
+## What's Next
+
+In [Chapter 02: Grafana](../grafana/README.md), you'll deploy a metrics and visualization platform — the simplest deployment in the project (~2 minutes, no database required). You'll see how the same agent and skill system adapts to a completely different application.
+
+---
 
 ## Resources
 

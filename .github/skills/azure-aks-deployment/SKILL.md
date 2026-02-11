@@ -20,26 +20,21 @@ Deploy production-ready applications on Azure Kubernetes Service with integrated
 
 ## Architecture Pattern
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Azure Resource Group                     │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                    AKS Cluster                       │   │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌────────────┐  │   │
-│  │  │   Ingress   │  │    App      │  │   Redis    │  │   │
-│  │  │  Controller │  │  (Superset) │  │  (Cache)   │  │   │
-│  │  └─────────────┘  └─────────────┘  └────────────┘  │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                              │                              │
-│  ┌───────────────────────────┼───────────────────────────┐ │
-│  │              Private Endpoint / VNet Integration       │ │
-│  └───────────────────────────┼───────────────────────────┘ │
-│                              ▼                              │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │           PostgreSQL Flexible Server                │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph RG["Azure Resource Group"]
+        subgraph AKS["AKS Cluster"]
+            ING["Ingress Controller"]
+            APP["App (Superset)"]
+            RED["Redis (Cache)"]
+        end
+        VNET["Private Endpoint / VNet Integration"]
+        PG["PostgreSQL Flexible Server"]
+    end
+
+    ING --> APP
+    APP --> RED
+    AKS --> VNET --> PG
 ```
 
 ## Key Patterns
@@ -244,6 +239,17 @@ hooks:
         az aks get-credentials -g $AZURE_RESOURCE_GROUP -n $AKS_CLUSTER_NAME --overwrite-existing
         kubectl apply -f ./kubernetes/
 ```
+
+## Azure MCP Tools
+
+Use these Azure MCP Server tools when working with AKS deployments:
+
+| Tool | When to Use |
+|------|-------------|
+| `azure_deploy_plan` | Generate a deployment plan — use params: `target=AKS`, `provisioning_tool=AZD`, `iac_option=bicep` |
+| `azure_deploy_iac_guidance` | Get AKS-specific Bicep/Terraform best practices — use params: `resource_type=aks` |
+| `azure_bicep_schema` | Get latest API versions for `Microsoft.ContainerService/managedClusters` and related resources |
+| `azure_deploy_app_logs` | Fetch Log Analytics logs post-deployment to troubleshoot pod or cluster issues |
 
 ## Best Practices
 

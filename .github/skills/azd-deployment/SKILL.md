@@ -272,6 +272,17 @@ az deployment sub list -o table
 az resource list -g <resource-group> -o table
 ```
 
+## Azure MCP Tools
+
+Use these Azure MCP Server tools to enhance azd workflows:
+
+| Tool | When to Use |
+|------|-------------|
+| `azure_deploy_plan` | Generate a deployment plan before `azd up` — validates resource configuration and dependencies |
+| `azure_deploy_app_logs` | Fetch Log Analytics logs post-deployment for troubleshooting failed deployments |
+| `azure_deploy_pipeline` | Get CI/CD pipeline guidance for GitHub Actions integration with azd |
+| `azure_deploy_iac_guidance` | Best practices for Bicep/Terraform with azd compatibility |
+
 ## Common azd Workflows
 
 ### Fresh Deployment

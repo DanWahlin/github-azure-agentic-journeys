@@ -1,8 +1,36 @@
-# 📊 Grafana on Azure Container Apps
+# Chapter 02: Grafana — Metrics & Visualization on Azure Container Apps
 
-Deploy [Grafana OSS](https://grafana.com/oss/grafana/) (metrics, logs, and traces visualization) to Azure using Bicep and Azure Developer CLI (azd).
+> **The simplest deployment in the project — zero database dependency, two minutes to production.**
 
-> **Deploy time:** ~2 minutes | **Cost:** ~$10-20/month (dev) | **Complexity:** Simple
+In this chapter, you'll deploy [Grafana OSS](https://grafana.com/oss/grafana/) — the industry-standard observability platform — to Azure Container Apps. With no external database required and a ~2 minute deploy time, Grafana is the perfect second chapter: same agent, same skills system, dramatically simpler architecture. You'll also explore the SQLite vs PostgreSQL decision point for production readiness.
+
+## Learning Objectives
+
+- Deploy Grafana to Azure Container Apps using the agent or pre-built Bicep
+- Understand why Grafana is simpler than n8n (no database dependency, fast startup)
+- Evaluate SQLite vs PostgreSQL for different environments
+- Use `/api/health` for reliable health probes
+- Handle scale-to-zero cold starts gracefully
+
+> ⏱️ **Estimated Time**: ~15 minutes (Path 1) or ~5 minutes (Path 2)
+
+---
+
+## Real-World Analogy: The Food Truck vs The Restaurant
+
+In Chapter 01, deploying n8n was like opening a restaurant — you needed a kitchen (Container Apps), a walk-in fridge (PostgreSQL), and a seating plan (health probes for slow startup). Grafana is more like a food truck: self-contained, fast to set up, and ready to serve in minutes.
+
+| Food Truck | Grafana on Azure |
+|------------|-----------------|
+| Self-contained kitchen | SQLite embedded database — no external dependency |
+| Parks and serves in minutes | Deploys in ~2 minutes |
+| Limited storage (small fridge) | Ephemeral storage — data lost on restart |
+| Can upgrade to a commissary kitchen | Switch to PostgreSQL for production persistence |
+| Quick to relocate | Scale-to-zero, spin up anywhere |
+
+The food truck works great for testing and demos. When you need persistence, you upgrade to a commissary kitchen (PostgreSQL).
+
+---
 
 ## Architecture
 
@@ -32,13 +60,97 @@ graph TB
 
 **Infrastructure directory:** [`../infra-grafana/`](../infra-grafana/)
 
-## Prerequisites
+---
 
-- **Azure Subscription** with permissions to create resources
-- **Azure CLI** (`az`) — [Install](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
-- **Azure Developer CLI** (`azd`) — [Install](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd)
+## Path 1: Generate Infrastructure with the Agent
 
-## Quick Start
+### Step 1: Install the Azure MCP Plugin
+
+```bash
+/plugin install microsoft/github-copilot-for-azure:plugin
+```
+
+### Step 2: Start a Session with the Agent
+
+```bash
+copilot --agent oss-to-azure-deployer
+```
+
+### Step 3: Ask the Agent to Deploy Grafana
+
+> Deploy Grafana to Azure Container Apps
+
+The agent will:
+
+1. **Load the right skills** — `grafana-azure` for Grafana-specific configuration, `azure-container-apps` for Container Apps patterns, `azure-bicep-generation` for Bicep conventions, and `azd-deployment` for azure.yaml setup
+2. **Use `azure_deploy_iac_guidance`** to get Bicep best practices (`deployment_tool=AZD`, `iac_type=bicep`, `resource_type=containerapp`)
+3. **Use `azure_bicep_schema`** to look up the latest API versions for `Microsoft.App/containerApps` and `Microsoft.App/managedEnvironments`
+4. **Notice it's simpler** — no PostgreSQL module needed (SQLite is default)
+
+### Step 4: Review the Generated Infrastructure
+
+The agent generates a leaner structure than n8n — no database module:
+
+```
+infra-grafana/
+├── main.bicep
+├── main.parameters.json
+├── abbreviations.json
+├── modules/
+│   ├── log-analytics.bicep
+│   ├── container-apps-environment.bicep
+│   └── grafana-container-app.bicep
+└── hooks/
+    ├── postprovision.sh
+    └── postprovision.ps1
+```
+
+Ask the agent about the SQLite decision:
+
+> Should I use PostgreSQL instead of SQLite for Grafana?
+
+> The agent explains: SQLite is fine for dev/testing but dashboards are lost on container restart. For production, either mount Azure Files to `/var/lib/grafana` or switch to PostgreSQL. It can generate the PostgreSQL module if you want.
+
+### Step 5: Validate and Deploy
+
+> Validate and create a deployment plan
+
+The agent will:
+1. Run `az bicep build --file infra-grafana/main.bicep`
+2. **Use `azure_deploy_plan`** (`target=ContainerApp`, `provisioning_tool=AZD`)
+3. Show that this is a simpler deployment — no database provisioning means ~2 minutes instead of ~7
+
+Then deploy:
+
+```bash
+az provider register --namespace Microsoft.App
+az provider register --namespace Microsoft.OperationalInsights
+
+azd env new my-grafana-env
+azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+azd env set AZURE_LOCATION "westus"
+azd env set GRAFANA_ADMIN_PASSWORD "$(openssl rand -base64 16)"
+
+azd up
+```
+
+### Step 6: Verify
+
+```bash
+GRAFANA_URL=$(azd env get-value GRAFANA_URL)
+curl -s "$GRAFANA_URL/api/health"
+# Expected: {"commit":"...","database":"ok","version":"10.x.x"}
+```
+
+If something goes wrong, ask the agent:
+
+> Grafana is returning 502 errors
+
+The agent will **use `azure_deploy_app_logs`** to check if it's a cold start issue (scale-from-zero takes 30-60s) or a real problem.
+
+---
+
+## Path 2: Deploy Pre-Built Infrastructure
 
 ### 1. Register Azure Resource Providers
 
@@ -99,7 +211,9 @@ azd env get-value GRAFANA_URL
 # Login: admin / <your GRAFANA_ADMIN_PASSWORD>
 ```
 
-## Configuration
+---
+
+## Configuration Reference
 
 ### Environment Variables
 
@@ -161,6 +275,8 @@ GF_DATABASE_SSL_MODE: require
 
 **Alternative:** Mount Azure Files to `/var/lib/grafana` for persistent SQLite.
 
+---
+
 ## Cost Breakdown
 
 | Resource | SKU | Monthly Cost |
@@ -172,6 +288,8 @@ GF_DATABASE_SSL_MODE: require
 
 Grafana is the cheapest deployment in this project — no external database required for dev use.
 
+---
+
 ## Troubleshooting
 
 ### Container Won't Start
@@ -182,6 +300,8 @@ az containerapp logs show --name <app-name> --resource-group <rg> --follow
 ```
 
 Verify health probes aren't too aggressive. The Bicep templates in `../infra-grafana/` include proper timing.
+
+> **Agent tip:** Ask `@oss-to-azure-deployer` — *"My Grafana container won't start"* — and it will use `azure_deploy_app_logs` to diagnose.
 
 ### 502 Bad Gateway
 
@@ -224,7 +344,9 @@ resources: {
 }
 ```
 
-## Verification
+---
+
+## Verification Checklist
 
 ```bash
 # Health check (expect HTTP 200 with JSON)
@@ -238,6 +360,8 @@ az containerapp show --name <app-name> --resource-group <rg> \
   --query "properties.runningStatus"
 ```
 
+---
+
 ## Cleanup
 
 ```bash
@@ -246,17 +370,7 @@ azd down --force --purge
 
 Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
-## 🤖 Copilot Agent & Skills
-
-This deployment is powered by the **`@oss-to-azure-deployer`** Copilot agent ([`.github/agents/oss-to-azure-deployer.agent.md`](../.github/agents/oss-to-azure-deployer.agent.md)) with these skills:
-
-| Skill | Purpose |
-|-------|---------|
-| [`grafana-azure`](../.github/skills/grafana-azure/SKILL.md) | Grafana-specific configuration, environment variables, health probes, troubleshooting |
-| [`azure-bicep-generation`](../.github/skills/azure-bicep-generation/SKILL.md) | Bicep patterns for Container Apps, Log Analytics, naming conventions |
-| [`azd-deployment`](../.github/skills/azd-deployment/SKILL.md) | azure.yaml configuration, post-provision hooks, deployment workflows |
-
-Ask `@oss-to-azure-deployer` in GitHub Copilot to deploy Grafana, add data sources, or switch to PostgreSQL.
+---
 
 ## Key Learnings
 
@@ -266,6 +380,27 @@ Ask `@oss-to-azure-deployer` in GitHub Copilot to deploy Grafana, add data sourc
 - **Scale-to-zero cold start** takes 30-60s — this is normal, not an error
 - **Avoid shell special characters in passwords** — use alphanumeric for CLI deployments
 - **No database dependency** — simplest deployment in the project
+- **Same agent, different skills** — the agent loaded `grafana-azure` instead of `n8n-azure` and adapted automatically
+
+---
+
+## Assignment
+
+**Practice what you learned:**
+
+1. Deploy Grafana using **Path 2** — notice how much faster it is than n8n (no PostgreSQL provisioning)
+2. Open the Grafana UI and create a dashboard with a text panel
+3. Run `azd down --force --purge`, then redeploy with `azd up` — notice your dashboard is gone (SQLite is ephemeral!)
+4. Start a Copilot CLI session and ask: *"How do I make Grafana dashboards persist across restarts?"*
+5. Clean up with `azd down --force --purge`
+
+---
+
+## What's Next
+
+In [Chapter 03: Apache Superset](../superset/README.md), you'll tackle the most complex deployment — a full BI platform on Azure Kubernetes Service. You'll learn why some applications need Kubernetes instead of Container Apps, and how the agent handles init containers, shared volumes, and psycopg2 installation.
+
+---
 
 ## Resources
 

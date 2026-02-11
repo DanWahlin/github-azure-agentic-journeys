@@ -2,6 +2,14 @@
 
 This repository deploys open-source applications (like n8n) to Azure using Bicep/Terraform and Azure Developer CLI (azd).
 
+## Prerequisites
+
+Install the **Azure MCP Server plugin** for access to Azure-specific tools (Bicep schemas, deployment planning, architecture diagrams, log analysis):
+
+```
+/plugin install microsoft/github-copilot-for-azure:plugin
+```
+
 ## Agent & Skill System
 
 This repo uses GitHub Copilot's **agents** and **skills** for organized AI assistance:
@@ -23,6 +31,7 @@ Skills are loaded automatically based on context:
 | Skill | Purpose |
 |-------|---------|
 | `azure-bicep-generation` | Generic Bicep patterns (Container Apps, PostgreSQL, Log Analytics, naming) |
+| `azure-container-apps` | Container Apps patterns for serverless deployments |
 | `azure-aks-deployment` | AKS patterns for Kubernetes-based deployments |
 | `azd-deployment` | Azure Developer CLI workflows, azure.yaml, post-provision hooks |
 
@@ -37,7 +46,24 @@ Skills are loaded automatically based on context:
 
 1. **New deployments:** Use `@oss-to-azure-deployer` to guide the entire journey
 2. **Skills load automatically** based on the app being deployed
-3. **Troubleshooting:** Reference app-specific troubleshooting.md files
+3. **Azure MCP tools** provide real-time schema lookups, deployment planning, and troubleshooting
+4. **Troubleshooting:** Reference app-specific troubleshooting.md files and use `azure_deploy_app_logs`
+
+---
+
+## Azure MCP Server Tools
+
+The Azure MCP plugin provides these tools for use throughout the deployment lifecycle:
+
+| Tool | Purpose | When to Use |
+|------|---------|-------------|
+| `azure_bicep_schema` | Get latest API versions + property definitions | When generating or updating Bicep resource definitions |
+| `azure_deploy_iac_guidance` | Bicep/Terraform best practices with azd | When choosing IaC approach or setting up project structure |
+| `azure_deploy_plan` | Generate deployment plans | Before `azd up` — validates configuration and dependencies |
+| `azure_deploy_architecture` | Generate Mermaid architecture diagrams | When documenting or visualizing deployment architecture |
+| `azure_deploy_app_logs` | Fetch Log Analytics logs | Post-deployment troubleshooting (CrashLoopBackOff, connection errors) |
+| `azure_deploy_pipeline` | CI/CD pipeline guidance | When setting up GitHub Actions for automated deployments |
+| `azure_terraform_best_practices` | Terraform-specific Azure guidance | When using Terraform instead of Bicep |
 
 ---
 
@@ -179,6 +205,15 @@ In the app-specific skill, document:
 - Database requirements (SSL, connection strings)
 - Post-deployment configuration needs
 
+### Step 5: Leverage Azure MCP Tools
+
+Use Azure MCP tools throughout development:
+- `azure_bicep_schema` to get correct API versions and resource properties
+- `azure_deploy_iac_guidance` for IaC best practices with azd
+- `azure_deploy_plan` to validate before deployment
+- `azure_deploy_architecture` to generate architecture diagrams
+- `azure_deploy_app_logs` for post-deployment troubleshooting
+
 **The goal:** Generic patterns stay in `azure-bicep-generation`, app-specific quirks go in the app skill. All deployments use `azd up` / `azd down`.
 
 ---
@@ -218,6 +253,8 @@ infra-superset/                   # Superset Bicep + Kubernetes
     │       ├── postgresql.md
     │       ├── log-analytics.md
     │       └── naming-conventions.md
+    ├── azure-container-apps/     # Container Apps patterns
+    │   └── SKILL.md
     ├── azure-aks-deployment/     # AKS deployment patterns
     │   └── SKILL.md
     ├── azd-deployment/           # azd workflows

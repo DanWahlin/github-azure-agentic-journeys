@@ -62,37 +62,25 @@ Apache Superset is a modern data exploration and visualization platform. It requ
 
 ## Architecture on AKS
 
-```
-                    ┌──────────────────────────────┐
-                    │        Load Balancer         │
-                    │     (Public IP: External)    │
-                    └──────────────┬───────────────┘
-                                   │
-              ┌────────────────────┼────────────────────┐
-              │              AKS Cluster               │
-              │    ┌───────────────┴───────────────┐   │
-              │    │     NGINX Ingress Controller   │   │
-              │    └───────────────┬───────────────┘   │
-              │                    │                    │
-              │    ┌───────────────┴───────────────┐   │
-              │    │        Superset Service        │   │
-              │    │          ClusterIP:80          │   │
-              │    └───────────────┬───────────────┘   │
-              │                    │                    │
-              │    ┌───────────────┴───────────────┐   │
-              │    │     Superset Deployment        │   │
-              │    │    - Init Container (migrate)  │   │
-              │    │    - Main Container (web)      │   │
-              │    │    - ConfigMap (config.py)     │   │
-              │    │    - emptyDir (psycopg2)       │   │
-              │    │    Port: 8088                  │   │
-              │    └───────────────┬───────────────┘   │
-              └────────────────────┼────────────────────┘
-                                   │
-                    ┌──────────────┴───────────────┐
-                    │   PostgreSQL Flexible Server  │
-                    │     (Azure Managed PaaS)      │
-                    └──────────────────────────────┘
+```mermaid
+graph TB
+    LB["Load Balancer<br/>(Public IP)"]
+
+    subgraph AKS["AKS Cluster"]
+        NGINX["NGINX Ingress Controller"]
+        SVC["Superset Service<br/>(ClusterIP:80)"]
+        subgraph POD["Superset Deployment"]
+            INIT["Init Container (migrate)"]
+            MAIN["Main Container (web · port 8088)"]
+            CM["ConfigMap (config.py)"]
+            VOL["emptyDir (psycopg2)"]
+        end
+    end
+
+    PG["PostgreSQL Flexible Server<br/>(Azure Managed PaaS)"]
+
+    LB --> NGINX --> SVC --> POD
+    POD --> PG
 ```
 
 ## Critical Configuration
@@ -182,6 +170,18 @@ readinessProbe:
 ### 6. SSL Connection Required
 **Symptom**: "SSL connection required"
 **Fix**: Add `?sslmode=require` to DATABASE_URL
+
+## Azure MCP Tools
+
+Use these Azure MCP Server tools for Superset deployments:
+
+| Tool | When to Use |
+|------|-------------|
+| `azure_deploy_plan` | Generate a deployment plan — use params: `target=AKS`, `provisioning_tool=AZD` |
+| `azure_bicep_schema` | Get latest schemas for `Microsoft.ContainerService/managedClusters` and `Microsoft.DBforPostgreSQL/flexibleServers` |
+| `azure_deploy_iac_guidance` | AKS-specific Bicep best practices — use `resource_type=aks` |
+| `azure_deploy_app_logs` | Fetch Log Analytics logs post-deployment to troubleshoot pod CrashLoopBackOff or init failures |
+| `azure_deploy_architecture` | Generate Mermaid architecture diagrams for the Superset AKS deployment |
 
 ## Deployment Checklist
 

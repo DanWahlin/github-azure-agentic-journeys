@@ -109,7 +109,18 @@ resource logs '...' = if (deployMonitoring) {
 }
 ```
 
+## Azure MCP Tools
+
+Use these Azure MCP Server tools to enhance Bicep generation:
+
+| Tool | When to Use |
+|------|-------------|
+| `azure_bicep_schema` | Get the **latest API versions** and full property definitions for any Azure resource type. Always prefer this over hard-coded API versions below. |
+| `azure_deploy_iac_guidance` | Get Bicep best practices with azd compatibility. Params: `deployment_tool=AZD`, `iac_type=bicep`, `resource_type` (appservice/containerapp/function/aks) |
+
 ## Common API Versions
+
+> **Tip:** Use `azure_bicep_schema` to verify these are still current.
 
 | Resource Type | API Version |
 |---------------|-------------|

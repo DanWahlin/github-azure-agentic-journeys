@@ -15,20 +15,16 @@ Grafana is an open-source observability platform for metrics, logs, and traces v
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                  Resource Group                         │
-│  ┌─────────────────┐    ┌─────────────────────────────┐ │
-│  │ Log Analytics   │───▶│ Container Apps Environment  │ │
-│  │ Workspace       │    │                             │ │
-│  └─────────────────┘    │  ┌───────────────────────┐  │ │
-│                         │  │ Grafana Container App │  │ │
-│                         │  │ - Port 3000           │  │ │
-│                         │  │ - SQLite (default)    │  │ │
-│                         │  │ - Scale 0-3 replicas  │  │ │
-│                         │  └───────────────────────┘  │ │
-│                         └─────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph RG["Azure Resource Group"]
+        LA["Log Analytics Workspace"]
+        subgraph CAE["Container Apps Environment"]
+            GF["Grafana Container App<br/>Port 3000 · SQLite (default)<br/>Scale 0-3 replicas"]
+        end
+    end
+
+    LA -->|logs & metrics| CAE
 ```
 
 ## Quick Start (Verified)
@@ -139,6 +135,17 @@ azd down --force --purge
 | Resources | 0.5 CPU, 1GB RAM | 1 CPU, 2GB RAM |
 | Complexity | Simple | Moderate |
 | Deploy Time | ~2 minutes | ~5 minutes |
+
+## Azure MCP Tools
+
+Use these Azure MCP Server tools for Grafana deployments:
+
+| Tool | When to Use |
+|------|-------------|
+| `azure_bicep_schema` | Get latest schemas for `Microsoft.App/containerApps` and `Microsoft.App/managedEnvironments` |
+| `azure_deploy_architecture` | Generate Mermaid architecture diagrams for the Grafana deployment |
+| `azure_deploy_plan` | Validate the deployment plan before `azd up` — use `target=ContainerApp` |
+| `azure_deploy_app_logs` | Fetch container logs from Log Analytics when troubleshooting startup or 502 issues |
 
 ## Troubleshooting
 

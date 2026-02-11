@@ -1,33 +1,38 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg) ![Azure](https://img.shields.io/badge/Microsoft-Azure-0078D4?logo=microsoftazure&logoColor=white)
 
-🎯 [What You'll Learn](#what-youll-learn) | 🤖 [How It Works](#how-it-works-agent--skills) | 📚 [Deployments](#deployments) | ✅ [Prerequisites](#prerequisites) | 🚀 [Quick Start](#quick-start) | 📁 [Project Structure](#project-structure)
+🎯 [What You'll Learn](#what-youll-learn) | 🤖 [How It Works](#how-it-works-agent--skills--azure-mcp) | 📚 [Deployments](#deployments) | ✅ [Prerequisites](#prerequisites) | 🚀 [Quick Start](#quick-start) | 📁 [Project Structure](#project-structure)
 
 # OSS to Azure
 
-Deploy open-source applications to Azure using **GitHub Copilot CLI agents and skills** — powered by Infrastructure as Code (Bicep) and Azure Developer CLI (azd).
+Deploy open-source applications to Azure using **GitHub Copilot CLI agents, skills, and Azure MCP tools** — powered by Infrastructure as Code (Bicep) and Azure Developer CLI (azd).
 
 ## What You'll Learn
 
-This repo demonstrates how to use **GitHub Copilot CLI's agent and skill system** to deploy real-world open-source applications to Azure. Instead of reading docs and piecing together infrastructure manually, you use the **`@oss-to-azure-deployer` agent** — it knows the architecture, the gotchas, and the deployment patterns for each app.
+This repo demonstrates how to use **GitHub Copilot CLI's agent and skill system** — enhanced by the **Azure MCP Server plugin** — to deploy real-world open-source applications to Azure. Instead of reading docs and piecing together infrastructure manually, you use the **`@oss-to-azure-deployer` agent** — it knows the architecture, the gotchas, and the deployment patterns for each app.
 
 Each deployment includes:
 
 - **A Copilot agent** that orchestrates the entire deployment journey — from requirements to verification
 - **App-specific skills** that teach Copilot the configuration quirks of each application
 - **Generic infrastructure skills** for reusable Bicep and azd patterns
+- **Azure MCP tools** for real-time schema lookups, deployment planning, IaC best practices, and log analysis
 - **Bicep infrastructure** — Modular, production-ready Azure resource definitions
 - **One-command deployment** with `azd up`
 - **Troubleshooting guides** — Every issue we hit and how the agent resolves them
 
-**The idea:** You tell the agent what you want to deploy. It picks the right skills, generates infrastructure, handles the edge cases, and walks you through verification. The skills are the reusable knowledge — the agent is the orchestrator.
+**The idea:** You tell the agent what you want to deploy. It picks the right skills, uses Azure MCP tools to look up schemas and best practices, generates infrastructure, handles the edge cases, and walks you through verification. The skills are the reusable knowledge — the agent is the orchestrator — the MCP tools are the real-time intelligence.
 
-## How It Works: Agent + Skills
+## How It Works: Agent + Skills + Azure MCP
 
-This repo uses **GitHub Copilot CLI's agent and skill architecture** to encode deployment knowledge into reusable, AI-consumable components.
+This repo uses **GitHub Copilot CLI's agent and skill architecture** — combined with the **Azure MCP Server plugin** — to encode deployment knowledge into reusable, AI-consumable components.
 
-**Agents** define *who* does the work — personas with specific goals and workflows. **Skills** define *how* — reusable patterns the agent loads based on context.
+- **Agents** define *who* does the work — personas with specific goals and workflows
+- **Skills** define *how* — reusable patterns the agent loads based on context
+- **Azure MCP tools** provide *real-time intelligence* — schema lookups, deployment plans, IaC guidance, and log analysis
 
-The **`@oss-to-azure-deployer`** [agent](.github/agents/oss-to-azure-deployer.agent.md) orchestrates the full deployment lifecycle. It automatically loads the right skills based on which app you're deploying:
+The **`@oss-to-azure-deployer`** [agent](.github/agents/oss-to-azure-deployer.agent.md) orchestrates the full deployment lifecycle. It automatically loads the right skills and uses Azure MCP tools based on which app you're deploying:
+
+### Skills
 
 | Skill | Type | Purpose |
 |-------|------|---------|
@@ -35,20 +40,34 @@ The **`@oss-to-azure-deployer`** [agent](.github/agents/oss-to-azure-deployer.ag
 | [`grafana-azure`](.github/skills/grafana-azure/SKILL.md) | App-specific | Grafana configuration, SQLite/PostgreSQL options |
 | [`superset-azure`](.github/skills/superset-azure/SKILL.md) | App-specific | Superset on AKS, psycopg2 setup, Kubernetes patterns |
 | [`azure-bicep-generation`](.github/skills/azure-bicep-generation/SKILL.md) | Generic | Bicep patterns for Container Apps, PostgreSQL, naming |
+| [`azure-container-apps`](.github/skills/azure-container-apps/SKILL.md) | Generic | Container Apps patterns for serverless deployments |
 | [`azure-aks-deployment`](.github/skills/azure-aks-deployment/SKILL.md) | Generic | AKS cluster provisioning, Kubernetes manifests |
 | [`azd-deployment`](.github/skills/azd-deployment/SKILL.md) | Generic | azure.yaml templates, hooks, deployment workflows |
+
+### Azure MCP Tools
+
+The agent uses these tools from the [Azure MCP Server plugin](https://github.com/microsoft/github-copilot-for-azure) for real-time Azure intelligence:
+
+| Tool | What It Does |
+|------|-------------|
+| `azure_bicep_schema` | Look up latest API versions and property definitions for any Azure resource type |
+| `azure_deploy_iac_guidance` | Get Bicep/Terraform best practices with azd compatibility |
+| `azure_deploy_plan` | Generate deployment plans — validates resources, dependencies, and configuration |
+| `azure_deploy_app_logs` | Fetch Log Analytics logs for post-deployment troubleshooting |
+| `azure_deploy_architecture` | Generate Mermaid architecture diagrams for deployments |
+| `azure_deploy_pipeline` | Get CI/CD pipeline guidance for GitHub Actions with azd |
 
 Try it: open GitHub Copilot CLI and ask `@oss-to-azure-deployer` — *"Deploy n8n to Azure"* or *"My Superset pod is in CrashLoopBackOff"*.
 
 ## Deployments
 
-| # | App | What You'll Deploy | Deploy Time | Monthly Cost (Dev) |
-|:-:|-----|-------------------|-------------|-------------------|
+| Chapter | App | What You'll Deploy | Deploy Time | Monthly Cost (Dev) |
+|:-------:|-----|-------------------|-------------|-------------------|
 | 01 | 🔄 [n8n — Workflow Automation](./n8n/README.md) | Container Apps + PostgreSQL | ~7 min | ~$25-35 |
 | 02 | 📊 [Grafana — Metrics & Visualization](./grafana/README.md) | Container Apps + SQLite | ~2 min | ~$10-20 |
 | 03 | 📈 [Apache Superset — BI Platform](./superset/README.md) | AKS + PostgreSQL | ~15-20 min | ~$135-185 |
 
-Each app has its own detailed README with architecture diagrams, step-by-step deployment, configuration reference, cost breakdown, and troubleshooting guide.
+Each chapter has two paths: **generate infrastructure with the agent** (primary) or **deploy pre-built Bicep** (quick start). Both include architecture diagrams, configuration reference, cost breakdowns, and troubleshooting guides.
 
 ## Prerequisites
 
@@ -57,9 +76,13 @@ Before deploying any app, ensure you have:
 ✅ **Azure Subscription** — [Create one free](https://azure.microsoft.com/free/)<br>
 ✅ **Azure CLI** (`az`) — [Install](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)<br>
 ✅ **Azure Developer CLI** (`azd`) — [Install](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd)<br>
-✅ **GitHub Copilot CLI** — [Install](https://docs.github.com/copilot/how-tos/copilot-cli/cli-getting-started) for AI-assisted deployment with `@oss-to-azure-deployer`
+✅ **GitHub Copilot CLI** — [Install](https://docs.github.com/copilot/how-tos/copilot-cli/cli-getting-started) for AI-assisted deployment with `@oss-to-azure-deployer`<br>
+✅ **Azure MCP Server Plugin** — Install in Copilot CLI for real-time Azure intelligence:
 
 ```bash
+# Install the Azure MCP Server plugin (inside Copilot CLI)
+/plugin install microsoft/github-copilot-for-azure:plugin
+
 # Verify installations
 az --version
 azd version
@@ -99,7 +122,17 @@ azd up
 azd down --force --purge
 ```
 
-See each app's README for specific variables and configuration.
+Or use the agent for an interactive, guided experience:
+
+```bash
+# Start a session with the deployment agent
+copilot --agent oss-to-azure-deployer
+
+# Then ask:
+> Deploy n8n to Azure Container Apps with PostgreSQL
+```
+
+See each chapter's README for detailed walkthroughs.
 
 ## Project Structure
 
@@ -109,11 +142,11 @@ oss-to-azure/
 ├── azure.yaml                             # azd configuration (point to desired infra dir)
 │
 ├── n8n/
-│   └── README.md                          # n8n deployment guide
+│   └── README.md                          # Chapter 01: n8n deployment guide
 ├── grafana/
-│   └── README.md                          # Grafana deployment guide
+│   └── README.md                          # Chapter 02: Grafana deployment guide
 ├── superset/
-│   └── README.md                          # Superset deployment guide
+│   └── README.md                          # Chapter 03: Superset deployment guide
 │
 ├── infra-n8n/                             # n8n Bicep infrastructure
 │   ├── main.bicep
@@ -139,6 +172,7 @@ oss-to-azure/
     │   ├── grafana-azure/                 # Grafana-specific skill
     │   ├── superset-azure/                # Superset-specific skill
     │   ├── azure-bicep-generation/        # Generic Bicep patterns
+    │   ├── azure-container-apps/          # Generic Container Apps patterns
     │   ├── azure-aks-deployment/          # Generic AKS patterns
     │   └── azd-deployment/                # Generic azd patterns
     └── copilot-instructions.md
@@ -157,7 +191,7 @@ See [`.github/copilot-instructions.md`](.github/copilot-instructions.md) for the
 ## Getting Help
 
 - 🤖 **Ask the Agent:** `@oss-to-azure-deployer` in GitHub Copilot CLI for deployment help and troubleshooting
-- 📖 **App-specific issues:** Check the troubleshooting section in each app's README
+- 📖 **App-specific issues:** Check the troubleshooting section in each chapter's README
 - 🔗 **Azure docs:** [Container Apps](https://learn.microsoft.com/azure/container-apps/) · [AKS](https://learn.microsoft.com/azure/aks/) · [PostgreSQL](https://learn.microsoft.com/azure/postgresql/) · [azd](https://learn.microsoft.com/azure/developer/azure-developer-cli/)
 - 🐛 **Found a bug?** [Open an issue](https://github.com/DanWahlin/oss-to-azure/issues) on GitHub
 

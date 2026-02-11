@@ -63,20 +63,18 @@ azd env get-value N8N_URL
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Azure Container Apps                      │
-│  ┌─────────────────────┐    ┌─────────────────────────────┐ │
-│  │  n8n Container App  │────│  Log Analytics Workspace    │ │
-│  │  (0-3 replicas)     │    │  (monitoring)               │ │
-│  └─────────┬───────────┘    └─────────────────────────────┘ │
-└────────────┼────────────────────────────────────────────────┘
-             │ SSL/TLS (port 5678)
-             ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Azure Database for PostgreSQL Flexible Server              │
-│  (B_Standard_B1ms, 32GB, version 16)                       │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph RG["Azure Resource Group"]
+        subgraph CAE["Container Apps Environment"]
+            N8N["n8n Container App<br/>(0-3 replicas)"]
+        end
+        LA["Log Analytics Workspace"]
+        PG["Azure PostgreSQL Flexible Server<br/>(B_Standard_B1ms, 32GB, v16)"]
+    end
+
+    CAE -->|logs & metrics| LA
+    N8N -->|SSL/TLS port 5678| PG
 ```
 
 ## n8n-Specific Requirements
@@ -154,6 +152,17 @@ n8n has specific quirks not covered by generic Azure skills:
 3. **WEBHOOK_URL** - Must be set post-deployment (circular dependency via post-provision hook)
 4. **Encryption key** - Auto-generated via `newGuid()` parameter default
 5. **Port 5678** - Non-standard port for health checks and ingress
+
+## Azure MCP Tools
+
+Use these Azure MCP Server tools for n8n deployments:
+
+| Tool | When to Use |
+|------|-------------|
+| `azure_bicep_schema` | Get latest schemas for `Microsoft.App/containerApps` and `Microsoft.DBforPostgreSQL/flexibleServers` |
+| `azure_deploy_architecture` | Generate Mermaid architecture diagrams for the n8n deployment |
+| `azure_deploy_plan` | Validate the deployment plan before `azd up` — use `target=ContainerApp` |
+| `azure_deploy_app_logs` | Fetch container logs from Log Analytics when troubleshooting startup or connectivity issues |
 
 ## Reproducibility Notes
 
