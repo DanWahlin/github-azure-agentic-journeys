@@ -90,7 +90,7 @@ az login
 
 ## Installing the Azure Plugin
 
-The Azure plugin provides the infrastructure skills used by the deployer agent. Install it from inside **Copilot CLI, Claude Code, or any tool that supports the plugin system**:
+The Azure plugin provides the infrastructure skills and Azure MCP Server tools used by the deployer agent. Install it from inside **Copilot CLI, Claude Code, or any tool that supports the plugin system**:
 
 ```bash
 # Add the marketplace (first time only)
@@ -103,7 +103,7 @@ The Azure plugin provides the infrastructure skills used by the deployer agent. 
 /plugin update azure@github-copilot-for-azure
 ```
 
-This installs 21 Azure skills including `azure-prepare`, `azure-validate`, and `azure-deploy`.
+This installs 21 Azure skills including `azure-prepare`, `azure-validate`, and `azure-deploy`, plus the Azure MCP Server tools (`azure_bicep_schema`, `azure_deploy_app_logs`, etc.) used by the app-specific skills. No separate MCP server installation is needed.
 
 ## Quick Start
 
