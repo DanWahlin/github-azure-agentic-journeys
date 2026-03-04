@@ -1,7 +1,0 @@
-{
-  "containerApp": "app",
-  "containerAppsEnvironment": "cae",
-  "logAnalyticsWorkspace": "log",
-  "postgreSQLServer": "pg",
-  "managedIdentity": "id"
-}

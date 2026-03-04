@@ -9,6 +9,28 @@ Deploy Apache Superset data visualization platform on Azure Kubernetes Service.
 
 > **Complexity Note**: Superset is the most complex deployment in this project due to psycopg2 requirements and AKS architecture. Deploy time: ~15-20 minutes.
 
+## Critical: Infrastructure Generation
+
+This skill provides Superset-specific configuration only. Infrastructure (Bicep, azure.yaml, K8s manifests) should be generated fresh each time by the official `azure-prepare` → `azure-validate` → `azure-deploy` pipeline. Do NOT rely on pre-existing infra code.
+
+## Critical: Subscription Context
+
+**ALWAYS set AZURE_SUBSCRIPTION_ID explicitly before running `azd up`:**
+```bash
+azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+```
+Without this, azd and Azure MCP tools will fail silently or produce incomplete deployments.
+
+## Critical: PostgreSQL SKU Format
+
+Azure PostgreSQL Flexible Server requires BOTH `sku.name` and `sku.tier`:
+```bicep
+sku: {
+  name: 'Standard_B1ms'    // NOT 'B_Standard_B1ms'
+  tier: 'Burstable'        // REQUIRED - omitting causes deployment failure
+}
+```
+
 ## Quick Start (Verified)
 
 ```bash

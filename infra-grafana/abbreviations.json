@@ -1,6 +1,0 @@
-{
-  "containerApp": "app",
-  "containerAppsEnvironment": "cae",
-  "logAnalyticsWorkspace": "log",
-  "managedIdentity": "id"
-}

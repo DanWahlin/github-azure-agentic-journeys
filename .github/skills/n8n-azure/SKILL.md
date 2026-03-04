@@ -13,7 +13,30 @@ Application-specific configuration for deploying n8n to Azure Container Apps wit
 - Troubleshooting n8n on Azure
 - Configuring n8n environment variables
 
-**Note:** This skill is n8n-specific. Use `azure-bicep-generation` for generic Azure patterns.
+**Note:** This skill is n8n-specific. Use the official `azure-prepare` skill to generate infrastructure from scratch.
+
+## Critical: Infrastructure Generation
+
+This skill provides n8n-specific configuration only. Infrastructure (Bicep, azure.yaml) should be generated fresh each time by the official `azure-prepare` → `azure-validate` → `azure-deploy` pipeline. Do NOT rely on pre-existing infra code.
+
+## Critical: Subscription Context
+
+**ALWAYS set AZURE_SUBSCRIPTION_ID explicitly before running `azd up`:**
+```bash
+azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+```
+Without this, azd and Azure MCP tools will fail silently or produce incomplete deployments.
+
+## Critical: PostgreSQL SKU Format
+
+Azure PostgreSQL Flexible Server requires BOTH `sku.name` and `sku.tier`:
+```bicep
+sku: {
+  name: 'Standard_B1ms'    // NOT 'B_Standard_B1ms'
+  tier: 'Burstable'        // REQUIRED - omitting causes deployment failure
+}
+```
+Valid tier values: `Burstable`, `GeneralPurpose`, `MemoryOptimized`.
 
 ## Official Documentation
 
@@ -70,7 +93,7 @@ graph TB
             N8N["n8n Container App<br/>(0-3 replicas)"]
         end
         LA["Log Analytics Workspace"]
-        PG["Azure PostgreSQL Flexible Server<br/>(B_Standard_B1ms, 32GB, v16)"]
+        PG["Azure PostgreSQL Flexible Server<br/>(Standard_B1ms/Burstable, 32GB, v16)"]
     end
 
     CAE -->|logs & metrics| LA

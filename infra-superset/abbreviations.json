@@ -1,6 +1,0 @@
-{
-  "aksCluster": "aks",
-  "logAnalyticsWorkspace": "log",
-  "postgreSQLServer": "pg",
-  "managedIdentity": "id"
-}

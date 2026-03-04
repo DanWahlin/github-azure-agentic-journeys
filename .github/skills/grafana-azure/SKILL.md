@@ -13,6 +13,28 @@ Deploy Grafana OSS to Azure Container Apps using Bicep and Azure Developer CLI (
 
 Grafana is an open-source observability platform for metrics, logs, and traces visualization. This skill deploys Grafana OSS (not Azure Managed Grafana) to Azure Container Apps.
 
+## Critical: Infrastructure Generation
+
+This skill provides Grafana-specific configuration only. Infrastructure (Bicep, azure.yaml) should be generated fresh each time by the official `azure-prepare` → `azure-validate` → `azure-deploy` pipeline. Do NOT rely on pre-existing infra code.
+
+## Critical: Subscription Context
+
+**ALWAYS set AZURE_SUBSCRIPTION_ID explicitly before running `azd up`:**
+```bash
+azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+```
+Without this, azd and Azure MCP tools will fail silently or produce incomplete deployments. The `azure_deploy_app_logs` tool also requires subscription context.
+
+## Critical: Bicep Output Naming
+
+Bicep outputs MUST use SCREAMING_SNAKE_CASE for azd to map them into environment values:
+```bicep
+output GRAFANA_URL string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
+output GRAFANA_FQDN string = containerApp.properties.configuration.ingress.fqdn
+output GRAFANA_ADMIN_USER string = grafanaAdminUser
+```
+If outputs don't follow this convention, `azd env get-value GRAFANA_URL` will return "key not found".
+
 ## Architecture
 
 ```mermaid
