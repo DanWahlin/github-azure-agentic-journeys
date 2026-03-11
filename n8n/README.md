@@ -90,13 +90,20 @@ Then start Copilot CLI:
 copilot
 ```
 
-Once inside the interactive session:
+Once inside the interactive session, add the marketplace (first time only):
 
 ```
-> /plugin install microsoft/github-copilot-for-azure:plugin
+> /plugin marketplace add microsoft/azure-skills
+```
+
+Then install the plugin:
+
+```
+> /plugin install azure@azure-skills
 ```
 
 > **Already installed?** If you completed a previous chapter, the plugin persists across sessions. Skip this step.
+> For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 > **What this does:** Gives the agent access to tools like `azure_bicep_schema`, `azure_deploy_iac_guidance`, `azure_deploy_plan`, and `azure_deploy_app_logs`. The agent can look up real Azure resource schemas instead of guessing.
 

@@ -112,13 +112,20 @@ Then start Copilot CLI:
 copilot
 ```
 
-Once inside the interactive session, install the Azure MCP plugin:
+Once inside the interactive session, add the marketplace (first time only):
 
 ```
-> /plugin install microsoft/github-copilot-for-azure:plugin
+> /plugin marketplace add microsoft/azure-skills
+```
+
+Then install the plugin:
+
+```
+> /plugin install azure@azure-skills
 ```
 
 > **Already installed?** If you completed a previous chapter, the plugin persists across sessions. Skip this step.
+> For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 ### Step 2: Select the Agent
 
