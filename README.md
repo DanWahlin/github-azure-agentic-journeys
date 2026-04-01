@@ -2,7 +2,7 @@
 
 🎯 [What You'll Learn](#what-youll-learn) | 🤖 [How It Works](#how-it-works-agent--skills--azure-plugin) | 📚 [Deployments](#deployments) | ✅ [Prerequisites](#prerequisites) | 🚀 [Quick Start](#quick-start) | 📁 [Project Structure](#project-structure)
 
-# OSS to Azure
+# GitHub + Azure Agentic Use Cases
 
 Deploy open-source applications to Azure using **GitHub Copilot CLI agents, skills, and the official Azure plugin**, powered by Infrastructure as Code (Bicep) and Azure Developer CLI (azd).
 
