@@ -1,8 +1,8 @@
-# Chapter 01: n8n — Workflow Automation on Azure Container Apps
+# Agentic Journey 01: n8n on Azure Container Apps
 
-> **What if deploying a production workflow automation platform to Azure was as simple as having a conversation?**
+> **Deploy a self-hosted workflow automation platform to Azure by having a conversation with an AI agent.**
 
-In this chapter, you'll deploy [n8n](https://n8n.io), a powerful workflow automation platform (think Zapier, but self-hosted and open-source), to Azure Container Apps with a managed PostgreSQL database. You'll do it two ways: first by using the `@oss-to-azure-deployer` Copilot agent to *generate* the infrastructure, then by deploying pre-built Bicep templates with a single command. Along the way, you'll learn how the agent uses Azure MCP tools to look up schemas, get best practices, and plan deployments, all from inside GitHub Copilot CLI.
+In this agentic journey, you'll deploy [n8n](https://n8n.io), a workflow automation platform (think Zapier, but self-hosted and open-source), to Azure Container Apps with a managed PostgreSQL database. You'll do it two ways: first by using the `@oss-to-azure-deployer` Copilot agent to *generate* the infrastructure, then by deploying pre-built Bicep templates with a single command. Along the way, you'll see how the agent uses Azure MCP tools to look up schemas, get best practices, and plan deployments.
 
 ## Learning Objectives
 
@@ -16,7 +16,7 @@ In this chapter, you'll deploy [n8n](https://n8n.io), a powerful workflow automa
 >
 > 💰 **Estimated Cost**: ~$25-35/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and optionally GitHub Copilot CLI. See [root README prerequisites](../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and optionally GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
 
 ---
 
@@ -66,7 +66,7 @@ graph TB
 - **Azure Log Analytics** — Centralized monitoring and logging
 - **User-Assigned Managed Identity** — Secure access to Azure resources
 
-**Infrastructure directory:** [`../infra-n8n/`](../infra-n8n/)
+**Infrastructure directory:** [`infra-n8n/`](../../infra-n8n/) (generated at repo root during deployment)
 
 ---
 
@@ -81,7 +81,7 @@ The agent uses Azure MCP tools to look up Bicep schemas, get deployment best pra
 Make sure you're in the repo root first:
 
 ```bash
-cd oss-to-azure
+cd github-azure-agentic-journeys
 ```
 
 Then start Copilot CLI:
@@ -102,7 +102,7 @@ Then install the plugin:
 > /plugin install azure@azure-skills
 ```
 
-> **Already installed?** If you completed a previous chapter, the plugin persists across sessions. Skip this step.
+> **Already installed?** If you completed a previous agentic journey, the plugin persists across sessions. Skip this step.
 > For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 > **What this does:** Gives the agent access to tools like `azure_bicep_schema`, `azure_deploy_iac_guidance`, `azure_deploy_plan`, and `azure_deploy_app_logs`. The agent can look up real Azure resource schemas instead of guessing.
@@ -351,7 +351,7 @@ Scale-to-zero keeps costs low during idle periods. For production with `minRepli
 
 **Cause:** n8n needs 60+ seconds to start, and default health probes kill it too early.
 
-**Fix:** Ensure health probes are configured with `initialDelaySeconds: 60` on liveness and `failureThreshold: 30` on startup. The Bicep templates in `../infra-n8n/` already include this.
+**Fix:** Ensure health probes are configured with `initialDelaySeconds: 60` on liveness and `failureThreshold: 30` on startup. The Bicep templates in `infra-n8n/` already include this.
 
 ```bash
 # Check container logs
@@ -476,7 +476,9 @@ Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently delet
 
 ## What's Next
 
-In [Chapter 02: Grafana](../grafana/README.md), you'll deploy a metrics and visualization platform — the simplest deployment in the project (~2 minutes, no external database required). You'll see how the same agent and skill system adapts to a completely different application.
+In [Agentic Journey 02: Grafana](../grafana/README.md), you'll deploy a metrics and visualization platform, the simplest deployment in the project (~2 minutes, no external database required). You'll see how the same agent and skill system adapts to a completely different application.
+
+> 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
 
 ---
 

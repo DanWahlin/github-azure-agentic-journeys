@@ -1,8 +1,8 @@
-# Chapter 03: Apache Superset — BI Platform on Azure Kubernetes Service
+# Agentic Journey 03: Apache Superset on Azure Kubernetes Service
 
-> **When Container Apps isn't enough, Kubernetes steps in, and the agent knows exactly when and why.**
+> **When Container Apps isn't enough, you need Kubernetes. The agent knows when and why.**
 
-In this final chapter, you'll deploy [Apache Superset](https://superset.apache.org/), a powerful data exploration and BI platform, to Azure Kubernetes Service (AKS). This is the most complex deployment in the project: init containers, shared volumes, psycopg2 installation, ConfigMap mounting, and a managed PostgreSQL database. You'll learn why some applications *need* Kubernetes and how the agent handles the complexity for you.
+In this agentic journey, you'll deploy [Apache Superset](https://superset.apache.org/), a data exploration and BI platform, to Azure Kubernetes Service (AKS). This is the most complex deployment in the project: init containers, shared volumes, psycopg2 installation, ConfigMap mounting, and a managed PostgreSQL database. You'll see why some applications need Kubernetes and how the agent handles that complexity.
 
 ## Learning Objectives
 
@@ -16,13 +16,13 @@ In this final chapter, you'll deploy [Apache Superset](https://superset.apache.o
 >
 > 💰 **Estimated Cost**: ~$135-185/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, `kubectl`, and optionally GitHub Copilot CLI. See [root README prerequisites](../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, `kubectl`, and optionally GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
 
 ---
 
 ## Real-World Analogy: The Factory vs The Workshop
 
-Chapters 01 and 02 used Container Apps, like a workshop where you bring in equipment and start working. Superset needs a factory: assembly lines (init containers), shared storage rooms (emptyDir volumes), instruction manuals bolted to the wall (ConfigMaps), and a loading dock (NGINX Ingress).
+Simpler apps can run on Container Apps, like a workshop where you bring in equipment and start working. Superset needs a factory: assembly lines (init containers), shared storage rooms (emptyDir volumes), instruction manuals bolted to the wall (ConfigMaps), and a loading dock (NGINX Ingress).
 
 | Factory | Superset on AKS |
 |---------|----------------|
@@ -80,7 +80,7 @@ graph TB
 - **NGINX Ingress Controller** — HTTP routing within the cluster
 - **Azure Log Analytics** — Monitoring and diagnostics
 
-**Infrastructure directory:** [`../infra-superset/`](../infra-superset/)
+**Infrastructure directory:** [`infra-superset/`](../../infra-superset/) (generated at repo root during deployment)
 
 ### Why AKS Instead of Container Apps?
 
@@ -103,7 +103,7 @@ These patterns are natural in Kubernetes but complex or unavailable in Container
 Make sure you're in the repo root first:
 
 ```bash
-cd oss-to-azure
+cd github-azure-agentic-journeys
 ```
 
 Then start Copilot CLI:
@@ -124,7 +124,7 @@ Then install the plugin:
 > /plugin install azure@azure-skills
 ```
 
-> **Already installed?** If you completed a previous chapter, the plugin persists across sessions. Skip this step.
+> **Already installed?** If you completed a previous agentic journey, the plugin persists across sessions. Skip this step.
 > For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 ### Step 2: Select the Agent
@@ -156,7 +156,7 @@ Once the agent finishes, check what it created:
 ls -R infra-superset/
 ```
 
-You should see a more complex structure than Chapters 01-02:
+You should see a more complex structure than Agentic Journeys 01-02:
 
 ```
 infra-superset/
@@ -559,11 +559,13 @@ Teardown takes 5-10 minutes (AKS + PostgreSQL deletion is slow).
 
 ## What's Next
 
-You've completed all three deployments! Here's where to go from here:
+You've completed the OSS deployment agentic journeys. Here's where to go from here:
 
-- **Extend the project** — Add a new OSS app by following the guide in [`.github/copilot-instructions.md`](../.github/copilot-instructions.md)
+- **Extend the project** — Add a new OSS app by following the guide in [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
 - **Ask the agent** — Start a session with `@oss-to-azure-deployer` and ask *"How would I deploy Gitea to Azure?"*
-- **Contribute** — Found a bug or want to add an app? [Open an issue](https://github.com/DanWahlin/oss-to-azure/issues)
+- **Contribute** — Found a bug or want to add an app? [Open an issue](https://github.com/DanWahlin/github-azure-agentic-journeys/issues)
+
+> 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
 
 ---
 

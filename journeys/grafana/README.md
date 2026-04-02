@@ -1,13 +1,13 @@
-# Chapter 02: Grafana — Metrics & Visualization on Azure Container Apps
+# Agentic Journey 02: Grafana on Azure Container Apps
 
-> **The simplest deployment in the project. No external database required, two minutes to production.**
+> **No external database, no complex probes, just Grafana on Container Apps.**
 
-In this chapter, you'll deploy [Grafana OSS](https://grafana.com/oss/grafana/), the industry-standard observability platform, to Azure Container Apps. With no external database required and a ~2 minute deploy time, Grafana is the perfect second chapter: same agent, same skills system, dramatically simpler architecture. You'll also explore the SQLite vs PostgreSQL decision point for production readiness.
+In this agentic journey, you'll deploy [Grafana OSS](https://grafana.com/oss/grafana/), the industry-standard observability platform, to Azure Container Apps. Grafana uses an embedded SQLite database by default, so there's no external database to provision. That makes it one of the simplest deployments in the project. You'll also look at when to swap SQLite for PostgreSQL.
 
 ## Learning Objectives
 
-- Deploy Grafana to Azure Container Apps using the agent or pre-built Bicep
-- Understand why Grafana is simpler than n8n (no external database dependency, fast startup)
+- Deploy Grafana to Azure Container Apps using agentic AI
+- Understand why Grafana deploys with minimal configuration (no external database, fast startup)
 - Evaluate SQLite vs PostgreSQL for different environments
 - Use `/api/health` for reliable health probes
 - Handle scale-to-zero cold starts gracefully
@@ -16,23 +16,23 @@ In this chapter, you'll deploy [Grafana OSS](https://grafana.com/oss/grafana/), 
 >
 > 💰 **Estimated Cost**: ~$10-20/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and optionally GitHub Copilot CLI. See [root README prerequisites](../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and optionally GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
 
 ---
 
 ## Real-World Analogy: The Food Truck vs The Restaurant
 
-In Chapter 01, deploying n8n was like opening a restaurant. You needed a kitchen (Container Apps), a walk-in fridge (PostgreSQL), and a seating plan (health probes for slow startup). Grafana is more like a food truck: self-contained, fast to set up, and ready to serve in minutes.
+Some apps need a full restaurant setup: a kitchen (Container Apps), a walk-in fridge (PostgreSQL), and a seating plan (health probes for slow startup). Grafana is more like a food truck: self-contained, fast to set up, and ready to serve in minutes.
 
 | Food Truck | Grafana on Azure |
 |------------|-----------------|
 | Self-contained kitchen | SQLite embedded database — no external dependency |
-| Parks and serves in minutes | Deploys in ~2 minutes |
+| Parks and serves in minutes | Deploys quickly |
 | Limited storage (small fridge) | Ephemeral storage — data lost on restart |
-| Can upgrade to a commissary kitchen | Switch to PostgreSQL for production persistence |
+| Can upgrade to a full kitchen | Switch to PostgreSQL for production persistence |
 | Quick to relocate | Scale-to-zero, spin up anywhere |
 
-The food truck works great for testing and demos. When you need persistence, you upgrade to a commissary kitchen (PostgreSQL).
+The food truck works great for testing and demos. When you need persistence, you upgrade to a full kitchen (PostgreSQL).
 
 ---
 
@@ -60,20 +60,20 @@ graph TB
 - **Azure Container Apps** — Serverless hosting with scale-to-zero
 - **Azure Log Analytics** — Monitoring and diagnostics
 - **SQLite** (default) — Embedded database, no external dependency
-- Optional: **Azure Database for PostgreSQL** for production persistence
+- Optional: **Azure Database for PostgreSQL Flexible Server** for production persistence
 
-**Infrastructure directory:** [`../infra-grafana/`](../infra-grafana/)
+**Infrastructure directory:** [`infra-grafana/`](../../infra-grafana/) (generated at repo root during deployment)
 
 ---
 
 ## Path 1: Generate Infrastructure with the Agent
 
-### Step 1: Start Copilot and Install the Azure MCP Plugin
+### Step 1: Start Copilot CLI and Install the Azure Skills Plugin
 
 Make sure you're in the repo root first:
 
 ```bash
-cd oss-to-azure
+cd github-azure-agentic-journeys
 ```
 
 Then start Copilot CLI:
@@ -94,7 +94,7 @@ Then install the plugin:
 > /plugin install azure@azure-skills
 ```
 
-> **Already installed?** If you completed a previous chapter, the plugin persists across sessions. Skip this step.
+> **Already installed?** If you completed a previous agentic journey, the plugin persists across sessions. Skip this step.
 > For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 ### Step 2: Select the Agent
@@ -336,7 +336,7 @@ Grafana is the cheapest deployment in this project. No external database require
 az containerapp logs show --name <app-name> --resource-group <rg> --follow
 ```
 
-Verify health probes aren't too aggressive. The Bicep templates in `../infra-grafana/` include proper timing.
+Verify health probes aren't too aggressive. The Bicep templates in `infra-grafana/` include proper timing.
 
 > **Agent tip:** Ask `@oss-to-azure-deployer` — *"My Grafana container won't start"* — and it will use `azure_deploy_app_logs` to diagnose.
 
@@ -443,7 +443,9 @@ Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
 ## What's Next
 
-In [Chapter 03: Apache Superset](../superset/README.md), you'll tackle the most complex deployment — a full BI platform on Azure Kubernetes Service. You'll learn why some applications need Kubernetes instead of Container Apps, and how the agent handles init containers, shared volumes, and psycopg2 installation.
+In [Agentic Journey 03: Apache Superset](../superset/README.md), you'll tackle the most complex deployment, a full BI platform on Azure Kubernetes Service. You'll learn why some applications need Kubernetes instead of Container Apps, and how the agent handles init containers, shared volumes, and psycopg2 installation.
+
+> 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
 
 ---
 

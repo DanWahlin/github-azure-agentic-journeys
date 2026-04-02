@@ -3,6 +3,7 @@
 
 # Compiled ARM templates (regenerated from Bicep)
 **/main.json
+.plans
 
 # Bicep parameters are tracked (use ${VAR} interpolation, no secrets)
 
