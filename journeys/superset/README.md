@@ -12,11 +12,11 @@ In this agentic journey, you'll deploy [Apache Superset](https://superset.apache
 - Use `azure_deploy_plan` with `target=AKS` for Kubernetes deployment planning
 - Debug AKS-specific issues: init container failures, CrashLoopBackOff, SQLite fallback
 
-> ⏱️ **Estimated Time**: ~30 minutes (Path 1) or ~20 minutes (Path 2)
+> ⏱️ **Estimated Time**: ~30 minutes
 >
 > 💰 **Estimated Cost**: ~$175-185/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, `kubectl`, and optionally GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, `kubectl`, and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
 
 ---
 
@@ -79,9 +79,9 @@ These patterns are natural in Kubernetes but complex or unavailable in Container
 
 ---
 
-## Path 1: Deploy with the Agent
+## Deploy with the Agent
 
-This is the recommended path. You'll use `@oss-to-azure-deployer` in GitHub Copilot CLI to generate and deploy the entire infrastructure through conversation.
+You'll use `@oss-to-azure-deployer` in GitHub Copilot CLI to generate and deploy the entire infrastructure through conversation.
 
 ### Step 1: Setup
 
@@ -171,74 +171,6 @@ If the pod is stuck, just ask. You're still in the same session:
 
 ```
 > My Superset pod is stuck in Init:0/1
-```
-
----
-
-## Path 2: Deploy Without an Agent
-
-If you prefer not to use an agent, you can deploy the pre-built `infra-superset/` infrastructure directly with Azure CLI, Azure Developer CLI, and kubectl.
-
-### 1. Register Azure Resource Providers
-
-```bash
-az provider register --namespace Microsoft.ContainerService
-az provider register --namespace Microsoft.DBforPostgreSQL
-az provider register --namespace Microsoft.OperationalInsights
-```
-
-### 2. Set Required Variables
-
-```bash
-azd env new my-superset-env
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
-azd env set AZURE_LOCATION "westus"
-azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
-azd env set SUPERSET_SECRET_KEY "$(openssl rand -hex 32)"
-azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -hex 16)"
-```
-
-### 3. Update azure.yaml
-
-Edit the existing `azure.yaml` in the repo root to point to the Superset infra directory:
-
-```yaml
-name: superset-azure
-
-infra:
-  provider: bicep
-  path: infra-superset
-
-hooks:
-  postprovision:
-    posix:
-      shell: sh
-      run: ./infra-superset/hooks/postprovision.sh
-    windows:
-      shell: pwsh
-      run: ./infra-superset/hooks/postprovision.ps1
-```
-
-### 4. Deploy
-
-```bash
-azd up
-```
-
-**Deployment time breakdown:**
-| Stage | Time |
-|-------|------|
-| Resource Group | ~4s |
-| PostgreSQL Flexible Server | ~4-5 min |
-| AKS Cluster | ~8-10 min |
-| Kubernetes resources (Deployment, Service, Ingress) | ~2-3 min |
-| **Total** | **~15-20 minutes** |
-
-### 5. Access Superset
-
-```bash
-azd env get-value SUPERSET_URL
-# Login: admin / <your SUPERSET_ADMIN_PASSWORD>
 ```
 
 ---
@@ -464,17 +396,16 @@ Teardown takes 5-10 minutes (AKS + PostgreSQL deletion is slow).
 - **Azure PostgreSQL requires `sslmode=require`** — always include in connection string
 - **"SQLiteImpl" in logs = misconfiguration** — must see "PostgresqlImpl"
 - **Init container logs are separate** — use `-c superset-init` to debug migrations
-- **Most expensive deployment** — AKS costs ~$135-185/month vs ~$25-35 for Container Apps
+- **Most expensive deployment** — AKS costs ~$175-185/month vs ~$25-35 for Container Apps
 - **The agent knows when to use AKS** — it recommends Kubernetes when Container Apps can't handle the requirements
 
 ---
 
 ## Assignment
 
-1. Deploy Superset using **Path 2** to get comfortable with the AKS workflow
-2. Verify that Superset is using PostgreSQL, not SQLite: check for "PostgresqlImpl" in init container logs
-3. Compare the three deployments: Grafana (~$10-20, 2 min), n8n (~$25-35, 7 min), Superset (~$135-185, 15-20 min) — when would you choose each?
-4. Clean up with `azd down --force --purge`
+1. Verify that Superset is using PostgreSQL, not SQLite — ask the agent: *"Is my Superset deployment using PostgreSQL?"*
+2. Compare the three deployments: Grafana (~$10-20, 2 min), n8n (~$25-35, 7 min), Superset (~$175-185, 15-20 min) — when would you choose each?
+3. Clean up with `azd down --force --purge`
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **Deploy a self-hosted workflow automation platform to Azure by having a conversation with an AI agent.**
 
-In this agentic journey, you'll deploy [n8n](https://n8n.io), a workflow automation platform (think Zapier, but self-hosted and open-source), to Azure Container Apps with a managed PostgreSQL database. You'll do it two ways: first by using the `@oss-to-azure-deployer` Copilot agent to *generate* the infrastructure, then by deploying pre-built Bicep templates with a single command. Along the way, you'll see how the agent uses Azure MCP tools to look up schemas, get best practices, and plan deployments.
+In this agentic journey, you'll deploy [n8n](https://n8n.io), a workflow automation platform (think Zapier, but self-hosted and open-source), to Azure Container Apps with a managed PostgreSQL database. You'll use the `@oss-to-azure-deployer` Copilot agent to generate the infrastructure through conversation, then deploy it with a single command. Along the way, you'll see how the agent uses Azure MCP tools to look up schemas, get best practices, and plan deployments.
 
 ## Learning Objectives
 
@@ -12,11 +12,11 @@ In this agentic journey, you'll deploy [n8n](https://n8n.io), a workflow automat
 - Configure health probes for slow-starting containers
 - Troubleshoot common deployment issues using Azure MCP tools and container logs
 
-> ⏱️ **Estimated Time**: ~20 minutes (Path 1) or ~10 minutes (Path 2)
+> ⏱️ **Estimated Time**: ~20 minutes
 >
 > 💰 **Estimated Cost**: ~$25-35/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and optionally GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
 
 ---
 
@@ -53,9 +53,9 @@ graph TB
 
 ---
 
-## Path 1: Deploy with the Agent
+## Deploy with the Agent
 
-This is the recommended path. You'll use `@oss-to-azure-deployer` in GitHub Copilot CLI to generate and deploy the entire infrastructure through conversation.
+You'll use `@oss-to-azure-deployer` in GitHub Copilot CLI to generate and deploy the entire infrastructure through conversation.
 
 ### Step 1: Setup
 
@@ -139,78 +139,6 @@ If something goes wrong, just ask. You're still in the same session with full co
 
 ```
 > The container is in CrashLoopBackOff, what's happening?
-```
-
----
-
-## Path 2: Deploy Without an Agent
-
-If you prefer not to use an agent, you can deploy the pre-built `infra-n8n/` infrastructure directly with Azure CLI and Azure Developer CLI.
-
-Already have the `infra-n8n/` code and just want to deploy? Follow these steps.
-
-### 1. Register Azure Resource Providers
-
-**Run these first** to avoid 409 conflicts:
-
-```bash
-az provider register --namespace Microsoft.App
-az provider register --namespace Microsoft.DBforPostgreSQL
-az provider register --namespace Microsoft.OperationalInsights
-```
-
-### 2. Set Required Variables
-
-```bash
-azd env new my-n8n-env
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
-azd env set AZURE_LOCATION "westus"
-azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
-azd env set N8N_BASIC_AUTH_PASSWORD "$(openssl rand -hex 16)"
-```
-
-### 3. Update azure.yaml
-
-Edit the existing `azure.yaml` in the repo root to point to the n8n infra directory:
-
-```yaml
-name: n8n-azure
-
-infra:
-  provider: bicep
-  path: infra-n8n
-
-hooks:
-  postprovision:
-    posix:
-      shell: sh
-      run: ./infra-n8n/hooks/postprovision.sh
-    windows:
-      shell: pwsh
-      run: ./infra-n8n/hooks/postprovision.ps1
-```
-
-### 4. Deploy
-
-```bash
-azd up
-```
-
-**Deployment time breakdown:**
-| Stage | Time |
-|-------|------|
-| Resource Group | ~4s |
-| Log Analytics | ~25s |
-| Container Apps Environment | ~38s |
-| PostgreSQL Flexible Server | ~4-5 min |
-| n8n Container App | ~20s |
-| **Total** | **~7 minutes** |
-
-### 5. Access n8n
-
-```bash
-azd env get-value N8N_URL
-# Login: admin / <your N8N_BASIC_AUTH_PASSWORD>
 ```
 
 ---
@@ -391,9 +319,8 @@ Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently delet
 
 ## Assignment
 
-1. Deploy n8n using **Path 2** to get comfortable with the `azd` workflow
-2. Start a Copilot CLI session with `@oss-to-azure-deployer` and ask: *"How would I add a custom domain to my n8n deployment?"*
-3. Clean up with `azd down --force --purge`
+1. Ask the agent: *"How would I add a custom domain to my n8n deployment?"*
+2. Clean up with `azd down --force --purge`
 
 ---
 
