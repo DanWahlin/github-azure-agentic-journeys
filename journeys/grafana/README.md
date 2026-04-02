@@ -12,27 +12,11 @@ In this agentic journey, you'll deploy [Grafana OSS](https://grafana.com/oss/gra
 - Use `/api/health` for reliable health probes
 - Handle scale-to-zero cold starts gracefully
 
-> ⏱️ **Estimated Time**: ~15 minutes (Path 1) or ~5 minutes (Path 2)
+> ⏱️ **Estimated Time**: ~15 minutes
 >
 > 💰 **Estimated Cost**: ~$10-20/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and optionally GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
-
----
-
-## Real-World Analogy: The Food Truck vs The Restaurant
-
-Some apps need a full restaurant setup: a kitchen (Container Apps), a walk-in fridge (PostgreSQL), and a seating plan (health probes for slow startup). Grafana is more like a food truck: self-contained, fast to set up, and ready to serve in minutes.
-
-| Food Truck | Grafana on Azure |
-|------------|-----------------|
-| Self-contained kitchen | SQLite embedded database — no external dependency |
-| Parks and serves in minutes | Deploys quickly |
-| Limited storage (small fridge) | Ephemeral storage — data lost on restart |
-| Can upgrade to a full kitchen | Switch to PostgreSQL for production persistence |
-| Quick to relocate | Scale-to-zero, spin up anywhere |
-
-The food truck works great for testing and demos. When you need persistence, you upgrade to a full kitchen (PostgreSQL).
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
 
 ---
 
@@ -66,9 +50,11 @@ graph TB
 
 ---
 
-## Path 1: Generate Infrastructure with the Agent
+## Deploy with the Agent
 
-### Step 1: Start Copilot CLI and Install the Azure Skills Plugin
+You'll use `@oss-to-azure-deployer` in GitHub Copilot CLI to generate and deploy the entire infrastructure through conversation.
+
+### Step 1: Setup
 
 Make sure you're in the repo root first:
 
@@ -94,54 +80,33 @@ Then install the plugin:
 > /plugin install azure@azure-skills
 ```
 
-> **Already installed?** If you completed a previous agentic journey, the plugin persists across sessions. Skip this step.
+> **Already installed?** The plugin persists across sessions. If you've done a previous journey, skip the install commands.
 > For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
-### Step 2: Select the Agent
+Now select the deployment agent:
 
 ```
 > /agent
 ```
 
-Select **`oss-to-azure-deployer`** from the list.
+Select **`oss-to-azure-deployer`** from the list. You're now in an interactive session with the deployment agent.
 
-### Step 3: Ask the Agent to Deploy Grafana
+### Step 2: Deploy
 
-```
-> Deploy Grafana to Azure using Bicep and azd
-```
-
-The agent will:
-
-1. **Load the right skills**: `grafana-azure`, `azure-container-apps`, `azure-bicep-generation`, and `azd-deployment`
-2. **Use Azure MCP tools**: `azure_bicep_schema` for API versions, `azure_deploy_iac_guidance` for Bicep best practices
-3. **Generate a leaner structure** than n8n. No PostgreSQL module needed (SQLite is default)
-
-### Step 4: Review the Generated Infrastructure
-
-Once the agent finishes, check what it created:
-
-```bash
-ls -R infra-grafana/
-```
-
-You should see:
+Tell the agent what you want in a single prompt:
 
 ```
-infra-grafana/
-├── main.bicep
-├── main.parameters.json
-├── abbreviations.json
-├── modules/
-│   ├── log-analytics.bicep
-│   ├── container-apps-environment.bicep
-│   └── grafana-container-app.bicep
-└── hooks/
-    ├── postprovision.sh
-    └── postprovision.ps1
+> Deploy Grafana to Azure using Bicep and azd. Set the location to westus, generate a secure admin password, and resolve any issues that come up.
 ```
 
-You can ask follow-up questions in the same session:
+The agent handles the entire deployment:
+
+1. Loads the right skills (`grafana-azure`, `azure-container-apps`, `azure-bicep-generation`, `azd-deployment`)
+2. Generates a lean Bicep structure in `infra-grafana/` — no PostgreSQL module needed (SQLite is the default)
+3. Updates `azure.yaml`, registers Azure providers, sets environment variables
+4. Runs `azd up` (~2 minutes)
+
+You can ask follow-up questions anytime:
 
 ```
 > Should I use PostgreSQL instead of SQLite for Grafana?
@@ -149,19 +114,9 @@ You can ask follow-up questions in the same session:
 
 The agent explains: SQLite is fine for dev/testing but dashboards are lost on container restart. For production, either mount Azure Files to `/var/lib/grafana` or switch to PostgreSQL.
 
-### Step 5: Deploy to Azure
+### Step 3: Verify
 
-Stay in the same Copilot session and ask the agent to deploy:
-
-```
-> Run azd up for the Grafana infrastructure you just generated. Set the location to westus and generate a secure admin password. If there are any issues, resolve them.
-```
-
-The agent will handle everything: update `azure.yaml`, register providers, create the azd environment, set variables, and run `azd up` (~2 minutes). If anything fails, it diagnoses and fixes automatically.
-
-### Step 6: Verify
-
-Once the agent reports success, ask it to verify:
+Ask the agent to confirm everything is working:
 
 ```
 > Verify the Grafana deployment is working. Check the health endpoint.
@@ -181,72 +136,7 @@ If something goes wrong, just ask. You're still in the same session:
 > Grafana is returning 502 errors
 ```
 
-The agent will use `azure_deploy_app_logs` to check if it's a cold start issue (scale-from-zero takes 30-60s) or a real problem.
-
----
-
-## Path 2: Deploy Pre-Built Infrastructure
-
-> **No GitHub Copilot CLI required.** This path uses only Azure CLI and Azure Developer CLI.
-
-### 1. Register Azure Resource Providers
-
-```bash
-az provider register --namespace Microsoft.App
-az provider register --namespace Microsoft.OperationalInsights
-```
-
-### 2. Set Required Variables
-
-```bash
-azd env new my-grafana-env
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
-azd env set AZURE_LOCATION "westus"
-azd env set GRAFANA_ADMIN_PASSWORD "$(openssl rand -hex 16)"
-```
-
-### 3. Update azure.yaml
-
-Edit the existing `azure.yaml` in the repo root to point to the Grafana infra directory:
-
-```yaml
-name: grafana-azure
-
-infra:
-  provider: bicep
-  path: infra-grafana
-
-hooks:
-  postprovision:
-    posix:
-      shell: sh
-      run: ./infra-grafana/hooks/postprovision.sh
-    windows:
-      shell: pwsh
-      run: ./infra-grafana/hooks/postprovision.ps1
-```
-
-### 4. Deploy
-
-```bash
-azd up
-```
-
-**Deployment time breakdown:**
-| Stage | Time |
-|-------|------|
-| Resource Group | ~4s |
-| Log Analytics | ~25s |
-| Container Apps Environment | ~38s |
-| Grafana Container App | ~10s |
-| **Total** | **~2 minutes** |
-
-### 5. Access Grafana
-
-```bash
-azd env get-value GRAFANA_URL
-# Login: admin / <your GRAFANA_ADMIN_PASSWORD>
-```
+The agent will check if it's a cold start issue (scale-from-zero takes 30-60s) or a real problem.
 
 ---
 
@@ -323,22 +213,19 @@ GF_DATABASE_SSL_MODE: require
 | **Total (SQLite)** | | **~$10-20/month** |
 | + PostgreSQL (optional) | B_Standard_B1ms | +~$15/month |
 
-Grafana is the cheapest deployment in this project. No external database required for dev use.
-
 ---
 
 ## Troubleshooting
 
 ### Container Won't Start
 
-**Check logs:**
-```bash
-az containerapp logs show --name <app-name> --resource-group <rg> --follow
+Ask the agent to diagnose:
+
+```
+> My Grafana container won't start. Check the logs and tell me what's wrong.
 ```
 
-Verify health probes aren't too aggressive. The Bicep templates in `infra-grafana/` include proper timing.
-
-> **Agent tip:** Ask `@oss-to-azure-deployer` — *"My Grafana container won't start"* — and it will use `azure_deploy_app_logs` to diagnose.
+The agent uses `azure_deploy_app_logs` to pull logs and identify the issue — typically health probes that are too aggressive. The Bicep templates in `infra-grafana/` include proper timing.
 
 ### 502 Bad Gateway
 
@@ -351,9 +238,14 @@ Verify health probes aren't too aggressive. The Bicep templates in `infra-grafan
 **Cause:** Password not set correctly, or special characters causing shell escaping issues.
 
 **Fix:**
-1. Verify the password env var is set: `az containerapp show --name <app> -g <rg> --query "properties.template.containers[0].env"`
-2. Use alphanumeric passwords to avoid shell escaping issues
-3. Redeploy with a new password if needed
+
+Ask the agent:
+
+```
+> My Grafana login isn't working. Check if the admin password environment variable is set correctly.
+```
+
+If the agent finds shell escaping issues, use alphanumeric passwords and redeploy.
 
 ### Dashboards Lost After Restart
 
@@ -389,20 +281,19 @@ resources: {
 
 ## Verification Checklist
 
+Ask the agent to run a full verification:
+
+```
+> Verify my Grafana deployment: check the health endpoint, test admin login, and confirm the container is running.
+```
+
+Or verify manually (open a new terminal or exit Copilot CLI with `Ctrl+C` first):
+
 ```bash
 GRAFANA_URL=$(azd env get-value GRAFANA_URL)
-GRAFANA_ADMIN_PASSWORD=$(azd env get-value GRAFANA_ADMIN_PASSWORD)
 
 # Health check (expect HTTP 200 with JSON)
 curl "$GRAFANA_URL/api/health"
-
-# Admin login test
-curl -u admin:$GRAFANA_ADMIN_PASSWORD "$GRAFANA_URL/api/org"
-
-# Container status
-az containerapp show --name $(azd env get-value GRAFANA_CONTAINER_APP_NAME) \
-  --resource-group $(azd env get-value RESOURCE_GROUP_NAME) \
-  --query "properties.runningStatus"
 ```
 
 ---
@@ -431,13 +322,9 @@ Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
 ## Assignment
 
-**Practice what you learned:**
-
-1. Deploy Grafana using **Path 2** — notice how much faster it is than n8n (no PostgreSQL provisioning)
-2. Open the Grafana UI and create a dashboard with a text panel
-3. Run `azd down --force --purge`, then redeploy with `azd up` — notice your dashboard is gone (SQLite is ephemeral!)
-4. Start a Copilot CLI session and ask: *"How do I make Grafana dashboards persist across restarts?"*
-5. Clean up with `azd down --force --purge`
+1. Create a dashboard in Grafana, then run `azd down --force --purge` and redeploy — notice your dashboard is gone (SQLite is ephemeral)
+2. Ask the agent: *"How do I make Grafana dashboards persist across restarts?"*
+3. Clean up with `azd down --force --purge`
 
 ---
 

@@ -11,17 +11,16 @@
 
 ![Developer journey: Plan → Agentic AI → Microsoft Foundry → Deploy to Azure](./images/dev-journey.png)
 
-Getting an app from idea to running in Azure still takes too many steps that have nothing to do with your actual product. You end up writing Bicep templates, configuring health probes, wiring up databases, and debugging deployment pipelines before your app even does anything interesting. Agents can handle most of that now.
+What if you could go from idea to running in Azure and stay focused on your actual product the entire time? With agents handling the infrastructure — Bicep templates, health probes, database wiring, deployment pipelines — you can spend your time on what makes your app interesting instead of what makes it run. GitHub and Azure Agentic Journeys shows what that looks like in practice. 
 
-This repo shows what that looks like in practice. You write a spec and hand it to GitHub Copilot, which scaffolds your API and database while you decide on a stack. From there you build out a web or mobile frontend, add AI capabilities like search and recommendations through Microsoft Foundry, and let an agent generate the Azure infrastructure and deploy it when you're ready to ship. Some agentic journeys are quick deploys of open-source apps. Others (coming soon) take you from an empty folder to a full-stack app with AI features running in production.
+You write a spec and hand it to GitHub Copilot, which scaffolds your API and database while you decide on a stack. From there you build out a web or mobile frontend, add AI capabilities like search and recommendations through Microsoft Foundry, and let an agent generate the Azure infrastructure and deploy it when you're ready to ship. Some agentic journeys are quick deploys of open-source apps. Others take you from an empty folder to a full-stack app with AI features running in production.
 
 This is designed for:
 
-- **Developers** who want to build and ship to Azure without hand-writing infrastructure
-- **Terminal users** who prefer GitHub Copilot CLI over clicking through portals
+- **Developers** who want to build and ship to Azure using agentic AI techniques
 - **Teams** evaluating how agents and skills fit into their development workflow
 
-Although the agentic journeys focus on GitHub Copilot, you can use another tool such as Claude Code, Codex, or Gemini CLI if you prefer. The agents and skills are designed to be tool-agnostic.
+Although the agentic journeys use GitHub Copilot CLI by default, you can use another tool such as GitHub Copilot in VS Code and other editors, or Claude Code if you prefer. The agents and skills are designed to be tool-agnostic.
 
 ## What You'll Learn
 
@@ -48,10 +47,12 @@ Before starting, ensure you have:
 
 ```bash
 # Verify installations
-az --version && azd version
+az version
+azd version
 
-# Login to Azure
+# Login to Azure and select your subscription
 az login
+azd auth login
 ```
 
 ## GitHub Copilot tools

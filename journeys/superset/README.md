@@ -14,26 +14,9 @@ In this agentic journey, you'll deploy [Apache Superset](https://superset.apache
 
 > ⏱️ **Estimated Time**: ~30 minutes (Path 1) or ~20 minutes (Path 2)
 >
-> 💰 **Estimated Cost**: ~$135-185/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
+> 💰 **Estimated Cost**: ~$175-185/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
 >
 > 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, `kubectl`, and optionally GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
-
----
-
-## Real-World Analogy: The Factory vs The Workshop
-
-Simpler apps can run on Container Apps, like a workshop where you bring in equipment and start working. Superset needs a factory: assembly lines (init containers), shared storage rooms (emptyDir volumes), instruction manuals bolted to the wall (ConfigMaps), and a loading dock (NGINX Ingress).
-
-| Factory | Superset on AKS |
-|---------|----------------|
-| Assembly line (step 1 → step 2) | Init container installs psycopg2, runs migrations, creates admin |
-| Shared storage room | emptyDir volume at `/psycopg2-lib` shared between containers |
-| Instruction manual on the wall | ConfigMap with `superset_config.py` mounted at `/app/pythonpath/` |
-| Loading dock for deliveries | NGINX Ingress Controller with Load Balancer |
-| Quality control station | Health probes at `/health` with 90s initial delay |
-| Factory lease | AKS cluster (~$100-150/month vs ~$10-20 for Container Apps) |
-
-The factory is more expensive and complex, but some products simply can't be made in a workshop.
 
 ---
 
@@ -96,9 +79,11 @@ These patterns are natural in Kubernetes but complex or unavailable in Container
 
 ---
 
-## Path 1: Generate Infrastructure with the Agent
+## Path 1: Deploy with the Agent
 
-### Step 1: Start Copilot and Install the Azure MCP Plugin
+This is the recommended path. You'll use `@oss-to-azure-deployer` in GitHub Copilot CLI to generate and deploy the entire infrastructure through conversation.
+
+### Step 1: Setup
 
 Make sure you're in the repo root first:
 
@@ -124,90 +109,44 @@ Then install the plugin:
 > /plugin install azure@azure-skills
 ```
 
-> **Already installed?** If you completed a previous agentic journey, the plugin persists across sessions. Skip this step.
+> **Already installed?** The plugin persists across sessions. If you've done a previous journey, skip the install commands.
 > For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
-### Step 2: Select the Agent
+Now select the deployment agent:
 
 ```
 > /agent
 ```
 
-Select **`oss-to-azure-deployer`** from the list.
+Select **`oss-to-azure-deployer`** from the list. You're now in an interactive session with the deployment agent.
 
-### Step 3: Ask the Agent to Deploy Superset
+### Step 2: Deploy
 
-```
-> Deploy Apache Superset to Azure using Bicep and azd
-```
-
-The agent will:
-
-1. **Load the right skills**: `superset-azure`, `azure-aks-deployment`, `azure-bicep-generation`, and `azd-deployment`
-2. **Recommend AKS over Container Apps**. It knows Superset needs init containers, shared volumes, and ConfigMap mounting
-3. **Use Azure MCP tools**: `azure_bicep_schema` for API versions, `azure_deploy_iac_guidance` with `resource_type=aks` for AKS-specific best practices
-4. **Generate the Bicep + Kubernetes infrastructure** in `infra-superset/`
-
-### Step 4: Review the Generated Infrastructure
-
-Once the agent finishes, check what it created:
-
-```bash
-ls -R infra-superset/
-```
-
-You should see a more complex structure than Agentic Journeys 01-02:
+Tell the agent what you want in a single prompt:
 
 ```
-infra-superset/
-├── main.bicep
-├── main.parameters.json
-├── abbreviations.json
-├── modules/
-│   ├── log-analytics.bicep
-│   ├── aks.bicep                     # AKS cluster with RBAC
-│   ├── postgresql.bicep              # PostgreSQL Flexible Server
-│   └── managed-identity.bicep        # For deployment scripts
-├── kubernetes/
-│   ├── namespace.yaml
-│   ├── configmap.yaml                # superset_config.py
-│   ├── secrets.yaml                  # Database credentials
-│   ├── deployment.yaml               # Init + main containers
-│   ├── service.yaml                  # ClusterIP service
-│   └── ingress.yaml                  # NGINX ingress
-└── hooks/
-    ├── postprovision.sh              # kubectl apply + get external IP
-    └── postprovision.ps1
+> Deploy Apache Superset to Azure using Bicep and azd. Set the location to westus, generate secure passwords for all credentials, and resolve any issues that come up.
 ```
 
-You can ask follow-up questions in the same session:
+The agent handles the entire deployment:
+
+1. Loads the right skills (`superset-azure`, `azure-aks-deployment`, `azure-bicep-generation`, `azd-deployment`)
+2. Recommends AKS over Container Apps — it knows Superset needs init containers, shared volumes, and ConfigMap mounting
+3. Generates Bicep + Kubernetes infrastructure in `infra-superset/`
+4. Updates `azure.yaml`, registers Azure providers, sets environment variables
+5. Runs `azd up` (~15-20 minutes)
+6. Runs post-provision hooks (`kubectl apply` for Kubernetes manifests, waits for external IP)
+
+You can ask follow-up questions anytime:
 
 ```
 > Why do you need an init container for psycopg2?
+> Why AKS instead of Container Apps?
 ```
 
-The agent explains: The official `apache/superset:latest` image doesn't include psycopg2 for PostgreSQL. Without it, Superset silently falls back to SQLite. The init container installs `psycopg2-binary` to an emptyDir volume, then the main container adds that path to `PYTHONPATH`.
+### Step 3: Verify
 
-### Step 5: Deploy to Azure
-
-Stay in the same Copilot session and ask the agent to deploy:
-
-```
-> Run azd up for the Superset infrastructure you just generated. Set the location to westus and generate secure passwords for all credentials. If there are any issues, resolve them.
-```
-
-The agent will:
-
-1. Update `azure.yaml` to point to `infra-superset`
-2. Register required providers (`Microsoft.ContainerService`, `Microsoft.DBforPostgreSQL`, `Microsoft.OperationalInsights`)
-3. Create an azd environment and set variables (location, passwords, secret key)
-4. Run `azd up` (~15-20 minutes)
-5. If anything fails, it diagnoses and fixes automatically
-6. Run the post-provision hooks (`kubectl apply` for Kubernetes manifests, wait for external IP)
-
-### Step 6: Verify
-
-Once the agent reports success, ask it to verify:
+Ask the agent to confirm everything is working:
 
 ```
 > Verify the Superset deployment is working. Check that it's using PostgreSQL not SQLite.
@@ -219,10 +158,8 @@ You can also verify manually (open a new terminal or exit Copilot CLI with `Ctrl
 # Check pod status (expect 1/1 Running)
 kubectl get pods -n superset
 
-# Get the pod name
+# Verify PostgreSQL is being used (not SQLite)
 POD=$(kubectl get pods -n superset -o jsonpath='{.items[0].metadata.name}')
-
-# Verify PostgreSQL is being used (not SQLite — look for "PostgresqlImpl")
 kubectl logs -n superset $POD -c superset-init | grep -i "PostgresqlImpl"
 
 # Get the external URL
@@ -236,13 +173,11 @@ If the pod is stuck, just ask. You're still in the same session:
 > My Superset pod is stuck in Init:0/1
 ```
 
-The agent will use `azure_deploy_app_logs` to diagnose whether it's a PostgreSQL connection issue, psycopg2 installation failure, or credential problem.
-
 ---
 
-## Path 2: Deploy Pre-Built Infrastructure
+## Path 2: Deploy Without an Agent
 
-> **No GitHub Copilot CLI required.** This path uses Azure CLI, Azure Developer CLI, and `kubectl`.
+If you prefer not to use an agent, you can deploy the pre-built `infra-superset/` infrastructure directly with Azure CLI, Azure Developer CLI, and kubectl.
 
 ### 1. Register Azure Resource Providers
 
@@ -411,12 +346,12 @@ Health endpoint: `GET /health` → `{"status": "OK"}` (HTTP 200)
 
 | Resource | SKU | Monthly Cost |
 |----------|-----|--------------|
-| AKS Cluster | 2x Standard_D2s_v3 | ~$100-150 |
+| AKS Cluster | 2x Standard_D2s_v3 | ~$140-145 |
 | PostgreSQL Flexible Server | B_Standard_B1ms | ~$15 |
 | Load Balancer | Standard | ~$20 |
-| **Total** | | **~$135-185/month** |
+| **Total** | | **~$175-185/month** |
 
-⚠️ **Superset on AKS is significantly more expensive** than the Container Apps deployments (n8n ~$25-35, Grafana ~$10-20). Consider Container Apps if AKS features aren't required.
+⚠️ **Superset on AKS is significantly more expensive** than the Container Apps deployments (n8n ~$25-35, Grafana ~$10-20). Consider Container Apps if AKS features aren't required. Each Standard_D2s_v3 node costs ~$70/month ($0.096/hr × 730 hrs).
 
 ---
 
@@ -430,15 +365,13 @@ Health endpoint: `GET /health` → `{"status": "OK"}` (HTTP 200)
 
 **Fix:** Install with `pip install psycopg2-binary --target=/psycopg2-lib` and set `PYTHONPATH=/psycopg2-lib` in **both** init and main containers.
 
-```bash
-# Verify psycopg2 is working
-kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"
+Ask the agent to diagnose:
 
-# Check which database is in use (expect PostgresqlImpl)
-kubectl logs -n superset <pod> -c superset-init | grep -i impl
+```
+> Superset logs show SQLiteImpl instead of PostgresqlImpl. Is psycopg2 installed correctly?
 ```
 
-> **Agent tip:** Ask `@oss-to-azure-deployer` — *"Superset logs show SQLiteImpl"* — and it knows this means psycopg2 isn't installed or PYTHONPATH isn't set.
+The agent knows this means psycopg2 isn't installed or PYTHONPATH isn't set, and will check both containers.
 
 ### SQLALCHEMY_DATABASE_URI Not Recognized
 
@@ -455,13 +388,10 @@ kubectl logs -n superset <pod> -c superset-init | grep -i impl
 2. Wrong credentials — verify connection string
 3. psycopg2 not installed — see above
 
-```bash
-# Check init container logs
-kubectl logs -n superset <pod> -c superset-init
+Ask the agent to diagnose:
 
-# Test PostgreSQL connectivity from inside the cluster
-kubectl run -it --rm debug-pg --image=postgres:15 --restart=Never -- \
-  psql "postgresql://USER:PASS@HOST:5432/superset?sslmode=require" -c "SELECT 1;"
+```
+> My Superset pod is stuck in Init:0/1. Check the init container logs and test PostgreSQL connectivity.
 ```
 
 ### "'tcp' is not a valid port number"
@@ -479,9 +409,12 @@ kubectl run -it --rm debug-pg --image=postgres:15 --restart=Never -- \
 ### 500 Internal Server Error
 
 **Check:**
-1. Main container logs: `kubectl logs -n superset <pod> -c superset`
-2. Database connection at runtime vs init (different containers, same config?)
-3. Pending migrations: `grep -i "pending\|migration" <logs>`
+
+Ask the agent:
+
+```
+> Superset is returning 500 errors. Check the main container logs and look for database connection or migration issues.
+```
 
 ### Secret Key Error
 
@@ -493,29 +426,21 @@ kubectl run -it --rm debug-pg --image=postgres:15 --restart=Never -- \
 
 ## Verification Checklist
 
-```bash
-# Get pod name first
-POD=$(kubectl get pods -n superset -o jsonpath='{.items[0].metadata.name}')
+Ask the agent to run a full verification:
 
-# 1. Pod is running (expect 1/1 Running)
+```
+> Verify my Superset deployment: check that the pod is running, confirm it's using PostgreSQL not SQLite, and test the health endpoint.
+```
+
+Or verify manually (open a new terminal or exit Copilot CLI with `Ctrl+C` first):
+
+```bash
+# Pod is running (expect 1/1 Running)
 kubectl get pods -n superset
 
-# 2. Using PostgreSQL not SQLite (expect "PostgresqlImpl")
-kubectl logs -n superset $POD -c superset-init | grep -i "PostgresqlImpl"
-
-# 3. Config file loaded (expect "Loaded your LOCAL configuration")
-kubectl logs -n superset $POD -c superset | grep -i "Loaded"
-
-# 4. psycopg2 installed
-kubectl exec -n superset $POD -c superset -- python -c "import psycopg2; print('OK')"
-
-# 5. Health endpoint (expect HTTP 200)
-EXTERNAL_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \
-  -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -I http://$EXTERNAL_IP/health
-
-# 6. Login page works (expect HTTP 200)
-curl -I http://$EXTERNAL_IP/login/
+# Health endpoint (expect HTTP 200)
+SUPERSET_URL=$(azd env get-value SUPERSET_URL)
+curl -I "$SUPERSET_URL/health"
 ```
 
 ---
@@ -546,14 +471,10 @@ Teardown takes 5-10 minutes (AKS + PostgreSQL deletion is slow).
 
 ## Assignment
 
-**Practice what you learned:**
-
-1. Deploy Superset using **Path 2** — get comfortable with the longer deployment time and AKS workflow
+1. Deploy Superset using **Path 2** to get comfortable with the AKS workflow
 2. Verify that Superset is using PostgreSQL, not SQLite: check for "PostgresqlImpl" in init container logs
-3. Try connecting to a sample dataset in the Superset UI — create a chart and a dashboard
-4. Start a Copilot CLI session and ask: *"How would I add Redis caching to my Superset deployment?"*
-5. Compare the three deployments: Grafana (~$10-20, 2 min), n8n (~$25-35, 7 min), Superset (~$135-185, 15-20 min) — when would you choose each?
-6. Clean up with `azd down --force --purge`
+3. Compare the three deployments: Grafana (~$10-20, 2 min), n8n (~$25-35, 7 min), Superset (~$135-185, 15-20 min) — when would you choose each?
+4. Clean up with `azd down --force --purge`
 
 ---
 
