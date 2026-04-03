@@ -37,13 +37,13 @@ Each agentic journey pairs GitHub Copilot with Azure services to handle a differ
 
 Before starting, ensure you have:
 
-- **GitHub account** with Copilot access ([Free](https://github.com/features/copilot/plans), [Pro](https://github.com/features/copilot/plans), or [Enterprise](https://github.com/features/copilot/plans))
-- **Azure subscription** - [Create one free](https://azure.microsoft.com/free/)
-- **Azure CLI** (`az`) - [Install](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
-- **Azure Developer CLI** (`azd`) - [Install](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd)
+- **GitHub account** with GitHub Copilot access ([Free](https://github.com/features/copilot/plans), [Pro](https://github.com/features/copilot/plans), or [Enterprise](https://github.com/features/copilot/plans))
 - **GitHub Copilot**:
   - [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started) for terminal workflows
   - [VS Code + GitHub Copilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot) for editor workflows
+- **Azure subscription** - [Create account](https://azure.microsoft.com/pricing/purchase-options/azure-account)
+- **Azure CLI** (`az`) - [Install](https://docs.microsoft.com/cli/azure/install-azure-cli)
+- **Azure Developer CLI** (`azd`) - [Install](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
 
 ```bash
 # Verify installations
@@ -65,16 +65,16 @@ Use whichever tool fits your workflow:
 | [**GitHub Copilot**](https://docs.github.com/copilot) | VS Code, Visual Studio, JetBrains | Agent mode, chat, inline suggestions |
 | [**GitHub Copilot cloud agent**](https://docs.github.com/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks) | GitHub | Assign issues to agents, get PRs back |
 
-This repo works with all three. The agentic journeys include prompts and plans that can be used to build and deploy apps with any of the tools. The examples use GitHub Copilot CLI for a terminal-first experience, but you can follow along in VS Code + GitHub Copilot or even assign the agent to an issue in GitHub and let it generate a PR for you.
+The journeys in this repo use GitHub Copilot CLI by default. However, you can use any AI coding assistant you prefer as long as it supports AI agents and skills including Claude Code, Codex, and others. The agentic journeys include prompts and plans that can be used to build and deploy apps with any of the tools.
 
 ## Agentic journeys
 
 | # | Agentic journey | Highlights |
 |:-:|----------|-------------------|
-| 01 | [n8n - Workflow Automation](./journeys/n8n/README.md) | Container Apps + PostgreSQL |
-| 02 | [Grafana - Metrics and Visualization](./journeys/grafana/README.md) | Container Apps |
-| 03 | [Apache Superset - BI Platform](./journeys/superset/README.md) | AKS + PostgreSQL |
-| 04 | [AIMarket](./journeys/aimarket/README.md) | Full-stack app from spec + AI search + shopping assistant |
+| 01 | [AIMarket](./journeys/aimarket/README.md) | Full-stack app from spec + AI search + shopping assistant |
+| 02 | [n8n - Workflow Automation](./journeys/n8n/README.md) | Container Apps + PostgreSQL |
+| 03 | [Grafana - Metrics and Visualization](./journeys/grafana/README.md) | Container Apps |
+| 04 | [Apache Superset - BI Platform](./journeys/superset/README.md) | AKS + PostgreSQL |
 
 ## How the agentic journeys work
 

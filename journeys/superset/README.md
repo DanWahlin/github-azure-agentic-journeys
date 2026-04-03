@@ -2,6 +2,10 @@
 
 > **When Container Apps isn't enough, you need Kubernetes. The agent knows when and why.**
 
+<p align="center">
+  <img src="./images/superset-data-exploration.jpg" alt="Apache Superset: BI on Azure" width="800" />
+</p>
+
 In this agentic journey, you'll deploy [Apache Superset](https://superset.apache.org/), a data exploration and BI platform, to Azure Kubernetes Service (AKS). This is the most complex deployment in the project: init containers, shared volumes, psycopg2 installation, ConfigMap mounting, and a managed PostgreSQL database. You'll see why some applications need Kubernetes and how the agent handles that complexity.
 
 ## Learning Objectives
@@ -121,6 +125,10 @@ Now select the deployment agent:
 Select **`oss-to-azure-deployer`** from the list. You're now in an interactive session with the deployment agent.
 
 ### Step 2: Deploy
+
+<p align="center">
+  <img src="./images/azure-deployment.jpg" alt="Deploy Superset to Azure" width="800" />
+</p>
 
 Tell the agent what you want in a single prompt:
 

@@ -2,6 +2,10 @@
 
 > **Deploy a self-hosted workflow automation platform to Azure by having a conversation with an AI agent.**
 
+<p align="center">
+  <img src="./images/n8n-workflow-automation.jpg" alt="n8n: Workflow Automation on Azure" width="800" />
+</p>
+
 In this agentic journey, you'll deploy [n8n](https://n8n.io), a workflow automation platform (think Zapier, but self-hosted and open-source), to Azure Container Apps with a managed PostgreSQL database. You'll use the `@oss-to-azure-deployer` Copilot agent to generate the infrastructure through conversation, then deploy it with a single command. Along the way, you'll see how the agent uses Azure MCP tools to look up schemas, get best practices, and plan deployments.
 
 ## Learning Objectives
@@ -95,6 +99,10 @@ Now select the deployment agent:
 Select **`oss-to-azure-deployer`** from the list. You're now in an interactive session with the deployment agent.
 
 ### Step 2: Deploy
+
+<p align="center">
+  <img src="./images/azure-deployment.jpg" alt="Deploy n8n to Azure" width="800" />
+</p>
 
 Tell the agent what you want in a single prompt:
 
