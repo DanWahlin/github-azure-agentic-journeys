@@ -20,7 +20,10 @@ In this agentic journey, you'll deploy [Apache Superset](https://superset.apache
 >
 > 💰 **Estimated Cost**: ~$175-185/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, [`kubectl`](https://kubernetes.io/docs/tasks/tools/), and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
+>
+> **Additional prerequisites for this journey:**
+> - [`kubectl`](https://kubernetes.io/docs/tasks/tools/) — needed for AKS cluster management
 
 ---
 

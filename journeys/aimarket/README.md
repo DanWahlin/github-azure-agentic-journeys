@@ -21,7 +21,12 @@ In this agentic journey, you'll build AIMarket, a lightweight marketplace app wi
 >
 > 💰 **Estimated Cost**: ~$100-115/month (AI Search Basic tier is the main cost — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
 >
-> 📋 **Prerequisites**: Your language runtime (Node.js, Python, .NET, or Java), Azure CLI, Azure Developer CLI, [Docker](https://docs.docker.com/get-docker/), and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
+>
+> **Additional prerequisites for this journey:**
+> - [Docker](https://docs.docker.com/get-docker/) — needed for image builds in Phase 4
+> - [GitHub CLI](https://cli.github.com/) (`gh`) — needed for repo creation and issue management in Phases 2-3
+> - Your language runtime: Node.js 20+, Python 3.10+, .NET 8+, or Java 17+
 
 ---
 
@@ -74,7 +79,7 @@ graph TB
 
 ## The Spec
 
-AIMarket is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey folder. It defines the data models, API contracts, validation rules, and seed data. You don't need to read the whole thing — Copilot reads it for you and generates code that matches.
+AIMarket is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey folder. It defines the data models, API contracts, validation rules, and seed data. You don't need to read the whole thing — Copilot CLI reads it for you and generates code that matches.
 
 **Core data model (the parts you'll build):**
 
@@ -103,7 +108,7 @@ AIMarket is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey fo
 
 AIMarket is built in four phases. Each phase teaches a different way of working with agentic AI — from interactive prompting to code review to delegation to deployment. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
 
-**How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally — ask Copilot for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
+**How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally — ask Copilot CLI for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
 
 ### Phase 1: Build the API from the Spec (~25 min)
 
@@ -111,7 +116,7 @@ AIMarket is built in four phases. Each phase teaches a different way of working 
   <img src="./images/spec-to-code.jpg" alt="Phase 1: Spec to Code" width="800" />
 </p>
 
-You'll build the API in stages, not all at once. Each step teaches a different aspect of working with Copilot.
+You'll build the API in stages, not all at once. Each step teaches a different aspect of working with Copilot CLI.
 
 #### Step 1: Set up the project
 
@@ -145,7 +150,7 @@ Then install the plugin:
 
 #### Step 2: Generate the data models
 
-Start with just the data models — not the whole API. This lets you inspect what Copilot produces before building on top of it.
+Start with just the data models — not the whole API. This lets you inspect what Copilot CLI produces before building on top of it.
 
 > **Pick your language here.** The prompts below say `[YOUR LANGUAGE]` — replace with your choice: Node.js/Express with TypeScript, Python/FastAPI, .NET Minimal APIs with C#, or Java/Spring Boot. See the "Choose Your Stack" table in PLAN.md for framework and library recommendations.
 
@@ -165,14 +170,14 @@ Open the Product model file. Look for:
 - Does validation check that `price > 0` and `category` is from the allowed list?
 - Are the constraints right? (name 1-200 chars, inventory >= 0)
 
-If anything's off, tell Copilot:
+If anything's off, tell Copilot CLI:
 
 ```
 > The Product validation doesn't check that category is one of the allowed 
   values from the spec. Fix it to reject invalid categories.
 ```
 
-**💡 What you're learning:** Copilot reads your spec and generates types + validation. But you need to verify it matched the spec — especially constraints and edge cases. The AI gets the shape right but sometimes misses business rules.
+**💡 What you're learning:** Copilot CLI reads your spec and generates types + validation. But you need to verify it matched the spec — especially constraints and edge cases. The AI gets the shape right but sometimes misses business rules.
 
 #### Step 3: Generate the data layer with repository pattern
 
@@ -191,7 +196,7 @@ Now add the database layer. The spec calls for a repository pattern so you can s
 **🔍 Inspect what was generated:**
 
 Open the SQLite implementation file and look for:
-- **Tags storage:** SQLite has no array type. The spec says to store tags as JSON strings (`'["laptop","ultrabook"]'`) and parse them on read. Did Copilot do this?
+- **Tags storage:** SQLite has no array type. The spec says to store tags as JSON strings (`'["laptop","ultrabook"]'`) and parse them on read. Did Copilot CLI do this?
 - **Order items:** Are they in a junction table (`order_items`) or embedded? The spec says junction table.
 - **Seed orders:** Do they decrement inventory? They shouldn't — they're historical data.
 
@@ -224,7 +229,7 @@ Check the order creation route — this is the most complex endpoint. Look for:
 4. Does it capture `priceAtPurchase` from the product's current price (not from the request)?
 5. Does it calculate `total` server-side?
 
-If any of these are missing, ask Copilot to fix them one at a time:
+If any of these are missing, ask Copilot CLI to fix them one at a time:
 
 ```
 > The POST /api/orders endpoint doesn't capture priceAtPurchase from the 
@@ -233,11 +238,11 @@ If any of these are missing, ask Copilot to fix them one at a time:
   product's price from the database.
 ```
 
-**💡 What you're learning:** Complex business logic is where AI generation needs the most human review. Copilot gets CRUD right but often misses multi-step validation (check inventory → decrement → capture price → calculate total). Reviewing order creation teaches you to look for these gaps.
+**💡 What you're learning:** Complex business logic is where AI generation needs the most human review. Copilot CLI gets CRUD right but often misses multi-step validation (check inventory → decrement → capture price → calculate total). Reviewing order creation teaches you to look for these gaps.
 
 #### Step 5: Test the API yourself
 
-Don't ask Copilot to test. Run these yourself and understand what each one verifies.
+Don't ask Copilot CLI to test. Run these yourself and understand what each one verifies.
 
 Start the API dev server for your language, then in a new terminal:
 
@@ -268,7 +273,7 @@ INVENTORY_AFTER=$(curl -s http://localhost:3000/api/products/prod-3 | python3 -c
 echo "Inventory: $INVENTORY_BEFORE → $INVENTORY_AFTER (should decrease by 2)"
 ```
 
-If any test fails, this is the real workflow: describe the failure to Copilot and let it fix it.
+If any test fails, this is the real workflow: describe the failure to Copilot CLI and let it fix it.
 
 ```
 > The category filter isn't working — GET /api/products?category=Electronics 
@@ -276,7 +281,7 @@ If any test fails, this is the real workflow: describe the failure to Copilot an
   SQLite implementation.
 ```
 
-**💡 What you're learning:** Testing yourself (not delegating to Copilot) builds understanding. You now know what the API does, what the response format looks like, and how inventory decrement works. When something breaks in production, you'll know where to look.
+**💡 What you're learning:** Testing yourself (not delegating to Copilot CLI) builds understanding. You now know what the API does, what the response format looks like, and how inventory decrement works. When something breaks in production, you'll know where to look.
 
 ---
 
@@ -301,7 +306,7 @@ If any test fails, this is the real workflow: describe the failure to Copilot an
 
 #### Step 2: Run both services together
 
-You need the API and frontend running at the same time. Ask Copilot to set this up:
+You need the API and frontend running at the same time. Ask Copilot CLI to set this up:
 
 ```
 > Create a way to start both the API and the React frontend with a single 
@@ -329,7 +334,7 @@ The generated frontend might have issues. Here are common ones to look for:
 - **Product images are broken** → Check the `imageUrl` format in seed data
 - **Search doesn't filter by tags** → The search function may only check `name`
 
-Pick one issue (or find a real one) and fix it with Copilot:
+Pick one issue (or find a real one) and fix it with Copilot CLI:
 
 ```
 > The search bar only matches product names but not tags. When I search 
@@ -407,7 +412,7 @@ curl -X POST http://localhost:3000/api/products/search \
 
 #### Step 3: Delegate the shopping assistant to the cloud agent
 
-Now try a completely different agentic workflow. Instead of prompting Copilot CLI interactively, you'll write a GitHub issue and let the Copilot coding agent implement it asynchronously.
+Now try a completely different agentic workflow. Instead of prompting Copilot CLI interactively, you'll write a GitHub issue and let the GitHub Copilot cloud agent implement it asynchronously.
 
 **Why delegate this one?** The shopping assistant is well-scoped (one endpoint + one component) with clear acceptance criteria in the spec. That makes it a good candidate for async delegation — you don't need to be in the loop for every decision.
 
@@ -424,7 +429,7 @@ If you're still in a Copilot CLI session, use `/delegate`:
   Use the acceptance criteria in PLAN.md Phase 3 to verify your work.
 ```
 
-**Option B: Create an issue and assign Copilot**
+**Option B: Create an issue and assign GitHub Copilot cloud agent**
 
 Create the issue:
 
@@ -454,7 +459,7 @@ Read PLAN.md in the repo root. Implement:
 - If Azure credentials are missing, endpoint returns 503"
 ```
 
-Then assign it to the Copilot coding agent — navigate to the issue on GitHub and click **"Assign to Copilot"**.
+Then assign it to the GitHub Copilot cloud agent — navigate to the issue on GitHub and click **"Assign to Copilot"**.
 
 While the cloud agent works on it, you can move on to Phase 4 or take a break. When it opens a PR:
 
@@ -528,7 +533,7 @@ docker --version  # Need Docker Desktop or Docker Engine
 azd up
 ```
 
-Deployment takes ~3 minutes. If it fails, ask Copilot to help diagnose:
+Deployment takes ~3 minutes. If it fails, ask Copilot CLI to help diagnose:
 
 ```
 > azd up failed with this error: [paste the error]. What's wrong?
@@ -551,7 +556,7 @@ docker push "$ACR/aimarket-web:v1"
 
 > **On Apple Silicon (M1/M2/M3)?** Azure runs Linux AMD64 containers. Add `--platform linux/amd64` to the `docker build` command to cross-compile.
 
-Then ask Copilot to update the container app with the new image:
+Then ask Copilot CLI to update the container app with the new image:
 
 ```
 > Update the aimarket-web container app to use the image I just pushed 
@@ -604,13 +609,13 @@ Here's where agentic AI shows up in this journey:
 
 | Layer | Use Case | What It Demonstrates |
 |-------|----------|---------------------|
-| **Code generation** | Copilot scaffolds models, routes, and data layer from a spec | Break work into pieces, inspect each one, iterate on gaps |
+| **Code generation** | Copilot CLI scaffolds models, routes, and data layer from a spec | Break work into pieces, inspect each one, iterate on gaps |
 | **Code review** | You review generated code for business logic correctness | AI gets structure right but misses edge cases — you catch them |
 | **Delegation** | Cloud agent implements a feature from a GitHub issue | Write well-scoped issues with acceptance criteria, review the PR |
 | **Product search** | Azure AI Search with semantic ranking | AI-powered features are API calls, not ML projects |
 | **Shopping assistant** | Azure OpenAI grounded in product catalog | Ground LLMs in real data to prevent hallucination |
-| **Infrastructure** | Copilot generates Bicep templates and Dockerfiles | Review deployment config carefully — silent failures are common |
-| **Debugging** | Ask Copilot to diagnose deployment failures | Describe errors, let AI suggest fixes, verify yourself |
+| **Infrastructure** | Copilot CLI generates Bicep templates and Dockerfiles | Review deployment config carefully — silent failures are common |
+| **Debugging** | Ask Copilot CLI to diagnose deployment failures | Describe errors, let AI suggest fixes, verify yourself |
 
 ---
 
@@ -738,7 +743,7 @@ az group delete --name aimarket-rg --yes --no-wait
 
 ## Key Learnings
 
-- **The spec is the prompt** — hand Copilot a well-written plan and it generates code that matches the data models, API contracts, and conventions
+- **The spec is the prompt** — hand Copilot CLI a well-written plan and it generates code that matches the data models, API contracts, and conventions
 - **Delegate with context** — the Copilot cloud agent produces better PRs when your repo has a spec document it can read; well-scoped issues with acceptance criteria get better results
 - **Semantic search beats keyword search** — "lightweight laptop for travel" returns relevant results without exact keyword matches
 - **Ground your AI in real data** — the shopping assistant works because it gets the current product catalog as context, not because the LLM memorized products
@@ -750,8 +755,8 @@ az group delete --name aimarket-rg --yes --no-wait
 
 ## Assignment
 
-1. Add a new AI feature: ask Copilot to *"Add a product recommendations endpoint that suggests similar products based on category and price range using Azure OpenAI"*
-2. Add order confirmation: ask Copilot to *"When an order is placed, use Azure OpenAI to generate a personalized thank-you message that mentions the products purchased"*
+1. Add a new AI feature: ask Copilot CLI to *"Add a product recommendations endpoint that suggests similar products based on category and price range using Azure OpenAI"*
+2. Add order confirmation: ask Copilot CLI to *"When an order is placed, use Azure OpenAI to generate a personalized thank-you message that mentions the products purchased"*
 3. Clean up with `azd down --force --purge`
 
 ---
@@ -766,7 +771,7 @@ In Agentic Journey 05 (coming soon), you'll go deeper into AI agent capabilities
 
 ## Resources
 
-- [AIMarket Spec](./PLAN.md) — The plan document used by Copilot to scaffold the app
+- [AIMarket Spec](./PLAN.md) — The plan document used by Copilot CLI to scaffold the app
 - [Azure AI Search Documentation](https://learn.microsoft.com/azure/search/)
 - [Azure OpenAI Service](https://learn.microsoft.com/azure/ai-services/openai/)
 - [Azure Cosmos DB](https://learn.microsoft.com/azure/cosmos-db/)
