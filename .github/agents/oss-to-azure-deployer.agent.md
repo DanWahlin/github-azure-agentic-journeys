@@ -1,8 +1,6 @@
 ---
 name: oss-to-azure-deployer
 description: Deploy open-source applications to Azure. Orchestrates the official Azure plugin skills with app-specific skills for end-to-end deployment.
-tools: ['edit', 'search', 'runCommands', 'fetch', 'Azure MCP/*']
-requiredPlugins: ['microsoft/github-copilot-for-azure:plugin']
 model: Claude Sonnet 4.5 (copilot)
 ---
 
