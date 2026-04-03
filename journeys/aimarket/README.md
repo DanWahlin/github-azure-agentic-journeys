@@ -21,7 +21,7 @@ In this agentic journey, you'll build AIMarket, a lightweight marketplace app wi
 >
 > 💰 **Estimated Cost**: ~$100-115/month (AI Search Basic tier is the main cost — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
 >
-> 📋 **Prerequisites**: Your language runtime (Node.js, Python, .NET, or Java), Azure CLI, Azure Developer CLI, Docker, and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**: Your language runtime (Node.js, Python, .NET, or Java), Azure CLI, Azure Developer CLI, [Docker](https://docs.docker.com/get-docker/), and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
 
 ---
 
@@ -41,7 +41,7 @@ graph TB
         end
         DB["Database<br/>(SQLite local · Cosmos DB or PostgreSQL in Azure)"]
         SEARCH["Azure AI Search<br/>(Semantic Product Discovery)"]
-        AOAI["Microsoft Foundry<br/>(gpt-4o · Shopping Assistant)"]
+        AOAI["Microsoft Foundry<br/>(gpt-5-mini · Shopping Assistant)"]
     end
 
     WEB --> FRONTEND
@@ -66,7 +66,7 @@ graph TB
 - **Azure Container Apps** — Serverless hosting for the API and frontend
 - **Database** — SQLite embedded (default). Swappable to Cosmos DB or PostgreSQL via `DATA_PROVIDER` env var
 - **Azure AI Search** (Basic tier) — Semantic product discovery
-- **Microsoft Foundry** (AIServices) — gpt-4o shopping assistant
+- **Microsoft Foundry** (AIServices) — gpt-5-mini shopping assistant
 - **Azure Container Registry** — Docker image storage
 - **Azure Log Analytics** — Monitoring and diagnostics
 
@@ -620,9 +620,9 @@ Here's where agentic AI shows up in this journey:
 |----------|-----|--------------|
 | Container Apps (2 apps, scale-to-zero) | Consumption | ~$10-20 |
 | Azure AI Search | Basic (semantic ranking) | ~$75 |
-| Microsoft Foundry (AIServices) | Pay-per-token (gpt-4o) | ~$5-10 |
+| Microsoft Foundry (AIServices) | Pay-per-token (gpt-5-mini) | ~$5-10 |
 | Container Registry | Basic | ~$5 |
-| Log Analytics | PerGB2018 | ~$2-5 |
+| Log Analytics | Pay-per-GB | ~$2-5 |
 | **Total** | | **~$100-115/month** |
 
 Scale-to-zero on Container Apps and serverless Cosmos DB keep costs low during development. Azure AI Search Basic tier is required for semantic ranking — remember to clean up with `azd down` when done to avoid ongoing charges.

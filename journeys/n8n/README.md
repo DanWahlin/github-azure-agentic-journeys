@@ -209,7 +209,7 @@ Sensitive values are stored as Container App secrets and referenced via `secretR
 |----------|-----|--------------|
 | Container Apps (scale-to-zero) | Consumption (1 vCPU, 2GB) | ~$5-15 |
 | PostgreSQL Flexible Server | B_Standard_B1ms (32GB) | ~$15 |
-| Log Analytics | PerGB2018 (30-day retention) | ~$2-5 |
+| Log Analytics | Pay-per-GB (30-day retention) | ~$2-5 |
 | **Total** | | **~$25-35/month** |
 
 Scale-to-zero keeps costs low during idle periods. For production with `minReplicas: 1`, expect ~$60-80/month for Container Apps alone.

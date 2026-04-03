@@ -217,7 +217,7 @@ GF_DATABASE_SSL_MODE: require
 | Resource | SKU | Monthly Cost |
 |----------|-----|--------------|
 | Container Apps (scale-to-zero) | Consumption (0.5 vCPU, 1GB) | ~$5-10 |
-| Log Analytics | PerGB2018 | ~$2-5 |
+| Log Analytics | Pay-per-GB | ~$2-5 |
 | **Total (SQLite)** | | **~$10-20/month** |
 | + PostgreSQL (optional) | B_Standard_B1ms | +~$15/month |
 

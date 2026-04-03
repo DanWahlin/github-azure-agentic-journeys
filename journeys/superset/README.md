@@ -20,7 +20,7 @@ In this agentic journey, you'll deploy [Apache Superset](https://superset.apache
 >
 > 💰 **Estimated Cost**: ~$175-185/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, `kubectl`, and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, [`kubectl`](https://kubernetes.io/docs/tasks/tools/), and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
 
 ---
 
@@ -421,7 +421,6 @@ Teardown takes 5-10 minutes (AKS + PostgreSQL deletion is slow).
 
 You've completed the OSS deployment agentic journeys. Here's where to go from here:
 
-- **Extend the project** — Add a new OSS app by following the guide in [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
 - **Ask the agent** — Start a session with `@oss-to-azure-deployer` and ask *"How would I deploy Gitea to Azure?"*
 - **Contribute** — Found a bug or want to add an app? [Open an issue](https://github.com/DanWahlin/github-azure-agentic-journeys/issues)
 

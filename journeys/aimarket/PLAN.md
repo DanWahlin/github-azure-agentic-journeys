@@ -15,7 +15,7 @@ Pick your API language. Data models, endpoints, and acceptance criteria are iden
 | **Framework** | Express + TypeScript | FastAPI | ASP.NET Core Minimal APIs | Spring Boot |
 | **SQLite** | `better-sqlite3` | `sqlite3` (stdlib) | `Microsoft.Data.Sqlite` | `JdbcTemplate` + SQLite |
 
-Frontend is always React 18 + Tailwind CSS. AI via **gpt-5-mini on Microsoft Foundry** (fallback to gpt-4o if there's no quota available for gpt-5-mini). Deploy with **azd** + **Bicep using Azure Verified Modules (AVM)**. See [`data-access-abstraction` skill](../../.github/skills/data-access-abstraction/SKILL.md) for repository pattern examples in all four languages.
+Frontend is always React 18 + Tailwind CSS. AI via **gpt-5-mini on Microsoft Foundry** (fallback to gpt-4o if quota is unavailable). Deploy with **azd** + **Bicep using Azure Verified Modules (AVM)**. See [`data-access-abstraction` skill](../../.github/skills/data-access-abstraction/SKILL.md) for repository pattern examples in all four languages.
 
 ## Project Structure
 
@@ -151,6 +151,9 @@ List products with pagination and optional filters.
       "reviewCount": 142,
       "imageUrl": "https://images.unsplash.com/photo-1589561084283-930aa7b1ce50?w=400&h=300&fit=crop",
       "status": "active"
+    }
+  ],
+  "page": 1,
   "pageSize": 20,
   "totalCount": 10,
   "totalPages": 1
@@ -485,6 +488,9 @@ Only `query` is required. `category`, `minPrice`, and `maxPrice` are optional fi
       "rating": 4.7,
       "imageUrl": "https://images.unsplash.com/photo-1589561084283-930aa7b1ce50?w=400&h=300&fit=crop",
       "score": 0.92
+    }
+  ],
+  "query": "something lightweight for travel",
   "count": 3
 }
 ```
@@ -553,14 +559,14 @@ Current catalog:
 
 **Behavior:**
 - On each request, fetch all active products and inject them into the system prompt as JSON
-- Use Azure OpenAI chat completions API with `gpt-4o` (or `gpt-5-mini` if quota is available)
+- Use Azure OpenAI chat completions API with `gpt-5-mini` (fallback to `gpt-4o` if quota is unavailable)
 - Temperature: `0.7`
 - Max tokens: `500`
 - Pass the full message history from the request (the client maintains conversation state)
 
 ### Environment Variables (Phase 3)
 
-`AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_KEY`, `AZURE_SEARCH_INDEX` (default: `aimarket-products`), `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_KEY`, `AZURE_OPENAI_DEPLOYMENT` (default: `gpt-4o`).
+`AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_KEY`, `AZURE_SEARCH_INDEX` (default: `aimarket-products`), `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_KEY`, `AZURE_OPENAI_DEPLOYMENT` (default: `gpt-5-mini`).
 
 When not set: search falls back to SQLite LIKE queries; `/api/chat` returns 503.
 ---
@@ -586,7 +592,7 @@ Use **Azure Verified Modules (AVM)** from `br/public:avm/...` where possible. Fo
 | Azure AI Search | `br/public:avm/res/search/search-service` (Basic SKU — required for semantic ranking) + `existing` ref for `listAdminKeys()` | Semantic product search |
 | Container Apps Env | `br/public:avm/res/app/managed-environment` | Hosts API + frontend |
 | Container Apps (×2) | `br/public:avm/res/app/container-app` | API + web |
-| Microsoft Foundry | Raw resource (`Microsoft.CognitiveServices/accounts` with `kind: AIServices`, `allowProjectManagement: true`) + child project + model deployment | gpt-4o + Foundry project. Raw because the AVM `ai-foundry` pattern module generates internal resource names we can't predict, making `listKeys()` impossible. |
+| Microsoft Foundry | Raw resource (`Microsoft.CognitiveServices/accounts` with `kind: AIServices`, `allowProjectManagement: true`) + child project + model deployment | gpt-5-mini (fallback: gpt-4o) + Foundry project. Raw because the AVM `ai-foundry` pattern module generates internal resource names we can't predict, making `listKeys()` impossible. |
 
 **Pattern for wiring secrets:** At subscription scope, `existing` resource references cannot use `dependsOn`, so `listKeys()`/`listCredentials()` fail because the resource hasn't been created yet. **Solution: create wrapper Bicep modules** scoped at resource group level. Each wrapper calls the AVM module, then uses an `existing` ref with `dependsOn` to extract keys. The main template calls these wrappers and reads keys from their outputs. Create wrapper modules for: Container Registry (outputs loginServer, username, password), AI Search (outputs endpoint, adminKey), and AI Services (outputs endpoint, key).
 
