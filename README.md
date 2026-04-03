@@ -74,9 +74,7 @@ This repo works with all three. The agentic journeys include prompts and plans t
 | 01 | [n8n - Workflow Automation](./journeys/n8n/README.md) | Container Apps + PostgreSQL |
 | 02 | [Grafana - Metrics and Visualization](./journeys/grafana/README.md) | Container Apps |
 | 03 | [Apache Superset - BI Platform](./journeys/superset/README.md) | AKS + PostgreSQL |
-| 04 | [AIMarket — AI-Powered Marketplace](./journeys/aimarket/README.md) | Full-stack app from spec + AI search + shopping assistant |
-| 05 | AI Integration with Microsoft Foundry | Semantic search, recommendations, and a chat agent |
-| 06 | LangChain Agents with Azure | Build your own agent tooling using LangChain and Azure services |
+| 04 | [AIMarket](./journeys/aimarket/README.md) | Full-stack app from spec + AI search + shopping assistant |
 
 ## How the agentic journeys work
 
