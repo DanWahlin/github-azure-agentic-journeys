@@ -1,6 +1,6 @@
 # Agentic Journey 03: Apache Superset on Azure Kubernetes Service
 
-> **When Container Apps isn't enough, you need Kubernetes. The agent knows when and why.**
+> ✨ **When Container Apps isn't enough, you need Kubernetes. The agent knows when and why.**
 
 <p align="center">
   <img src="./images/superset-data-exploration.jpg" alt="Apache Superset: BI on Azure" width="800" />

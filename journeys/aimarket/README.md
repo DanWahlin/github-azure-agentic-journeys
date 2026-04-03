@@ -1,6 +1,6 @@
 # Agentic Journey 04: AIMarket — AI-Powered Marketplace
 
-> **Build a full-stack marketplace from a spec document, with AI features from search to checkout.**
+> ✨ **Build a full-stack marketplace from a spec document, with AI features from search to checkout.**
 
 <p align="center">
   <img src="./images/aimarket-marketplace.jpg" alt="AIMarket — AI-Powered Marketplace" width="800" />
@@ -39,14 +39,14 @@ graph TB
             API["AIMarket API<br/>(Your language · REST)"]
             FRONTEND["Storefront<br/>(React · Port 80)"]
         end
-        COSMOS["Cosmos DB<br/>(Products · Orders · Users)"]
+        DB["Database<br/>(SQLite local · Cosmos DB or PostgreSQL in Azure)"]
         SEARCH["Azure AI Search<br/>(Semantic Product Discovery)"]
-        AOAI["Microsoft Foundry<br/>(gpt-5-mini · Shopping Assistant)"]
+        AOAI["Microsoft Foundry<br/>(gpt-4o · Shopping Assistant)"]
     end
 
     WEB --> FRONTEND
     FRONTEND -->|REST| API
-    API --> COSMOS
+    API --> DB
     API --> SEARCH
     API --> AOAI
     CAE -->|logs & metrics| LA
@@ -55,7 +55,7 @@ graph TB
     style CAE fill:#f0f9ff,stroke:#50e6ff
     style API fill:#fff,stroke:#0078D4
     style FRONTEND fill:#fff,stroke:#0078D4
-    style COSMOS fill:#fff,stroke:#0078D4
+    style DB fill:#fff,stroke:#0078D4
     style SEARCH fill:#fff,stroke:#0078D4
     style AOAI fill:#fff,stroke:#0078D4
     style LA fill:#fff,stroke:#50e6ff
@@ -64,9 +64,10 @@ graph TB
 **Azure resources created:**
 
 - **Azure Container Apps** — Serverless hosting for the API and frontend
-- **Azure Cosmos DB** (Serverless) — Product catalog, orders, and users
+- **Database** — SQLite embedded (default). Swappable to Cosmos DB or PostgreSQL via `DATA_PROVIDER` env var
 - **Azure AI Search** (Basic tier) — Semantic product discovery
-- **Microsoft Foundry** (AIServices + Project) — gpt-5-mini shopping assistant
+- **Microsoft Foundry** (AIServices) — gpt-4o shopping assistant
+- **Azure Container Registry** — Docker image storage
 - **Azure Log Analytics** — Monitoring and diagnostics
 
 ---

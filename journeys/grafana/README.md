@@ -1,6 +1,6 @@
 # Agentic Journey 02: Grafana on Azure Container Apps
 
-> **No external database, no complex probes, just Grafana on Container Apps.**
+> ✨ **No external database, no complex probes, just Grafana on Container Apps.**
 
 <p align="center">
   <img src="./images/grafana-observability.jpg" alt="Grafana: Observability on Azure" width="800" />

@@ -1,6 +1,6 @@
 # Agentic Journey 01: n8n on Azure Container Apps
 
-> **Deploy a self-hosted workflow automation platform to Azure by having a conversation with an AI agent.**
+> ✨ **Deploy a self-hosted workflow automation platform to Azure by having a conversation with an AI agent.**
 
 <p align="center">
   <img src="./images/n8n-workflow-automation.jpg" alt="n8n: Workflow Automation on Azure" width="800" />
