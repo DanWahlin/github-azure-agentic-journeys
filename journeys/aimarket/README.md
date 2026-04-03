@@ -6,7 +6,7 @@
   <img src="./images/aimarket-marketplace.jpg" alt="AIMarket — AI-Powered Marketplace" width="800" />
 </p>
 
-In this agentic journey, you'll build AIMarket, a lightweight marketplace app with AI-powered product search and a shopping assistant. You'll hand GitHub Copilot a spec document and watch it scaffold a Node.js API, generate a React storefront, add AI features, and deploy the whole thing to Azure. Agentic AI is used at every stage — to write the code, to power the product features, and to ship the infrastructure.
+In this agentic journey, you'll build AIMarket, a lightweight marketplace app with AI-powered product search and a shopping assistant. You'll hand GitHub Copilot a spec document and watch it scaffold an API in your chosen language, generate a React storefront, add AI features, and deploy the whole thing to Azure.
 
 ## Learning Objectives
 
@@ -478,7 +478,7 @@ gh pr merge <PR_NUMBER>
 
 > **If the agent's PR doesn't work:** After 2 rounds of feedback, close the PR and implement it yourself interactively using the "AI Feature 2: Shopping Assistant" section in PLAN.md. Not every task is a good fit for delegation — that's a lesson too.
 
-**💡 What you're learning:** The cloud agent workflow is fundamentally different from CLI prompting. You write a well-scoped issue with acceptance criteria, delegate, and review the result. It works best when: (1) the task is self-contained, (2) there's a spec the agent can read, and (3) the acceptance criteria are testable. You're learning when to drive interactively (exploration, complex logic) vs when to delegate (well-defined features).
+**💡 What you're learning:** The cloud agent workflow is different from CLI prompting. You write a well-scoped issue with acceptance criteria, delegate, and review the result. It works best when the task is self-contained, there's a spec the agent can read, and the acceptance criteria are testable. This is where you learn when to drive interactively vs. when to delegate.
 
 ---
 
@@ -594,13 +594,13 @@ Test it, deploy it with `azd up`, and verify it works in production.
 
 ---
 
-## Agentic AI Use Cases — Summary
+## How Agentic AI is Used
 
 <p align="center">
   <img src="./images/generate-inspect-test-refine.jpg" alt="Agentic AI Development Workflow" width="800" />
 </p>
 
-AIMarket demonstrates agentic AI at every layer of the development lifecycle:
+Here's where agentic AI shows up in this journey:
 
 | Layer | Use Case | What It Demonstrates |
 |-------|----------|---------------------|
@@ -611,8 +611,6 @@ AIMarket demonstrates agentic AI at every layer of the development lifecycle:
 | **Shopping assistant** | Azure OpenAI grounded in product catalog | Ground LLMs in real data to prevent hallucination |
 | **Infrastructure** | Copilot generates Bicep templates and Dockerfiles | Review deployment config carefully — silent failures are common |
 | **Debugging** | Ask Copilot to diagnose deployment failures | Describe errors, let AI suggest fixes, verify yourself |
-
-These map directly to enterprise scenarios: developer productivity, improved product discovery, reduced support costs, infrastructure automation, and operational efficiency.
 
 ---
 
@@ -635,11 +633,13 @@ Scale-to-zero on Container Apps and serverless Cosmos DB keep costs low during d
 
 ### API won't start
 
-**Check:** Node.js version (need 20+) and dependencies.
+**Check:** Your runtime version and dependencies.
 
 ```bash
-node --version  # or python --version, dotnet --version, java --version
-cd aimarket && # install deps and start dev server
+node --version    # Node.js (need 20+)
+python --version  # Python (need 3.10+)
+dotnet --version  # .NET (need 8+)
+java --version    # Java (need 17+)
 ```
 
 ### Semantic search returns no results
