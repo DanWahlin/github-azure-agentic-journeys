@@ -9,27 +9,25 @@
 
 > **Build and deploy applications to Azure using agents and skills.**
 
+What if you could go from idea to running in Azure and stay focused on your actual product the entire time? With agents handling the infrastructure — Bicep templates, health probes, database wiring, deployment pipelines — you can spend your time on what makes your app interesting instead of what makes it run. *GitHub and Azure Agentic Journeys* shows what that looks like in practice. 
+
 ![Developer journey: Plan → Agentic AI → Microsoft Foundry → Deploy to Azure](./images/dev-journey.png)
 
-What if you could go from idea to running in Azure and stay focused on your actual product the entire time? With agents handling the infrastructure — Bicep templates, health probes, database wiring, deployment pipelines — you can spend your time on what makes your app interesting instead of what makes it run. GitHub and Azure Agentic Journeys shows what that looks like in practice. 
-
-You write a spec and hand it to GitHub Copilot, which scaffolds your API and database while you decide on a stack. From there you build out a web or mobile frontend, add AI capabilities like search and recommendations through Microsoft Foundry, and let an agent generate the Azure infrastructure and deploy it when you're ready to ship. Some agentic journeys are quick deploys of open-source apps. Others take you from an empty folder to a full-stack app with AI features running in production.
+You pick a stack, write a spec, and hand it to your AI coding assistant, which scaffolds your API, database, and data models from the plan. From there you build out a frontend, add AI capabilities like search and recommendations through Microsoft Foundry, and let an agent generate the Azure infrastructure and deploy it when you're ready to ship. Some agentic journeys are quick deploys of open-source apps while others take you from an empty folder to a full-stack app with AI features running in production!
 
 This is designed for:
 
 - **Developers** who want to build and ship to Azure using agentic AI techniques
 - **Teams** evaluating how agents and skills fit into their development workflow
 
-Although the agentic journeys use GitHub Copilot CLI by default, you can use another tool such as GitHub Copilot in VS Code and other editors, or Claude Code if you prefer. The agents and skills are designed to be tool-agnostic.
-
 ## What You'll Learn
 
-Each agentic journey pairs GitHub Copilot with Azure services to handle a different part of the development lifecycle:
+Each agentic journey pairs GitHub Copilot CLI with Azure services to handle a different part of the development lifecycle:
 
 - Deploying open-source apps (n8n, Grafana, Superset) to Azure with a single agent conversation
 - Building APIs, databases, and frontends from a spec document
 - Adding AI features (search, recommendations, chat agents) with Microsoft Foundry
-- Deploying to Azure Container Apps and AKS without writing infrastructure by hand
+- Deploying to Azure Container Apps and AKS without writing infrastructure code by hand
 - Creating your own agents, skills, and MCP integrations
 - Choosing your own stack and platform (web or iOS, .NET or Python or Node)
 
@@ -45,15 +43,15 @@ Before starting, ensure you have:
 - **Azure CLI** (`az`) - [Install](https://docs.microsoft.com/cli/azure/install-azure-cli)
 - **Azure Developer CLI** (`azd`) - [Install](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
 
-```bash
-# Verify installations
-az version
-azd version
+  ```bash
+  # Verify installations
+  az version
+  azd version
 
-# Login to Azure and select your subscription
-az login
-azd auth login
-```
+  # Login to Azure and select your subscription
+  az login
+  azd auth login
+  ```
 
 ## GitHub Copilot tools
 
@@ -65,39 +63,24 @@ Use whichever tool fits your workflow:
 | [**GitHub Copilot**](https://docs.github.com/copilot) | VS Code, Visual Studio, JetBrains | Agent mode, chat, inline suggestions |
 | [**GitHub Copilot cloud agent**](https://docs.github.com/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks) | GitHub | Assign issues to agents, get PRs back |
 
-The journeys in this repo use GitHub Copilot CLI by default. However, you can use any AI coding assistant you prefer as long as it supports AI agents and skills including Claude Code, Codex, and others. The agentic journeys include prompts and plans that can be used to build and deploy apps with any of the tools.
+The journeys in this repo use GitHub Copilot CLI by default. However, you can use any AI coding assistant you prefer (Claude Code, Codex, and others) as long as it supports standard AI agents and skills. The agentic journeys include prompts and plans that can be used to build and deploy apps with any of the tools.
 
 ## Agentic journeys
 
 | # | Agentic journey | Highlights |
 |:-:|----------|-------------------|
-| 01 | [AIMarket](./journeys/aimarket/README.md) | Full-stack app from spec + AI search + shopping assistant |
-| 02 | [n8n - Workflow Automation](./journeys/n8n/README.md) | Container Apps + PostgreSQL |
-| 03 | [Grafana - Metrics and Visualization](./journeys/grafana/README.md) | Container Apps |
-| 04 | [Apache Superset - BI Platform](./journeys/superset/README.md) | AKS + PostgreSQL |
+| 01 | [AIMarket](./journeys/aimarket/README.md) | Full-stack app from spec + AI search + shopping assistant deployed to Azure|
+| 02 | [n8n - Workflow Automation](./journeys/n8n/README.md) | Container Apps + PostgreSQL deployed to Azure |
+| 03 | [Grafana - Metrics and Visualization](./journeys/grafana/README.md) | Container Apps deployed to Azure |
+| 04 | [Apache Superset - BI Platform](./journeys/superset/README.md) | Azure Kubernetes Service (AKS) + PostgreSQL deployed to Azure |
 
 ## How the agentic journeys work
 
 Each agentic journey follows the same structure:
 
-1. **Architecture diagram** showing what gets created in Azure
+1. **Overview diagram** showing what gets created in Azure
 2. **Agentic AI** - Generate code and deployment infrastructure 
 3. **Troubleshooting** for common issues
-
-## How the OSS agent works
-
-The OSS deployment journeys (01-03) use an agent that orchestrates a 6-step pipeline:
-
-```
-1. Load app skill     →  Read n8n-azure, grafana-azure, or superset-azure
-2. azure-prepare      →  Generate Bicep infrastructure from scratch
-3. Set environment     →  Configure azd with subscription, location, secrets
-4. azure-validate      →  Validate Bicep templates and azd configuration
-5. azure-deploy        →  Run azd up to provision and deploy
-6. Verify              →  Output the deployed URL and run health checks
-```
-
-The agent reads app-specific skills (port numbers, database requirements, health probe timing) and uses the [Azure plugin](https://github.com/microsoft/azure-skills) MCP tools to look up real Bicep schemas and best practices. Infrastructure is generated fresh each deployment. 
 
 ## Getting help
 
