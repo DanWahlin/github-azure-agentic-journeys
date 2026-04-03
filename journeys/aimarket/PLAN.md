@@ -1,4 +1,4 @@
-# SmartMart: AI-Powered Marketplace — Spec
+# AIMarket: AI-Powered Marketplace — Spec
 
 Marketplace API + React storefront with AI-powered semantic search and a shopping assistant. This document is the spec — Copilot reads it to generate the implementation.
 
@@ -20,7 +20,7 @@ Frontend is always React 18 + Tailwind CSS. AI via **gpt-5-mini on Microsoft Fou
 ## Project Structure
 
 ```
-smartmart/
+aimarket/
 ├── api/          # Your chosen language
 ├── client/       # React frontend (Vite + Tailwind)
 ├── infra/        # Bicep with AVM modules (Phase 4)
@@ -60,7 +60,7 @@ UserRepository:
 
 Factory reads `DATA_PROVIDER` env var (default `sqlite`), returns the matching implementation. Routes never import database clients directly.
 
-**SQLite notes:** Store arrays/objects as JSON strings, parse on read. Use `order_items` junction table for order line items. Set `journal_mode=WAL` and `foreign_keys=ON`. DB file: `api/smartmart.db` (add to `.gitignore`).
+**SQLite notes:** Store arrays/objects as JSON strings, parse on read. Use `order_items` junction table for order line items. Set `journal_mode=WAL` and `foreign_keys=ON`. DB file: `api/aimarket.db` (add to `.gitignore`).
 
 **API entry point:** Enable CORS, parse JSON, expose `GET /api/health` → `{status:"ok"}`, mount routes at `/api/{products,orders,users,chat}`, global error handler last.
 
@@ -296,7 +296,7 @@ All errors: `{ "error": { "code": "ERROR_CODE", "message": "...", "details": [] 
 
 ### Seed Data
 
-Loaded into the SQLite database on startup. Persists locally in the `smartmart.db` file.
+Loaded into the SQLite database on startup. Persists locally in the `aimarket.db` file.
 
 **Users:**
 
@@ -395,7 +395,7 @@ Build the React storefront. The API must be running for the frontend to work.
   - Text input at the bottom with a send button
   - Sends full message history to `POST /api/chat` on each message
   - Shows a typing indicator while waiting for a response
-  - Initial assistant message on open: "Hi! I'm the SmartMart assistant. I can help you find products, compare options, or answer questions about our catalog. What are you looking for?"
+  - Initial assistant message on open: "Hi! I'm the AIMarket assistant. I can help you find products, compare options, or answer questions about our catalog. What are you looking for?"
 
 #### CartIcon
 
@@ -436,7 +436,7 @@ Replace keyword filtering with semantic search that understands intent.
 
 #### Azure AI Search Index
 
-**Index name:** `smartmart-products`
+**Index name:** `aimarket-products`
 
 **Fields:**
 
@@ -451,7 +451,7 @@ Replace keyword filtering with semantic search that understands intent.
 | rating | double | no | yes | yes | no |
 
 **Semantic configuration:**
-- Semantic configuration name: `smartmart-semantic`
+- Semantic configuration name: `aimarket-semantic`
 - Title field: `name`
 - Content fields: `description`
 - Keyword fields: `tags`
@@ -535,8 +535,8 @@ A conversational agent that helps users find products.
 #### System Prompt
 
 ```
-You are the SmartMart shopping assistant. You help customers find and compare 
-products from the SmartMart catalog.
+You are the AIMarket shopping assistant. You help customers find and compare 
+products from the AIMarket catalog.
 
 Rules:
 - Only recommend products that exist in the catalog provided below.
@@ -560,7 +560,7 @@ Current catalog:
 
 ### Environment Variables (Phase 3)
 
-`AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_KEY`, `AZURE_SEARCH_INDEX` (default: `smartmart-products`), `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_KEY`, `AZURE_OPENAI_DEPLOYMENT` (default: `gpt-4o`).
+`AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_KEY`, `AZURE_SEARCH_INDEX` (default: `aimarket-products`), `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_KEY`, `AZURE_OPENAI_DEPLOYMENT` (default: `gpt-4o`).
 
 When not set: search falls back to SQLite LIKE queries; `/api/chat` returns 503.
 ---

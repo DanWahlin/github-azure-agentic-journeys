@@ -54,7 +54,7 @@ Skills are loaded automatically based on context:
 ### Workflow
 
 1. **OSS deployments:** Use `@oss-to-azure-deployer` to guide the entire journey
-2. **Full-stack journeys (e.g., SmartMart):** Follow the journey's PLAN.md and use skills as needed
+2. **Full-stack journeys (e.g., AIMarket):** Follow the journey's PLAN.md and use skills as needed
 3. **Skills load automatically** based on the app being deployed
 4. **Azure MCP tools** provide real-time schema lookups, deployment planning, and troubleshooting
 5. **Troubleshooting:** Reference app-specific troubleshooting.md files and use `azure_deploy_app_logs`
@@ -198,7 +198,7 @@ description: Deploy <App> to Azure. Use when deploying <App> for <purpose>.
 
 ### Full-Stack Journeys
 
-To add a new full-stack journey (e.g., SmartMart):
+To add a new full-stack journey (e.g., AIMarket):
 
 **Step 1: Create journey directory** in `journeys/<app>/` with README.md and PLAN.md.
 
@@ -218,7 +218,7 @@ journeys/
 │   └── README.md
 ├── superset/                     # Apache Superset OSS deployment journey
 │   └── README.md
-└── smartmart/                    # Full-stack journey (API + frontend + AI)
+└── aimarket/                    # Full-stack journey (API + frontend + AI)
     ├── README.md
     ├── PLAN.md
     ├── issues.md

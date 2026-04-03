@@ -12,7 +12,7 @@ Build APIs with swappable data layers using the repository pattern. Develop loca
 - Building an API that needs to run locally (SQLite) and in Azure (Cosmos DB or PostgreSQL)
 - Adding a new data provider to an existing app without changing routes or business logic
 - Migrating from one database to another incrementally
-- Any project following the SmartMart journey pattern (local dev → cloud deploy)
+- Any project following the AIMarket journey pattern (local dev → cloud deploy)
 
 ## Pattern Overview
 
@@ -151,7 +151,7 @@ import { CosmosClient } from '@azure/cosmos';
 
 export function createCosmosStore(): DataStore {
   const client = new CosmosClient({ endpoint: process.env.COSMOS_ENDPOINT!, key: process.env.COSMOS_KEY! });
-  const db = client.database(process.env.COSMOS_DATABASE || 'smartmart');
+  const db = client.database(process.env.COSMOS_DATABASE || 'aimarket');
 
   return {
     products: {
@@ -364,7 +364,7 @@ class CosmosProductRepository:
 
 def create_cosmos_store():
     client = CosmosClient(os.environ["COSMOS_ENDPOINT"], os.environ["COSMOS_KEY"])
-    db = client.get_database_client(os.getenv("COSMOS_DATABASE", "smartmart"))
+    db = client.get_database_client(os.getenv("COSMOS_DATABASE", "aimarket"))
     return CosmosDataStore(
         products=CosmosProductRepository(db.get_container_client("products")),
         orders=CosmosOrderRepository(db.get_container_client("orders")),
@@ -499,7 +499,7 @@ public class CosmosProductRepository : IProductRepository
 
     public CosmosProductRepository(CosmosClient client, IConfiguration config)
     {
-        var db = client.GetDatabase(config["COSMOS_DATABASE"] ?? "smartmart");
+        var db = client.GetDatabase(config["COSMOS_DATABASE"] ?? "aimarket");
         _container = db.GetContainer("products");
     }
 
@@ -625,7 +625,7 @@ public class CosmosProductRepository implements ProductRepository {
     private final CosmosContainer container;
 
     public CosmosProductRepository(CosmosClient client,
-            @Value("${cosmos.database:smartmart}") String dbName) {
+            @Value("${cosmos.database:aimarket}") String dbName) {
         this.container = client.getDatabase(dbName).getContainer("products");
     }
 
@@ -757,7 +757,7 @@ PostgreSQL supports native arrays and JSONB, so it handles complex types better 
 **Azure PostgreSQL requirements:**
 ```
 # Connection string must include sslmode
-POSTGRES_CONNECTION_STRING=postgresql://user:pass@host.postgres.database.azure.com:5432/smartmart?sslmode=require
+POSTGRES_CONNECTION_STRING=postgresql://user:pass@host.postgres.database.azure.com:5432/aimarket?sslmode=require
 
 # For Azure Flexible Server, also set
 POSTGRES_SSL=true

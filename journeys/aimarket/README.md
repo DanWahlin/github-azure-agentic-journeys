@@ -1,8 +1,12 @@
-# Agentic Journey 04: SmartMart — AI-Powered Marketplace
+# Agentic Journey 04: AIMarket — AI-Powered Marketplace
 
 > **Build a full-stack marketplace from a spec document, with AI features from search to checkout.**
 
-In this agentic journey, you'll build SmartMart, a lightweight marketplace app with AI-powered product search and a shopping assistant. Unlike the previous journeys that deploy existing open-source apps, this one builds an application from scratch. You'll hand GitHub Copilot a spec document and watch it scaffold a Node.js API, generate a React storefront, add AI features, and deploy the whole thing to Azure. Agentic AI is used at every stage — to write the code, to power the product features, and to ship the infrastructure.
+<p align="center">
+  <img src="./images/aimarket-marketplace.jpg" alt="AIMarket — AI-Powered Marketplace" width="800" />
+</p>
+
+In this agentic journey, you'll build AIMarket, a lightweight marketplace app with AI-powered product search and a shopping assistant. You'll hand GitHub Copilot a spec document and watch it scaffold a Node.js API, generate a React storefront, add AI features, and deploy the whole thing to Azure. Agentic AI is used at every stage — to write the code, to power the product features, and to ship the infrastructure.
 
 ## Learning Objectives
 
@@ -15,7 +19,7 @@ In this agentic journey, you'll build SmartMart, a lightweight marketplace app w
 
 > ⏱️ **Estimated Time**: ~60–90 minutes
 >
-> 💰 **Estimated Cost**: ~$280-300/month (AI Search Basic tier is the main cost — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
+> 💰 **Estimated Cost**: ~$100-115/month (AI Search Basic tier is the main cost — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
 >
 > 📋 **Prerequisites**: Your language runtime (Node.js, Python, .NET, or Java), Azure CLI, Azure Developer CLI, Docker, and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
 
@@ -32,7 +36,7 @@ graph TB
     subgraph RG["Azure Resource Group"]
         LA["Log Analytics Workspace"]
         subgraph CAE["Container Apps Environment"]
-            API["SmartMart API<br/>(Your language · REST)"]
+            API["AIMarket API<br/>(Your language · REST)"]
             FRONTEND["Storefront<br/>(React · Port 80)"]
         end
         COSMOS["Cosmos DB<br/>(Products · Orders · Users)"]
@@ -69,7 +73,7 @@ graph TB
 
 ## The Spec
 
-SmartMart is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey folder. It defines the data models, API contracts, validation rules, and seed data. You don't need to read the whole thing — Copilot reads it for you and generates code that matches.
+AIMarket is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey folder. It defines the data models, API contracts, validation rules, and seed data. You don't need to read the whole thing — Copilot reads it for you and generates code that matches.
 
 **Core data model (the parts you'll build):**
 
@@ -96,11 +100,15 @@ SmartMart is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey f
 
 ## The Journey
 
-SmartMart is built in four phases. Each phase teaches a different way of working with agentic AI — from interactive prompting to code review to delegation to deployment. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
+AIMarket is built in four phases. Each phase teaches a different way of working with agentic AI — from interactive prompting to code review to delegation to deployment. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
 
 **How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally — ask Copilot for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
 
 ### Phase 1: Build the API from the Spec (~25 min)
+
+<p align="center">
+  <img src="./images/spec-to-code.jpg" alt="Phase 1: Spec to Code" width="800" />
+</p>
 
 You'll build the API in stages, not all at once. Each step teaches a different aspect of working with Copilot.
 
@@ -109,8 +117,8 @@ You'll build the API in stages, not all at once. Each step teaches a different a
 Create a new directory and copy the spec into it:
 
 ```bash
-mkdir ~/smartmart && cd ~/smartmart
-cp /path/to/github-azure-agentic-journeys/journeys/smartmart/PLAN.md .
+mkdir ~/aimarket && cd ~/aimarket
+cp /path/to/github-azure-agentic-journeys/journeys/aimarket/PLAN.md .
 ```
 
 Start Copilot CLI:
@@ -273,10 +281,14 @@ If any test fails, this is the real workflow: describe the failure to Copilot an
 
 ### Phase 2: Build the Storefront (~20 min)
 
+<p align="center">
+  <img src="./images/react-storefront.jpg" alt="Phase 2: React Storefront" width="800" />
+</p>
+
 #### Step 1: Generate the React frontend
 
 ```
-> Create a React frontend for SmartMart in a client/ directory using Vite, 
+> Create a React frontend for AIMarket in a client/ directory using Vite, 
   TypeScript, and Tailwind CSS. The frontend is always React regardless of 
   your API language. Read the Phase 2 spec in PLAN.md. Build:
   - Product grid page with search bar and category filter buttons
@@ -331,14 +343,18 @@ Pick one issue (or find a real one) and fix it with Copilot:
 You'll need a GitHub repo for Phase 3's cloud agent workflow.
 
 ```bash
-cd ~/smartmart
-git init && git add -A && git commit -m "SmartMart: API + React storefront"
-gh repo create smartmart --private --source=. --push
+cd ~/aimarket
+git init && git add -A && git commit -m "AIMarket: API + React storefront"
+gh repo create aimarket --private --source=. --push
 ```
 
 ---
 
 ### Phase 3: Add AI Features (~20 min)
+
+<p align="center">
+  <img src="./images/ai-search-and-chat.jpg" alt="Phase 3: AI Features" width="800" />
+</p>
 
 This phase teaches two things: how to integrate Azure AI services, and how to delegate work to the Copilot cloud agent instead of doing everything through the CLI.
 
@@ -348,7 +364,7 @@ This phase teaches two things: how to integrate Azure AI services, and how to de
 > Generate Azure CLI commands to create:
   1. An Azure AI Search service (Basic tier — required for semantic ranking)
   2. A Microsoft Foundry (AIServices) resource with a gpt-5-mini deployment
-  Use resource group "smartmart-rg" in westus (search) and eastus2 (AI).
+  Use resource group "aimarket-rg" in westus (search) and eastus2 (AI).
 ```
 
 Run the commands, then set environment variables for the connection strings.
@@ -358,7 +374,7 @@ Run the commands, then set environment variables for the connection strings.
 This one you'll do interactively so you can see how search integration works.
 
 ```
-> Add Azure AI Search integration to SmartMart. Read the "AI Feature 1" 
+> Add Azure AI Search integration to AIMarket. Read the "AI Feature 1" 
   section in PLAN.md for the full spec. Create the search index, add a 
   POST /api/products/search endpoint with semantic ranking, and add a 
   script to push products to the index. Use the Azure AI Search SDK 
@@ -399,7 +415,7 @@ Now try a completely different agentic workflow. Instead of prompting Copilot CL
 If you're still in a Copilot CLI session, use `/delegate`:
 
 ```
-> /delegate Create the AI shopping assistant for SmartMart. Read PLAN.md 
+> /delegate Create the AI shopping assistant for AIMarket. Read PLAN.md 
   in the repo root for the full spec — see "AI Feature 2: Shopping Assistant" 
   under Phase 3. Implement the POST /api/chat endpoint using the Azure OpenAI 
   SDK for my language. The endpoint should fetch all products and include them 
@@ -415,7 +431,7 @@ Create the issue:
 gh issue create \
   --title "Add AI shopping assistant (chat endpoint + ChatWidget)" \
   --body "## What
-Add the AI shopping assistant to SmartMart.
+Add the AI shopping assistant to AIMarket.
 
 ## Spec
 Read PLAN.md in the repo root. Implement:
@@ -467,6 +483,10 @@ gh pr merge <PR_NUMBER>
 
 ### Phase 4: Deploy to Azure (~15 min)
 
+<p align="center">
+  <img src="./images/azure-deployment.jpg" alt="Phase 4: Deploy to Azure" width="800" />
+</p>
+
 Before starting, verify Docker is installed and running — you'll need it to build container images:
 
 ```bash
@@ -477,7 +497,7 @@ docker --version  # Need Docker Desktop or Docker Engine
 
 ```
 > Read the Phase 4 section in PLAN.md. Create Bicep infrastructure in an 
-  infra/ directory to deploy SmartMart to Azure Container Apps. I need:
+  infra/ directory to deploy AIMarket to Azure Container Apps. I need:
   - Azure Container Registry (Basic tier)
   - Container Apps Environment with Log Analytics
   - Two container apps with azd-service-name tags: api and web (port 80)
@@ -494,7 +514,7 @@ docker --version  # Need Docker Desktop or Docker Engine
 1. Open `infra/main.bicep` — do both container apps have `tags: { 'azd-service-name': '...' }`? Without these, `azd deploy` can't find the apps.
 2. Is there an Azure Container Registry resource? Without it, there's nowhere to push images.
 3. Open `api/Dockerfile` — does it use the correct base image for your language? If using Node.js with `better-sqlite3`, it needs native build tools (`python3 make g++`).
-4. Open `client/nginx.conf` — does it ONLY have `try_files` for SPA routing? No `/api/` proxy block. (With public ingress on Container Apps, each service has its own URL — nginx proxying to `smartmart-api` will crash because that hostname doesn't resolve.)
+4. Open `client/nginx.conf` — does it ONLY have `try_files` for SPA routing? No `/api/` proxy block. (With public ingress on Container Apps, each service has its own URL — nginx proxying to `aimarket-api` will crash because that hostname doesn't resolve.)
 5. Open `client/.dockerignore` — does it exclude dependency directories? Without this, the Docker build context is huge and may fail.
 6. Open `api/.dockerignore` — make sure it does NOT exclude build config files like `tsconfig.json`. The Docker build needs them to compile.
 7. Open `client/Dockerfile` — does it have `ARG VITE_API_URL` and `ENV VITE_API_URL=$VITE_API_URL` BEFORE the `npm run build` step? Without these, the `--build-arg` in Step 3 is silently ignored and the frontend can't find the API.
@@ -524,8 +544,8 @@ ACR_NAME=${ACR%%.*}
 
 az acr login --name $ACR_NAME
 cd client
-docker build --build-arg VITE_API_URL="$API_URL/api" -t "$ACR/smartmart-web:v1" .
-docker push "$ACR/smartmart-web:v1"
+docker build --build-arg VITE_API_URL="$API_URL/api" -t "$ACR/aimarket-web:v1" .
+docker push "$ACR/aimarket-web:v1"
 ```
 
 > **On Apple Silicon (M1/M2/M3)?** Azure runs Linux AMD64 containers. Add `--platform linux/amd64` to the `docker build` command to cross-compile.
@@ -533,8 +553,8 @@ docker push "$ACR/smartmart-web:v1"
 Then ask Copilot to update the container app with the new image:
 
 ```
-> Update the smartmart-web container app to use the image I just pushed 
-  to ACR. The image tag is smartmart-web:v1. Use az containerapp update.
+> Update the aimarket-web container app to use the image I just pushed 
+  to ACR. The image tag is aimarket-web:v1. Use az containerapp update.
 ```
 
 Wait ~30 seconds for the new revision to start, then verify the frontend loads products.
@@ -575,7 +595,11 @@ Test it, deploy it with `azd up`, and verify it works in production.
 
 ## Agentic AI Use Cases — Summary
 
-SmartMart demonstrates agentic AI at every layer of the development lifecycle:
+<p align="center">
+  <img src="./images/generate-inspect-test-refine.jpg" alt="Agentic AI Development Workflow" width="800" />
+</p>
+
+AIMarket demonstrates agentic AI at every layer of the development lifecycle:
 
 | Layer | Use Case | What It Demonstrates |
 |-------|----------|---------------------|
@@ -596,11 +620,11 @@ These map directly to enterprise scenarios: developer productivity, improved pro
 | Resource | SKU | Monthly Cost |
 |----------|-----|--------------|
 | Container Apps (2 apps, scale-to-zero) | Consumption | ~$10-20 |
-| Cosmos DB | Serverless (pay-per-request) | ~$5-10 |
-| Azure AI Search | Basic (semantic ranking) | ~$250/month |
-| Microsoft Foundry (AIServices) | Pay-per-token (gpt-5-mini) | ~$5-10 |
+| Azure AI Search | Basic (semantic ranking) | ~$75 |
+| Microsoft Foundry (AIServices) | Pay-per-token (gpt-4o) | ~$5-10 |
+| Container Registry | Basic | ~$5 |
 | Log Analytics | PerGB2018 | ~$2-5 |
-| **Total** | | **~$280-300/month** |
+| **Total** | | **~$100-115/month** |
 
 Scale-to-zero on Container Apps and serverless Cosmos DB keep costs low during development. Azure AI Search Basic tier is required for semantic ranking — remember to clean up with `azd down` when done to avoid ongoing charges.
 
@@ -614,7 +638,7 @@ Scale-to-zero on Container Apps and serverless Cosmos DB keep costs low during d
 
 ```bash
 node --version  # or python --version, dotnet --version, java --version
-cd smartmart && # install deps and start dev server
+cd aimarket && # install deps and start dev server
 ```
 
 ### Semantic search returns no results
@@ -666,7 +690,7 @@ az provider register --namespace Microsoft.OperationalInsights
 **Fix:** Ensure the connection string uses the Cosmos DB endpoint (not `localhost`). Check that the API container has the `COSMOS_CONNECTION_STRING` environment variable set.
 
 ```
-> Check if the SmartMart API can connect to Cosmos DB. 
+> Check if the AIMarket API can connect to Cosmos DB. 
   Look at the container logs for connection errors.
 ```
 
@@ -706,7 +730,7 @@ azd down --force --purge
 Teardown takes 3-5 minutes. This deletes all Azure resources including the Cosmos DB data. If you created the AI services separately, delete those too:
 
 ```bash
-az group delete --name smartmart-rg --yes --no-wait
+az group delete --name aimarket-rg --yes --no-wait
 ```
 
 ---
@@ -718,7 +742,7 @@ az group delete --name smartmart-rg --yes --no-wait
 - **Semantic search beats keyword search** — "lightweight laptop for travel" returns relevant results without exact keyword matches
 - **Ground your AI in real data** — the shopping assistant works because it gets the current product catalog as context, not because the LLM memorized products
 - **Start with SQLite, swap to cloud** — build and test locally with a SQLite database, then switch to Cosmos DB for deployment
-- **Same agent patterns work everywhere** — the deployment agent uses the same skill system as the OSS journeys (01-03)
+- **Same agent patterns work everywhere** — the deployment agent uses the same skill system for all journeys in this repo
 - **AI features are APIs** — semantic search and chat are just REST endpoints backed by Azure services; no ML expertise required
 
 ---
@@ -741,7 +765,7 @@ In Agentic Journey 05 (coming soon), you'll go deeper into AI agent capabilities
 
 ## Resources
 
-- [SmartMart Spec](./PLAN.md) — The plan document used by Copilot to scaffold the app
+- [AIMarket Spec](./PLAN.md) — The plan document used by Copilot to scaffold the app
 - [Azure AI Search Documentation](https://learn.microsoft.com/azure/search/)
 - [Azure OpenAI Service](https://learn.microsoft.com/azure/ai-services/openai/)
 - [Azure Cosmos DB](https://learn.microsoft.com/azure/cosmos-db/)
