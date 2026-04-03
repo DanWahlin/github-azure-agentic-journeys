@@ -6,7 +6,7 @@
   <img src="./images/n8n-workflow-automation.jpg" alt="n8n: Workflow Automation on Azure" width="800" />
 </p>
 
-In this agentic journey, you'll deploy [n8n](https://n8n.io), a workflow automation platform (think Zapier, but self-hosted and open-source), to Azure Container Apps with a managed PostgreSQL database. You'll use the `@oss-to-azure-deployer` Copilot agent to generate the infrastructure through conversation, then deploy it with a single command. Along the way, you'll see how the agent uses Azure MCP tools to look up schemas, get best practices, and plan deployments.
+Want workflow automation on Azure but don't want to write Bicep? Tell an AI agent what you want, and it generates the infrastructure, configures health probes, and deploys it. You'll have [n8n](https://n8n.io) (think Zapier, but self-hosted) running on Container Apps with PostgreSQL in about 20 minutes.
 
 ## Learning Objectives
 
@@ -315,13 +315,10 @@ Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently delet
 
 ## Key Learnings
 
-- **Health probes are critical** — n8n needs 60s initial delay and 5-minute startup allowance
-- **Always use PostgreSQL FQDN** with SSL enabled
-- **`SSL_REJECT_UNAUTHORIZED=false`** is safe for Azure (connection is still encrypted)
-- **Post-provision hooks** solve the WEBHOOK_URL circular dependency
+- **Post-provision hooks** solve circular dependencies (like WEBHOOK_URL needing the deployed URL)
+- **Azure MCP tools** give the agent real-time access to Bicep schemas — it's looking up actual API versions, not guessing
 - **Register providers first** — prevents 409 conflicts during deployment
-- **`newGuid()`** only works as a Bicep parameter default value
-- **Azure MCP tools** give the agent real-time access to schemas and best practices — it's not guessing
+- **Same agent, different skills** — the agent loaded `n8n-azure` and adapted to n8n's specific requirements automatically
 
 ---
 

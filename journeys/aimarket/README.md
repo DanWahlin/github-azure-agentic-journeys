@@ -17,7 +17,7 @@ In this agentic journey, you'll build AIMarket, a lightweight marketplace app wi
 - Build an AI shopping assistant with Azure OpenAI
 - Deploy the full stack to Azure Container Apps using `azd`
 
-> ⏱️ **Estimated Time**: ~60–90 minutes
+> ⏱️ **Estimated Time**: ~2-3 hours (includes building, testing, and deploying all 4 phases)
 >
 > 💰 **Estimated Cost**: ~$100-115/month (AI Search Basic tier is the main cost — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
 >
@@ -743,13 +743,11 @@ az group delete --name aimarket-rg --yes --no-wait
 
 ## Key Learnings
 
-- **The spec is the prompt** — hand Copilot CLI a well-written plan and it generates code that matches the data models, API contracts, and conventions
-- **Delegate with context** — the Copilot cloud agent produces better PRs when your repo has a spec document it can read; well-scoped issues with acceptance criteria get better results
-- **Semantic search beats keyword search** — "lightweight laptop for travel" returns relevant results without exact keyword matches
-- **Ground your AI in real data** — the shopping assistant works because it gets the current product catalog as context, not because the LLM memorized products
-- **Start with SQLite, swap to cloud** — build and test locally with a SQLite database, then switch to Cosmos DB for deployment
-- **Same agent patterns work everywhere** — the deployment agent uses the same skill system for all journeys in this repo
-- **AI features are APIs** — semantic search and chat are just REST endpoints backed by Azure services; no ML expertise required
+- **The spec is the prompt** — hand Copilot CLI a well-written plan and it generates code that matches
+- **Delegate with context** — the GitHub Copilot cloud agent produces better PRs when your repo has a spec it can read
+- **Ground your AI in real data** — the shopping assistant works because it gets the product catalog as context, not because the LLM memorized products
+- **AI features are APIs** — semantic search and chat are REST endpoints backed by Azure services; no ML expertise required
+- **Start with SQLite, swap to cloud** — build and test locally, then switch the data provider for deployment
 
 ---
 

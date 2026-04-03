@@ -6,7 +6,7 @@
   <img src="./images/superset-data-exploration.jpg" alt="Apache Superset: BI on Azure" width="800" />
 </p>
 
-In this agentic journey, you'll deploy [Apache Superset](https://superset.apache.org/), a data exploration and BI platform, to Azure Kubernetes Service (AKS). This is the most complex deployment in the project: init containers, shared volumes, psycopg2 installation, ConfigMap mounting, and a managed PostgreSQL database. You'll see why some applications need Kubernetes and how the agent handles that complexity.
+Some apps are too complex for Container Apps. [Apache Superset](https://superset.apache.org/) needs init containers, shared volumes, and custom config mounting — patterns that require Kubernetes. The agent knows this and generates AKS infrastructure instead. You'll deploy a full BI platform and learn when to reach for Kubernetes vs. Container Apps.
 
 ## Learning Objectives
 
@@ -18,7 +18,7 @@ In this agentic journey, you'll deploy [Apache Superset](https://superset.apache
 
 > ⏱️ **Estimated Time**: ~30 minutes
 >
-> 💰 **Estimated Cost**: ~$175-185/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
+> 💰 **Estimated Cost**: ~$175-185/month (AKS nodes are the main cost — see [Cost Breakdown](#cost-breakdown)). Clean up with `azd down` when done!**
 >
 > 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
 >
@@ -400,15 +400,9 @@ Teardown takes 5-10 minutes (AKS + PostgreSQL deletion is slow).
 
 ## Key Learnings
 
-- **psycopg2-binary is mandatory** — official image doesn't include it; install to emptyDir with `--target`
-- **superset_config.py is required** — Superset won't read env vars directly; ConfigMap is essential
-- **PYTHONPATH must include `/psycopg2-lib`** in both init and main containers
-- **emptyDir volume shares data between containers** — init installs, main uses
-- **Azure PostgreSQL requires `sslmode=require`** — always include in connection string
-- **"SQLiteImpl" in logs = misconfiguration** — must see "PostgresqlImpl"
-- **Init container logs are separate** — use `-c superset-init` to debug migrations
-- **Most expensive deployment** — AKS costs ~$175-185/month vs ~$25-35 for Container Apps
-- **The agent knows when to use AKS** — it recommends Kubernetes when Container Apps can't handle the requirements
+- **The agent knows when to use AKS** — it recommends Kubernetes when Container Apps can't handle init containers, shared volumes, or ConfigMap mounting
+- **emptyDir volumes share data between init and main containers** — this is the pattern for installing runtime dependencies
+- **"SQLiteImpl" in logs = misconfiguration** — if you see this, the PostgreSQL connection string isn't reaching Superset
 
 ---
 

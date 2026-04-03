@@ -318,20 +318,17 @@ Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
 ## Key Learnings
 
-- **Grafana starts fast** — 15-30 seconds typical, much simpler than n8n or Superset
-- **Use `/api/health` for probes** — returns JSON with database status, more reliable than `/`
-- **SQLite is ephemeral** — dashboards lost on restart without persistent storage or PostgreSQL
-- **Scale-to-zero cold start** takes 30-60s — this is normal, not an error
-- **Avoid shell special characters in passwords** — use alphanumeric for CLI deployments
-- **No database dependency** — simplest deployment in the project
+- **No database ≠ no persistence problem** — SQLite is ephemeral in containers; know this before deploying
+- **Scale-to-zero cold starts are normal** — 30-60s on first request isn't an error
 - **Same agent, different skills** — the agent loaded `grafana-azure` instead of `n8n-azure` and adapted automatically
+- **Simpler apps = simpler infrastructure** — no database dependency means fewer moving parts to break
 
 ---
 
 ## Assignment
 
-1. Create a dashboard in Grafana, then run `azd down --force --purge` and redeploy — notice your dashboard is gone (SQLite is ephemeral)
-2. Ask the agent: *"How do I make Grafana dashboards persist across restarts?"*
+1. Create a dashboard in Grafana, then restart the container app with `az containerapp revision restart` — notice your dashboard is gone. Why? Ask the agent: *"Why did my Grafana dashboard disappear after a restart?"*
+2. Try the fix: ask the agent *"How do I make Grafana dashboards persist across restarts?"* and implement what it suggests
 3. Clean up with `azd down --force --purge`
 
 ---
