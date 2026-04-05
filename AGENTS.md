@@ -219,6 +219,9 @@ journeys/
 │   └── README.md
 ├── superset/                     # Apache Superset OSS deployment journey
 │   └── README.md
+├── smart-todo/                   # Full-stack journey (iOS + Functions + AI)
+│   ├── README.md
+│   └── PLAN.md
 └── aimarket/                    # Full-stack journey (API + frontend + AI)
     ├── README.md
     ├── PLAN.md

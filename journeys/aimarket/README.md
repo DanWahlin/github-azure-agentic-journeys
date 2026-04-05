@@ -3,7 +3,7 @@
 > ✨ **Build a full-stack marketplace from a spec document, with AI features from search to checkout.**
 
 <p align="center">
-  <img src="./images/aimarket-marketplace.jpg" alt="AIMarket — AI-Powered Marketplace" width="800" />
+  <img src="./images/aimarket-marketplace.webp" alt="AIMarket — AI-Powered Marketplace" width="800" />
 </p>
 
 In this agentic journey, you'll build AIMarket, a lightweight marketplace app with AI-powered product search and a shopping assistant. You'll hand GitHub Copilot a spec document and watch it scaffold an API in your chosen language, generate a React storefront, add AI features, and deploy the whole thing to Azure.
@@ -113,7 +113,7 @@ AIMarket is built in four phases. Each phase teaches a different way of working 
 ### Phase 1: Build the API from the Spec (~25 min)
 
 <p align="center">
-  <img src="./images/spec-to-code.jpg" alt="Phase 1: Spec to Code" width="800" />
+  <img src="./images/spec-to-code.webp" alt="Phase 1: Spec to Code" width="800" />
 </p>
 
 You'll build the API in stages, not all at once. Each step teaches a different aspect of working with Copilot CLI.
@@ -288,7 +288,7 @@ If any test fails, this is the real workflow: describe the failure to Copilot CL
 ### Phase 2: Build the Storefront (~20 min)
 
 <p align="center">
-  <img src="./images/react-storefront.jpg" alt="Phase 2: React Storefront" width="800" />
+  <img src="./images/react-storefront.webp" alt="Phase 2: React Storefront" width="800" />
 </p>
 
 #### Step 1: Generate the React frontend
@@ -359,7 +359,7 @@ gh repo create aimarket --private --source=. --push
 ### Phase 3: Add AI Features (~20 min)
 
 <p align="center">
-  <img src="./images/ai-search-and-chat.jpg" alt="Phase 3: AI Features" width="800" />
+  <img src="./images/ai-search-and-chat.webp" alt="Phase 3: AI Features" width="800" />
 </p>
 
 This phase teaches two things: how to integrate Azure AI services, and how to delegate work to the Copilot cloud agent instead of doing everything through the CLI.
@@ -490,7 +490,7 @@ gh pr merge <PR_NUMBER>
 ### Phase 4: Deploy to Azure (~15 min)
 
 <p align="center">
-  <img src="./images/azure-deployment.jpg" alt="Phase 4: Deploy to Azure" width="800" />
+  <img src="./images/azure-deployment.webp" alt="Phase 4: Deploy to Azure" width="800" />
 </p>
 
 Before starting, verify Docker is installed and running — you'll need it to build container images:
@@ -602,7 +602,7 @@ Test it, deploy it with `azd up`, and verify it works in production.
 ## How Agentic AI is Used
 
 <p align="center">
-  <img src="./images/generate-inspect-test-refine.jpg" alt="Agentic AI Development Workflow" width="800" />
+  <img src="./images/generate-inspect-test-refine.webp" alt="Agentic AI Development Workflow" width="800" />
 </p>
 
 Here's where agentic AI shows up in this journey:
@@ -761,7 +761,7 @@ az group delete --name aimarket-rg --yes --no-wait
 
 ## What's Next
 
-In Agentic Journey 05 (coming soon), you'll go deeper into AI agent capabilities — building multi-turn agents, adding tool use, and connecting agents to external data sources through MCP integrations.
+In Agentic Journey 05, you'll build SmartTodo — an iPhone app where AI breaks vague goals into actionable steps, backed by Azure Functions, Azure SQL, and Microsoft Foundry. Check out the [SmartTodo journey](../smart-todo/README.md).
 
 > 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
 

@@ -11,7 +11,7 @@
 
 What if you could go from idea to running in Azure and stay focused on your actual product the entire time? With agents handling the infrastructure — Bicep templates, health probes, database wiring, deployment pipelines — you can spend your time on what makes your app interesting instead of what makes it run. *GitHub and Azure Agentic Journeys* shows what that looks like in practice. 
 
-![Developer journey: Plan → Agentic AI → Microsoft Foundry → Deploy to Azure](./images/dev-journey.png)
+![Developer journey: Plan → Agentic AI → Microsoft Foundry → Deploy to Azure](./images/dev-journey.webp)
 
 You pick a stack, write a spec, and hand it to your AI coding assistant, which scaffolds your API, database, and data models from the plan. From there you build out a frontend, add AI capabilities like search and recommendations through Microsoft Foundry, and let an agent generate the Azure infrastructure and deploy it when you're ready to ship. Some agentic journeys are quick deploys of open-source apps while others take you from an empty folder to a full-stack app with AI features running in production!
 
@@ -73,6 +73,7 @@ The journeys in this repo use GitHub Copilot CLI by default. However, you can us
 | 02 | [n8n - Workflow Automation](./journeys/n8n/README.md) | Container Apps + PostgreSQL deployed to Azure |
 | 03 | [Grafana - Metrics and Visualization](./journeys/grafana/README.md) | Container Apps deployed to Azure |
 | 04 | [Apache Superset - BI Platform](./journeys/superset/README.md) | Azure Kubernetes Service (AKS) + PostgreSQL deployed to Azure |
+| 05 | [SmartTodo - AI Task Breakdown](./journeys/smart-todo/README.md) | Swift iOS + Azure Flex Functions + Azure SQL + AI Foundry |
 
 ## How the agentic journeys work
 

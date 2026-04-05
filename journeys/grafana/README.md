@@ -3,7 +3,7 @@
 > ✨ **No external database, no complex probes, just Grafana on Container Apps.**
 
 <p align="center">
-  <img src="./images/grafana-observability.jpg" alt="Grafana: Observability on Azure" width="800" />
+  <img src="./images/grafana-observability.webp" alt="Grafana: Observability on Azure" width="800" />
 </p>
 
 In this agentic journey, you'll deploy [Grafana OSS](https://grafana.com/oss/grafana/), the industry-standard observability platform, to Azure Container Apps. Grafana uses an embedded SQLite database by default, so there's no external database to provision. That makes it one of the simplest deployments in the project. You'll also look at when to swap SQLite for PostgreSQL.
@@ -98,7 +98,7 @@ Select **`oss-to-azure-deployer`** from the list. You're now in an interactive s
 ### Step 2: Deploy
 
 <p align="center">
-  <img src="./images/azure-deployment.jpg" alt="Deploy Grafana to Azure" width="800" />
+  <img src="./images/azure-deployment.webp" alt="Deploy Grafana to Azure" width="800" />
 </p>
 
 Tell the agent what you want in a single prompt:

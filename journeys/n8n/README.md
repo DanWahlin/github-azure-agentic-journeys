@@ -3,7 +3,7 @@
 > ✨ **Deploy a self-hosted workflow automation platform to Azure by having a conversation with an AI agent.**
 
 <p align="center">
-  <img src="./images/n8n-workflow-automation.jpg" alt="n8n: Workflow Automation on Azure" width="800" />
+  <img src="./images/n8n-workflow-automation.webp" alt="n8n: Workflow Automation on Azure" width="800" />
 </p>
 
 Want workflow automation on Azure but don't want to write Bicep? Tell an AI agent what you want, and it generates the infrastructure, configures health probes, and deploys it. You'll have [n8n](https://n8n.io) (think Zapier, but self-hosted) running on Container Apps with PostgreSQL in about 20 minutes.
@@ -101,7 +101,7 @@ Select **`oss-to-azure-deployer`** from the list. You're now in an interactive s
 ### Step 2: Deploy
 
 <p align="center">
-  <img src="./images/azure-deployment.jpg" alt="Deploy n8n to Azure" width="800" />
+  <img src="./images/azure-deployment.webp" alt="Deploy n8n to Azure" width="800" />
 </p>
 
 Tell the agent what you want in a single prompt:

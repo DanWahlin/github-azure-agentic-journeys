@@ -3,7 +3,7 @@
 > ✨ **When Container Apps isn't enough, you need Kubernetes. The agent knows when and why.**
 
 <p align="center">
-  <img src="./images/superset-data-exploration.jpg" alt="Apache Superset: BI on Azure" width="800" />
+  <img src="./images/superset-data-exploration.webp" alt="Apache Superset: BI on Azure" width="800" />
 </p>
 
 Some apps are too complex for Container Apps. [Apache Superset](https://superset.apache.org/) needs init containers, shared volumes, and custom config mounting — patterns that require Kubernetes. The agent knows this and generates AKS infrastructure instead. You'll deploy a full BI platform and learn when to reach for Kubernetes vs. Container Apps.
@@ -130,7 +130,7 @@ Select **`oss-to-azure-deployer`** from the list. You're now in an interactive s
 ### Step 2: Deploy
 
 <p align="center">
-  <img src="./images/azure-deployment.jpg" alt="Deploy Superset to Azure" width="800" />
+  <img src="./images/azure-deployment.webp" alt="Deploy Superset to Azure" width="800" />
 </p>
 
 Tell the agent what you want in a single prompt:
