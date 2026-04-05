@@ -598,7 +598,7 @@ Local dev uses API key auth (`AzureKeyCredential`). Production uses `DefaultAzur
 | App Service Plan | `br/public:avm/res/web/serverfarm` (Flex Consumption) | Functions compute |
 | Azure SQL Server | `br/public:avm/res/sql/server` | Database server |
 | Azure SQL Database | child resource of server | Todo + action step storage |
-| AI Foundry | `br/public:avm/ptn/ai-ml/ai-foundry` | gpt-5-mini model hosting |
+| Microsoft Foundry | `br/public:avm/ptn/ai-ml/ai-foundry` | gpt-5-mini model hosting |
 | Monitoring | `br/public:avm/ptn/azd/monitoring` | App Insights + Log Analytics |
 | Storage Account | `br/public:avm/res/storage/storage-account` | Functions runtime storage |
 
