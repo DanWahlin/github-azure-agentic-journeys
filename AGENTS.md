@@ -50,6 +50,7 @@ Skills are loaded automatically based on context:
 | Skill | Purpose |
 |-------|---------|
 | `data-access-abstraction` | Repository pattern for swappable data layers (SQLite, Cosmos DB, PostgreSQL) |
+| `journey-runner` | Run a journey end-to-end: extract prompts, build, deploy, verify |
 | `journey-template` | Create a new agentic journey from an app idea (full-stack or OSS deployment) |
 
 ### Workflow
@@ -246,6 +247,8 @@ journeys/
     └── data-access-abstraction/  # Repository pattern for swappable data layers
         └── SKILL.md
     └── journey-template/        # Template for creating new agentic journeys
+        └── SKILL.md
+    └── journey-runner/          # Run journeys end-to-end: prompts → build → deploy → verify
         └── SKILL.md
 AGENTS.md                         # This file
 README.md
