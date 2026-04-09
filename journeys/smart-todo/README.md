@@ -6,27 +6,27 @@
   <img src="./images/smart-todo-hero.webp" alt="SmartTodo — AI-Powered Task Breakdown" width="800" />
 </p>
 
-You'll build SmartTodo: an iPhone app where you add a todo like "Prepare Conference talk" and AI breaks it into concrete steps you can check off. The backend is a Node.js API on Azure Flex Functions, Azure SQL stores the data, and gpt-5-mini on Microsoft Foundry does the thinking. You'll hand Copilot CLI a spec and watch it scaffold the API, generate SwiftUI screens, and deploy the backend to Azure.
+You'll build SmartTodo: an iPhone app where you add a todo like "Prepare Conference talk" and AI breaks it into concrete steps you can check off. The backend is an API on Azure Functions Flex Consumption, Azure SQL stores the data, and gpt-5-mini on Microsoft Foundry does the thinking. You pick your language (Node.js, Python, .NET, or Java), hand Copilot CLI a spec, and watch it scaffold the API, generate SwiftUI screens, and deploy the backend to Azure.
 
 ## Learning Objectives
 
 - Use a spec document as shared context for Copilot CLI to scaffold a serverless API and iOS app together
-- Build an Azure Functions v2 API in TypeScript with the repository pattern for swappable data layers
+- Build an Azure Functions API in your language of choice with the repository pattern
 - Connect Azure Functions to Azure SQL using managed identity — no passwords in code
 - Call gpt-5-mini via Microsoft Foundry to decompose vague goals into actionable steps
 - Structure a SwiftUI app that talks to a cloud API with async/await networking
-- Deploy the backend to Azure with `azd` and point the iOS app at the live URL
+- Deploy the backend to Azure Functions Flex Consumption with `azd` and point the iOS app at the live URL
 
 > ⏱️ **Estimated Time**: ~2.5 hours (includes building, testing, and deploying all 3 phases)
 >
-> 💰 **Estimated Cost**: ~$10-30/month (Functions consumption + SQL Basic + AI pay-per-token — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
+> 💰 **Estimated Cost**: ~$10-30/month (Functions Flex Consumption + SQL Basic + AI pay-per-token — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
 >
 > 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
 >
 > **Additional prerequisites for this journey:**
-> - [Node.js 20+](https://nodejs.org/) — Functions runtime
+> - Your language runtime: [Node.js LTS](https://nodejs.org/), [Python 3.10+](https://python.org/), [.NET 8+](https://dotnet.microsoft.com/), or [Java 17+](https://learn.microsoft.com/java/openjdk/download)
 > - [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local) — local Functions development
-> - [Xcode 16+](https://developer.apple.com/xcode/) — iOS app development (macOS only)
+> - [Xcode](https://developer.apple.com/xcode/) — iOS simulator installed (macOS only)
 
 ---
 
@@ -42,7 +42,7 @@ graph TB
         LA["Log Analytics Workspace"]
 
         subgraph Functions["Azure Flex Functions"]
-            API["Node.js API<br/>(TypeScript · v2 model)"]
+            API["API<br/>(Your Language · Functions v2)"]
         end
 
         SQL["Azure SQL Database<br/>(Todos + Action Steps)"]
@@ -73,7 +73,7 @@ graph TB
 
 **Azure resources created:**
 
-- **Azure Flex Functions** — Serverless hosting for the Node.js API
+- **Azure Flex Functions** — Serverless hosting for the API (Flex Consumption plan)
 - **Azure SQL Database** — Stores todos and AI-generated action steps
 - **Microsoft Foundry** (AIServices) — gpt-5-mini for task decomposition
 - **Application Insights + Log Analytics** — Monitoring and diagnostics
@@ -107,9 +107,11 @@ SmartTodo is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey f
 
 ## The Journey
 
-SmartTodo is built in three phases. Phase 1 builds the API with local SQLite, Phase 2 adds the SwiftUI app, and Phase 3 deploys the backend to Azure. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
+SmartTodo is built in three phases. Phase 1 builds the API with Azure SQL, Phase 2 adds the SwiftUI app, and Phase 3 deploys the backend to Azure. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
 
 **How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally — ask Copilot CLI for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
+
+> **💡 Tip: Track issues as you go.** When giving Copilot CLI a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives Copilot CLI a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
 
 > **Note on the iOS app:** The SwiftUI app runs on your Mac (Simulator) or iPhone. It is NOT deployed by `azd` — only the Azure backend is. The app points at the deployed API URL via a `Config.swift` file.
 
@@ -157,36 +159,36 @@ Start with the data models and repository pattern — not the full API. This let
 
 ```
 > Read the PLAN.md file in this directory. Create an Azure Functions v2 
-  Node.js project with TypeScript in a src/api/ subdirectory. Initialize 
-  with host.json, local.settings.json, package.json, and tsconfig.json.
+  project in my chosen language in a src/api/ subdirectory. Initialize 
+  with host.json, local.settings.json, and language-appropriate config.
   Then create:
   1. Data models for Todo and ActionStep from the Phase 1 spec
-  2. Repository interfaces (ITodoRepository, IActionStepRepository) 
-  3. SQLite implementation using better-sqlite3 for local development
-  4. A factory (store.ts) that reads DATA_PROVIDER env var (default: sqlite)
+  2. Repository interfaces (TodoRepository, ActionStepRepository) 
+  3. Azure SQL implementation using the appropriate SQL driver for my language
+  4. A factory that returns the Azure SQL DataStore
   5. Seed data from the PLAN.md tables with exact IDs
 ```
 
 **🔍 Inspect what was generated:**
 
 Open the repository interfaces file. Look for:
-- Does `ITodoRepository` have `getAll(userId)`, `getById(id)`, `create()`, `update()`, `delete()`?
-- Does `IActionStepRepository` have `getByTodoId()`, `create()`, `update()`, `deleteByTodoId()`?
-- Does the factory read `DATA_PROVIDER` and default to `"sqlite"`?
+- Does `TodoRepository` have `getAll(userId)`, `getById(id)`, `create()`, `update()`, `delete()`?
+- Does `ActionStepRepository` have `getByTodoId()`, `create()`, `update()`, `deleteByTodoId()`?
 
-Open the SQLite implementation. Look for:
+Open the Azure SQL implementation. Look for:
 - Are parameterized queries used (not string concatenation)?
 - Does `delete` cascade to action steps?
 - Is the `order` column quoted with brackets (`[order]`)? It's a reserved word in SQL.
+- Does it use managed identity auth for Azure SQL?
 
 If anything's off, tell Copilot CLI:
 
 ```
-> The SQLite implementation isn't quoting the "order" column name. 
+> The Azure SQL implementation isn't quoting the "order" column name. 
   It's a reserved word in SQL — wrap it in brackets: [order].
 ```
 
-**💡 What you're learning:** The repository pattern separates "what data operations exist" from "how they talk to a database." Right now it's SQLite; in Phase 3 you'll swap to Azure SQL without changing a single route handler. This is the same pattern used in the AIMarket journey.
+**💡 What you're learning:** The repository pattern separates "what data operations exist" from "how they talk to a database." Functions never import the database client directly — they get a `DataStore` from the factory. This keeps your function handlers clean and testable.
 
 #### Step 3: Generate the API endpoints
 
@@ -227,13 +229,14 @@ Now wire up the real AI call to replace the stub.
 
 ```
 > Read the Phase 3 AI Features section in PLAN.md. Implement the 
-  generateSteps function to call gpt-5-mini via the @azure/ai-inference 
-  SDK. Use the exact system prompt from the spec. Parse the AI response 
-  as a JSON array, validate each item has title and description, assign 
-  sequential order values, and insert into the database. If steps already 
-  exist (stepsGenerated is true), delete them first and regenerate.
-  For local dev, use an API key from AZURE_AI_KEY env var. In production, 
-  it'll use managed identity via DefaultAzureCredential.
+  generateSteps function to call gpt-5-mini via the openai SDK for
+  my language. Use the exact system prompt from the spec. The client 
+  connects to Microsoft Foundry using the AZURE_AI_ENDPOINT (with 
+  /openai/v1/ path) and AZURE_AI_KEY env vars. Parse the AI response 
+  as a JSON array, validate each item has title and description, assign
+  sequential order values, and insert into the database. If steps 
+  already exist (stepsGenerated is true), delete them first and 
+  regenerate.
 ```
 
 **🔍 Inspect what was generated:**
@@ -254,9 +257,14 @@ Start the Functions dev server, then in a new terminal:
 
 ```bash
 cd src/api
-npm install
-npm start
+# Install dependencies and seed (language-specific commands)
+# Node.js: npm install && npm run seed && npm run build && npm start
+# Python:  pip install -r requirements.txt && python seed.py && func start
+# .NET:    dotnet build && func start
+# Java:    mvn package && func start
 ```
+
+> **⚠️ Node.js note:** If Functions fails to find any functions, check that `"main"` in `package.json` is `"dist/functions/*.js"` (not `"dist/src/functions/*.js"`). Since `tsconfig.json` sets `rootDir: "src"`, the `src/` prefix is stripped from the output path.
 
 ```bash
 # Does the server start and respond?
@@ -380,7 +388,7 @@ If the app can't reach the API, check that:
 > Read the Phase 4 (Deploy) section in PLAN.md. Create Bicep infrastructure 
   in an infra/ directory. Use Azure Verified Modules (AVM) for all resources:
   - Azure Flex Functions with br/public:avm/res/web/site (kind: functionapp,linux)
-  - App Service Plan with br/public:avm/res/web/serverfarm (Flex Consumption)
+  - App Service Plan with br/public:avm/res/web/serverfarm (Flex Consumption SKU: FC1)
   - Azure SQL Server with br/public:avm/res/sql/server
   - Azure SQL Database as a child resource
   - Microsoft Foundry with br/public:avm/ptn/ai-ml/ai-foundry (gpt-5-mini deployment)
@@ -391,7 +399,8 @@ If the app can't reach the API, check that:
   - Azure SQL firewall: allow Azure services
   - Outputs in SCREAMING_SNAKE_CASE: API_URL, SQL_SERVER_NAME, etc.
   - azd-service-name: 'api' tag on the Function App
-  Also create an azure.yaml with a single 'api' service using host: function.
+  Also create an azure.yaml with a single 'api' service using host: function
+  and language set to match my chosen stack.
 ```
 
 **🔍 Before deploying, review these critical details:**
@@ -462,12 +471,13 @@ curl -s -X POST "$API_URL/api/todos/$TODO_ID/generate-steps" | python3 -m json.t
 
 ##### Step 5: Point the iOS app at Azure
 
-Update `Config.swift` with the deployed API URL:
+The simplest way: replace `Config.swift` with the deployed URL directly (removing the `#if DEBUG` conditional):
 
 ```swift
-#else
-static let apiBaseURL = "https://<your-function-app>.azurewebsites.net"
-#endif
+enum Config {
+    static let apiBaseURL = "https://<your-function-app>.azurewebsites.net"
+    static let defaultUserId = "user-1"
+}
 ```
 
 Get the actual URL:
@@ -476,7 +486,7 @@ Get the actual URL:
 azd env get-value API_URL
 ```
 
-Build the app in Xcode with the Release scheme (or just replace the URL in the DEBUG block for testing). Run on the Simulator or a physical device and verify the full flow: add a todo → generate steps → check them off.
+Build and Run in Xcode (⌘R) on the Simulator. Verify the full flow: add a todo → generate steps → check them off. You can restore the `#if DEBUG` conditional later if you want to switch between local and production.
 
 #### Option B: Deploy with GitHub Copilot cloud agent
 
@@ -672,6 +682,14 @@ Teardown takes 2-3 minutes. This deletes all Azure resources including the SQL d
 
 3. **Try a different model** — ask Copilot CLI to *"Switch from gpt-5-mini to gpt-4.1 in the Foundry deployment."* Generate steps for the same todo with each model. Compare quality, specificity, and latency. Which is better for this use case?
 
+4. **Harden security** — the deployed app has no authentication, no rate limiting, and the AI key is in plaintext app settings. Ask Copilot CLI to help with any of these:
+   - *"Add Azure Key Vault and move AZURE_AI_KEY to a Key Vault secret reference."*
+   - *"Switch the AI integration from API key auth to managed identity using DefaultAzureCredential."*
+   - *"Add rate limiting to the generate-steps endpoint — max 10 calls per userId per hour."*
+   - *"Change the function auth level from Anonymous to Function and configure the iOS app to send the function key."*
+   
+   See the [Security Considerations](./PLAN.md#security-considerations) section in PLAN.md for the full list of recommendations.
+
 ---
 
 ## What's Next
@@ -685,7 +703,8 @@ Explore the [AIMarket journey](../aimarket/README.md) to build a full-stack mark
 ## Resources
 
 - [SmartTodo Spec](./PLAN.md) — The plan document used by Copilot CLI to scaffold the app
-- [Azure Functions Node.js v2 docs](https://learn.microsoft.com/azure/azure-functions/functions-reference-node)
+- [Azure Functions Flex Consumption plan](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan)
+- [Azure Functions developer guide](https://learn.microsoft.com/azure/azure-functions/functions-reference)
 - [Azure SQL managed identity auth](https://learn.microsoft.com/azure/azure-sql/database/authentication-aad-configure)
 - [Microsoft Foundry (AI Services)](https://learn.microsoft.com/azure/ai-services/)
 - [SwiftUI tutorials](https://developer.apple.com/tutorials/swiftui)

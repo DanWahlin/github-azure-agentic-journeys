@@ -26,7 +26,7 @@ In this agentic journey, you'll build AIMarket, a lightweight marketplace app wi
 > **Additional prerequisites for this journey:**
 > - [Docker](https://docs.docker.com/get-docker/) — needed for image builds in Phase 4
 > - [GitHub CLI](https://cli.github.com/) (`gh`) — needed for repo creation and issue management in Phases 2-3
-> - Your language runtime: Node.js 20+, Python 3.10+, .NET 8+, or Java 17+
+> - Your language runtime: Node.js LTS, Python 3.10+, .NET 8+, or Java 17+
 
 ---
 
@@ -109,6 +109,8 @@ AIMarket is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey fo
 AIMarket is built in four phases. Each phase teaches a different way of working with agentic AI — from interactive prompting to code review to delegation to deployment. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
 
 **How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally — ask Copilot CLI for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
+
+> **💡 Tip: Track issues as you go.** When giving Copilot CLI a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives Copilot CLI a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
 
 ### Phase 1: Build the API from the Spec (~25 min)
 
@@ -641,7 +643,7 @@ Scale-to-zero on Container Apps and serverless Cosmos DB keep costs low during d
 **Check:** Your runtime version and dependencies.
 
 ```bash
-node --version    # Node.js (need 20+)
+node --version    # Node.js (need LTS)
 python --version  # Python (need 3.10+)
 dotnet --version  # .NET (need 8+)
 java --version    # Java (need 17+)

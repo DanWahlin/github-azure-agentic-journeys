@@ -46,7 +46,7 @@ Phases: 3
 Prompts to execute: 12
 Shell commands: 8
 Verification checks: 5
-Prerequisites: Node.js 20+, Azure Functions Core Tools v4, Xcode 16+
+Prerequisites: Node.js LTS, Azure Functions Core Tools v4, Xcode 16+
 Estimated time: ~2.5 hours
 ```
 

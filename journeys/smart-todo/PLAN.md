@@ -8,14 +8,15 @@ A todo app where vague goals become actionable plans. Type "Prepare Conference t
 
 ## Choose Your Stack
 
-| | Node.js |
-|---|---------|
-| **Framework** | Azure Functions v2 programming model + TypeScript |
-| **Database (local)** | `better-sqlite3` |
-| **Database (Azure)** | Azure SQL Database |
-| **AI** | `@azure/ai-inference` with gpt-5-mini on Microsoft Foundry |
+Pick your API language. Data models, endpoints, and acceptance criteria are identical across stacks. Azure Functions Flex Consumption is the hosting plan for all languages.
 
-Frontend: Swift/SwiftUI (iOS 17+). Deploy backend with **azd** + **Bicep using Azure Verified Modules (AVM)**. See [`data-access-abstraction` skill](../../.github/skills/data-access-abstraction/SKILL.md) for repository pattern examples.
+| | Node.js | Python | .NET | Java |
+|---|---------|--------|------|------|
+| **Framework** | Azure Functions v2 model + TypeScript | Azure Functions v2 model + Python | Azure Functions (isolated worker) + C# | Azure Functions + Java |
+| **Azure SQL** | `mssql` | `pyodbc` | `Microsoft.Data.SqlClient` | `JdbcTemplate` + `mssql-jdbc` |
+| **AI** | `openai` | `openai` | `Azure.AI.OpenAI` | `com.openai:openai-java` |
+
+Frontend: Swift/SwiftUI (iOS 17+). Deploy backend with **azd** + **Bicep using Azure Verified Modules (AVM)**.
 
 The iOS app is NOT deployed by azd — only the Azure backend is. The app points at the deployed API URL via a `Config.swift` file.
 
@@ -24,92 +25,67 @@ The iOS app is NOT deployed by azd — only the Azure backend is. The app points
 ```
 smart-todo/
 ├── src/
-│   ├── api/                    # Azure Functions (Node.js + TypeScript)
-│   │   ├── package.json
-│   │   ├── tsconfig.json
+│   ├── api/                    # Azure Functions (your chosen language)
 │   │   ├── host.json
 │   │   ├── local.settings.json
 │   │   └── src/
 │   │       ├── functions/      # HTTP-triggered functions
-│   │       │   ├── getTodos.ts
-│   │       │   ├── createTodo.ts
-│   │       │   ├── updateTodo.ts
-│   │       │   ├── deleteTodo.ts
-│   │       │   ├── generateSteps.ts
-│   │       │   └── updateStep.ts
-│   │       ├── data/
-│   │       │   ├── interfaces.ts
-│   │       │   ├── sql.ts          # Azure SQL implementation
-│   │       │   ├── sqlite.ts       # SQLite implementation (local dev)
-│   │       │   ├── store.ts        # Factory
-│   │       │   └── seed.ts
-│   │       ├── ai/
-│   │       │   └── taskBreaker.ts
-│   │       └── models/
-│   │           └── index.ts
+│   │       ├── data/           # Repository pattern + Azure SQL
+│   │       ├── ai/             # AI task decomposition
+│   │       └── models/         # Data models
 │   └── ios/
 │       └── SmartTodo/
 │           ├── SmartTodo.xcodeproj
 │           ├── SmartTodoApp.swift
 │           ├── Config.swift
 │           ├── Models/
-│           │   ├── Todo.swift
-│           │   └── ActionStep.swift
 │           ├── Services/
-│           │   └── APIClient.swift
 │           └── Views/
-│               ├── TodoListView.swift
-│               ├── TodoDetailView.swift
-│               ├── ActionStepsView.swift
-│               └── AddTodoView.swift
-├── infra/                      # Bicep with AVM modules (Phase 3)
+├── infra/                      # Bicep with AVM modules
 │   ├── main.bicep
 │   ├── main.parameters.json
 │   ├── abbreviations.json
 │   └── modules/
-└── azure.yaml                  # azd configuration (Phase 3)
+└── azure.yaml                  # azd configuration
 ```
 
-The API must follow the **repository pattern** (interfaces → implementations → factory) so the data layer can swap between SQLite (local) and Azure SQL (Azure) via `DATA_PROVIDER` env var.
+The API must follow the **repository pattern** (interfaces/contracts → implementations → factory) so functions never import the database client directly. Define repository contracts as interfaces/protocols per your language. The data layer uses Azure SQL.
 
 ---
 
 ## Phase 1: API
 
-Build the API with a local SQLite database. No Azure services needed yet.
+Build the API with Azure SQL Database. You'll need an Azure SQL instance provisioned (Phase 4 creates this, or use an existing one during development).
 
 ### Data Access Layer
 
-Repository contracts — define as TypeScript interfaces:
+Repository contracts — define as interfaces/protocols per your language:
 
-```typescript
-interface ITodoRepository {
-  getAll(userId: string): Promise<Todo[]>;
-  getById(id: string): Promise<Todo | null>;
-  create(input: CreateTodoInput): Promise<Todo>;
-  update(id: string, updates: UpdateTodoInput): Promise<Todo>;
-  delete(id: string): Promise<void>;
-}
+```
+TodoRepository:
+  getAll(userId) → Todo[]
+  getById(id) → Todo | null
+  create(input) → Todo
+  update(id, updates) → Todo
+  delete(id) → void
 
-interface IActionStepRepository {
-  getByTodoId(todoId: string): Promise<ActionStep[]>;
-  create(step: CreateActionStepInput): Promise<ActionStep>;
-  update(id: string, updates: UpdateActionStepInput): Promise<ActionStep>;
-  deleteByTodoId(todoId: string): Promise<void>;
-}
+ActionStepRepository:
+  getByTodoId(todoId) → ActionStep[]
+  create(step) → ActionStep
+  update(id, updates) → ActionStep
+  deleteByTodoId(todoId) → void
 
-interface DataStore {
-  todos: ITodoRepository;
-  actionSteps: IActionStepRepository;
-  initialize(): Promise<void>;
-}
+DataStore:
+  todos: TodoRepository
+  actionSteps: ActionStepRepository
+  initialize() → void
 ```
 
-Factory reads `DATA_PROVIDER` env var (default `sqlite`), returns the matching implementation. Functions never import database clients directly.
+Functions never import the database client directly — they get a `DataStore` from the factory. The factory should call `initialize()` once and cache the result so that HTTP function handlers don't pay the cost of `CREATE TABLE IF NOT EXISTS` on every request.
 
-**SQLite notes:** Use `[order]` (bracket-quoted) since `order` is a SQL reserved word. Set `journal_mode=WAL` and `foreign_keys=ON`. DB file: `src/api/smarttodo.db` (add to `.gitignore`).
+**Node.js entry point note:** Set `"main": "dist/functions/*.js"` in `package.json` — this must match where `tsc` emits the compiled function files. Since `tsconfig.json` uses `rootDir: "src"` and `outDir: "dist"`, source files under `src/functions/` compile to `dist/functions/` (the `src/` prefix is stripped). A common mistake is writing `"main": "dist/src/functions/*.js"` which causes Azure Functions Core Tools to find zero functions.
 
-**Azure SQL notes:** Use `mssql` package with `@azure/identity` for managed identity auth. Connection uses `authentication: { type: 'azure-active-directory-default' }` — no passwords. SSL is required by default.
+**Azure SQL notes:** Use `[order]` (bracket-quoted) since `order` is a SQL reserved word. For managed identity auth, use `azure-active-directory-default` authentication — no passwords. SSL is required by default. For local development, connect to Azure SQL using a connection string with SQL auth or your Azure AD identity — set `AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`, and optionally `AZURE_SQL_USER`/`AZURE_SQL_PASSWORD` in `local.settings.json`.
 
 ### Data Models
 
@@ -165,8 +141,6 @@ CREATE TABLE ActionSteps (
 
 CREATE INDEX IX_ActionSteps_TodoId ON ActionSteps(todoId);
 ```
-
-For SQLite, adapt the syntax: use `TEXT` instead of `NVARCHAR`, `INTEGER` instead of `BIT`, `CURRENT_TIMESTAMP` instead of `GETUTCDATE()`.
 
 ### API Endpoints
 
@@ -380,6 +354,8 @@ Status code mapping:
 
 ### Seed Data
 
+The seed script (`src/api/src/data/seed.ts`) must run before first use so the API returns data immediately. Add an npm script to make this easy: `"seed": "tsx src/data/seed.ts"`. The seed should be idempotent — skip if the database already contains rows. The README test commands (e.g., `curl .../api/todos/todo-1`) assume seed data is present.
+
 **Todos** (all userId: "user-1"):
 
 | id | title | status | stepsGenerated |
@@ -431,6 +407,8 @@ enum Config {
 ```
 
 The API URL must be configurable — never hardcode it. Use `#if DEBUG` to switch between local dev and production.
+
+**To test against the deployed Azure API:** The simplest approach is to replace the `apiBaseURL` value directly (removing the `#if DEBUG` / `#else` / `#endif` conditional) with your deployed Function App URL. Get the URL with `azd env get-value API_URL`. You can restore the conditional later. Building with the Xcode Release scheme also works but requires additional signing configuration.
 
 ### Models
 
@@ -509,16 +487,17 @@ All methods use `URLSession.shared.data(for:)` with `async throws`. On non-2xx r
 - Todo title displayed as editable `TextField`
 - Status picker: `Picker` with `pending`, `in_progress`, `completed` options
 - Conditional button:
-  - "✨ Generate Steps" when `stepsGenerated == false` — prominent style
-  - "🔄 Regenerate Steps" when `stepsGenerated == true` — secondary style
+  - "✨ Generate Steps" when `stepsGenerated == false` — prominent style. **Do not use `Label` inside a `Form` button** — `Form` strips the icon. Instead use `HStack { Image(systemName: "sparkles"); Text("Generate Steps") }` with `.frame(maxWidth: .infinity)` and `.buttonStyle(.borderedProminent)`.
+  - "🔄 Regenerate Steps" when `stepsGenerated == true` — same `HStack` pattern with `Image(systemName: "arrow.clockwise")` and `.tint(.blue)` for visibility
 - `ProgressView` overlay during AI generation with "Generating steps..." label
 - `ActionStepsView` embedded below (if steps exist)
 - "Delete Todo" button at bottom (destructive style, with confirmation alert)
+- The entire view should be wrapped in a `ScrollView` (or use `Form`/`List`) so that the generate button, action steps, and delete button are all reachable regardless of how many steps are generated
 
 #### ActionStepsView
 
 - Progress bar at top: `ProgressView(value: completedCount, total: totalCount)` with label "N of M complete"
-- Ordered list of steps (sorted by `order` field)
+- Ordered list of steps (sorted by `order` field) — must be scrollable so all steps are visible even when 7 are generated. Do NOT use a fixed-height container that clips at 5 items. Use a `List` or `ForEach` inside the parent `ScrollView`/`Form`.
 - Each row shows:
   - Checkbox (toggle `isCompleted` via API call)
   - Step number (1, 2, 3...)
@@ -533,7 +512,18 @@ All methods use `URLSession.shared.data(for:)` with `async throws`. On non-2xx r
 
 **Endpoint:** `POST /api/todos/:id/generate-steps`
 
-**AI SDK:** `@azure/ai-inference` with `ModelClient`
+**AI SDK:** `openai` npm package (OpenAI-compatible client for Microsoft Foundry)
+
+**Client setup:**
+
+```typescript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: process.env.AZURE_AI_ENDPOINT,
+  apiKey: process.env.AZURE_AI_KEY,
+});
+```
 
 **System prompt:**
 
@@ -580,22 +570,24 @@ Respond with ONLY a valid JSON array. No markdown, no code fences, no explanatio
 
 | Variable | Local Dev | Production |
 |----------|-----------|------------|
-| AZURE_AI_ENDPOINT | From Azure Portal | Set by Bicep output |
+| AZURE_AI_ENDPOINT | From Azure Portal (include `/openai/v1/` path) | Set by Bicep output |
 | AZURE_AI_DEPLOYMENT | `gpt-5-mini` | Set by Bicep output |
-| AZURE_AI_KEY | API key from portal | Not needed (managed identity) |
+| AZURE_AI_KEY | API key from portal | Set by Bicep output (or managed identity) |
 
-Local dev uses API key auth (`AzureKeyCredential`). Production uses `DefaultAzureCredential` (managed identity).
+Local dev and production both use API key auth via the `openai` package. The endpoint URL should include the `/openai/v1/` suffix (e.g., `https://<resource>.openai.azure.com/openai/v1/`).
 
 ---
 
 ## Phase 4: Deploy to Azure
 
+Deploy the API to Azure Functions **Flex Consumption** plan — a serverless, scale-to-zero hosting plan with per-function scaling, virtual network support, and configurable instance memory sizes. See [Flex Consumption plan docs](https://learn.microsoft.com/en-us/azure/azure-functions/flex-consumption-plan) for details.
+
 ### Azure Resources (AVM Modules)
 
 | Resource | AVM Module | Purpose |
 |----------|-----------|---------|
-| Function App | `br/public:avm/res/web/site` (kind: `functionapp,linux`) | API hosting |
-| App Service Plan | `br/public:avm/res/web/serverfarm` (Flex Consumption) | Functions compute |
+| Function App | `br/public:avm/res/web/site` (kind: `functionapp,linux`) | API hosting (Flex Consumption) |
+| App Service Plan | `br/public:avm/res/web/serverfarm` (SKU: `FC1`, tier: `FlexConsumption`) | Flex Consumption compute |
 | Azure SQL Server | `br/public:avm/res/sql/server` | Database server |
 | Azure SQL Database | child resource of server | Todo + action step storage |
 | Microsoft Foundry | `br/public:avm/ptn/ai-ml/ai-foundry` | gpt-5-mini model hosting |
@@ -603,6 +595,8 @@ Local dev uses API key auth (`AzureKeyCredential`). Production uses `DefaultAzur
 | Storage Account | `br/public:avm/res/storage/storage-account` | Functions runtime storage |
 
 ### azure.yaml
+
+The `language` field should match the learner's chosen stack:
 
 ```yaml
 name: smart-todo
@@ -612,7 +606,7 @@ services:
   api:
     project: ./src/api
     host: function
-    language: ts
+    language: ts   # Use: ts, python, csharp, java
 infra:
   provider: bicep
   path: ./infra
@@ -620,16 +614,33 @@ infra:
 
 Single service only — no `web` service. The iOS app runs on device, not in Azure.
 
+### Flex Consumption Configuration
+
+- **Instance memory size:** 2048 MB (default, suitable for most API workloads)
+- **Per-function scaling:** Enabled automatically — each function (getTodos, generateSteps, etc.) scales independently
+- **Always ready instances:** Optional — set to 1 for the HTTP trigger group to eliminate cold starts during demos
+
 ### Bicep Requirements
 
 - Use AVM modules for ALL resources — no raw resource definitions
 - System-assigned managed identity on the Function App
 - Role assignment: `Cognitive Services User` for Function App identity → AI Services
+- Role assignment: `Storage Blob Data Owner` for Function App identity → Storage Account (required for Flex Consumption deployment)
+- Role assignment: `Storage Blob Data Contributor` for the deploying user → Storage Account (required for `azd deploy` to upload the zip package)
 - Azure SQL: set deploying user as Azure AD admin, firewall rule allowing Azure services (`0.0.0.0`)
+- Azure SQL Database: set `maxSizeBytes: 2147483648` (2 GB) when using Basic tier (default 32 GB exceeds the limit)
 - AI Services: `disableLocalAuth: false` for development, system-assigned managed identity
 - Outputs in SCREAMING_SNAKE_CASE: `API_URL`, `SQL_SERVER_NAME`, `SQL_DATABASE_NAME`, `FUNCTION_APP_NAME`, `AZURE_AI_ENDPOINT`, `AZURE_AI_DEPLOYMENT`, `RESOURCE_GROUP_NAME`
 - `azd-service-name: 'api'` tag on the Function App
-- Function App settings: `DATA_PROVIDER=sql`, `AZURE_AI_ENDPOINT`, `AZURE_AI_DEPLOYMENT`, `AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`
+- Function App settings: `AZURE_AI_ENDPOINT`, `AZURE_AI_DEPLOYMENT`, `AZURE_AI_KEY`, `AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`
+- **Do NOT include `FUNCTIONS_WORKER_RUNTIME` in app settings** — Flex Consumption sets this via `functionAppConfig.runtime`, and having it in app settings causes a deployment error
+- **Set `siteConfig.alwaysOn` to `false`** — the AVM module defaults to `true`, which is invalid for Flex Consumption
+- **Set Storage Account `networkAcls.defaultAction` to `Allow`** — the AVM module defaults to `Deny`, which blocks `azd deploy` zip uploads
+
+### .NET-Specific Notes
+
+- Use `Azure.AI.OpenAI` NuGet package (not the base `OpenAI` package) — the base package can't construct Azure-specific API URLs. Use `AzureOpenAIClient` from `Azure.AI.OpenAI` in the DI registration.
+- Do NOT add `Microsoft.Azure.Functions.Worker.ApplicationInsights` or `Microsoft.ApplicationInsights.WorkerService` — these cause version conflicts with the Functions runtime on Flex Consumption. App Insights is wired through `configs.applicationInsightResourceId` in the Bicep template instead.
 
 ### Post-Provision: Managed Identity SQL Access
 
@@ -637,16 +648,21 @@ Azure SQL requires a SQL command to add the Function App's managed identity as a
 
 Create `infra/hooks/postprovision.sh`:
 
+> **Note:** `az sql db execute` does not exist. Use `sqlcmd` (install via `brew install sqlcmd`) or a Node.js/Python script with the `mssql`/`pyodbc` package to run SQL commands against Azure SQL.
+
 ```bash
 #!/bin/bash
 SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)
 SQL_DB=$(azd env get-value SQL_DATABASE_NAME)
 FUNC_APP=$(azd env get-value FUNCTION_APP_NAME)
 
-# Create the managed identity user and grant roles
-# The deploying user must be Azure AD admin on the SQL server
-az sql db execute --server "$SQL_SERVER" --database "$SQL_DB" \
-  --query "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '$FUNC_APP') BEGIN CREATE USER [$FUNC_APP] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [$FUNC_APP]; ALTER ROLE db_datawriter ADD MEMBER [$FUNC_APP]; END"
+# Get an access token for Azure SQL
+ACCESS_TOKEN=$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)
+
+# Create the managed identity user and grant roles (requires sqlcmd: brew install sqlcmd)
+sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" --authentication-method=ActiveDirectoryAccessToken --access-token "$ACCESS_TOKEN" \
+  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') BEGIN CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; END" \
+  || echo "⚠️ Managed identity user creation skipped (may require manual setup)"
 ```
 
 Wire it in azure.yaml:
@@ -666,17 +682,21 @@ Create `infra/hooks/postprovision-schema.sql` with the CREATE TABLE statements f
 
 The iOS app is NOT deployed via azd. For testing:
 
-1. **Simulator**: Run from Xcode with `DEBUG` scheme (uses `http://localhost:7071`)
-2. **Physical device**: Update `Config.swift` with the deployed `API_URL` from `azd env get-value API_URL`, build with a development signing profile
-3. **TestFlight** (optional): Archive and upload via Xcode → App Store Connect for beta testing with others
+1. **Against deployed API**: Replace the `Config.swift` contents with the deployed URL directly (remove the `#if DEBUG` conditional). Get the URL with `azd env get-value API_URL`. Run from Xcode on the Simulator with ⌘R.
+2. **Against local API**: Restore the `#if DEBUG` conditional in `Config.swift` with `http://localhost:7071` for the debug build. Run the Functions dev server locally first.
+3. **Physical device**: Use the deployed URL in `Config.swift` (no conditional), build with a development signing profile.
+4. **TestFlight** (optional): Archive and upload via Xcode → App Store Connect for beta testing with others.
 
 ### Known Deployment Gotchas
 
 1. **Soft-deleted Cognitive Services** — if redeploying after `azd down`, the AI Services resource is soft-deleted for 48 hours and blocks re-creation. Purge it first: `az cognitiveservices account list-deleted` then `az cognitiveservices account purge`
 2. **Azure SQL AD admin** — the deploying user must be set as Azure AD admin on the SQL server for the post-provision managed identity script to work. The Bicep template should set this.
 3. **Functions cold start** — first request after idle takes 5-10 seconds on consumption plan. The iOS app should show loading state during API calls.
-4. **AI model deployment lag** — gpt-5-mini deployment may take 1-2 minutes during provisioning. The `generate-steps` endpoint returns 503 until it's ready.
+4. **AI model deployment lag** — model deployment may take 1-2 minutes during provisioning. The `generate-steps` endpoint returns 503 until it's ready.
 5. **Provider registration** — run these once per subscription before first deploy:
+6. **SQL provisioning restricted** — some subscriptions have SQL provisioning disabled in certain regions (e.g., `eastus`, `eastus2`). Try `westus3`, `centralus`, or `southcentralus` if you get `ProvisioningDisabled`.
+7. **AI model region availability** — `gpt-5-mini` is not available in all regions. Check availability with `az cognitiveservices model list --location <region>`. Use `gpt-4o-mini` as a fallback.
+8. **Storage 403 on deploy** — if `azd deploy` fails with a 403 storage error, ensure the Storage Account `networkAcls.defaultAction` is `Allow` and the deploying user has `Storage Blob Data Contributor` role.
 
 ```bash
 az provider register --namespace Microsoft.Web
@@ -684,3 +704,48 @@ az provider register --namespace Microsoft.Sql
 az provider register --namespace Microsoft.CognitiveServices
 az provider register --namespace Microsoft.OperationalInsights
 ```
+
+---
+
+## Security Considerations
+
+This journey builds a working app without authentication to keep the focus on Azure Functions, AI integration, and iOS development. Before exposing this to real users, consider the following hardening steps:
+
+### API Authentication
+
+All functions use `AuthorizationLevel.Anonymous` — anyone with the URL can call them. For production:
+- Use `AuthorizationLevel.Function` and distribute function keys to the iOS app, or
+- Add Azure AD / Entra ID authentication via Easy Auth on the Function App, or
+- Implement JWT token validation in the function code with an identity provider
+
+### CORS (Cross-Origin Resource Sharing)
+
+The Function App has no CORS policy configured. If you add a web frontend, restrict `allowedOrigins` to your domain. For the iOS app this isn't a browser concern, but it's good practice to lock down anyway via the Function App's CORS settings in Bicep or the Azure portal.
+
+### AI API Key in Key Vault
+
+`AZURE_AI_KEY` is stored as a plaintext app setting. Move it to Azure Key Vault and use a Key Vault reference in the Function App settings:
+
+```
+@Microsoft.KeyVault(SecretUri=https://<vault-name>.vault.azure.net/secrets/AZURE-AI-KEY)
+```
+
+Better yet, use managed identity for AI Services (same pattern as Azure SQL) — grant the Function App's identity the `Cognitive Services User` role and use `DefaultAzureCredential` in code instead of an API key.
+
+### Rate Limiting / Cost Protection
+
+The `/generate-steps` endpoint calls a paid AI model with no throttling. A bad actor (or a bug) could generate thousands of requests and run up costs. Consider:
+- Adding a rate limit per `userId` (e.g., 10 generations per hour)
+- Setting a spending cap on the AI Services resource in the Azure portal
+- Adding Azure API Management in front of the Function App for request throttling
+
+### Input Validation
+
+The API validates title length (1-500 chars) and userId presence, but doesn't sanitize for HTML/script content. If the data is ever rendered in a web browser (not just the iOS app), add output encoding to prevent XSS. The current SQL parameterized queries already prevent SQL injection.
+
+### Network Security
+
+For production, consider tightening the network:
+- **Storage Account**: Change `networkAcls.defaultAction` back to `Deny` after deployment, adding VNet rules for the Function App
+- **Azure SQL**: Remove the `AllowAllWindowsAzureIps` firewall rule and use VNet integration with private endpoints instead
+- **Function App**: Enable VNet integration and restrict inbound traffic to known IP ranges or API Management
