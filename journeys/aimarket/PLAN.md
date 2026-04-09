@@ -575,6 +575,29 @@ When not set: search falls back to SQLite LIKE queries; `/api/chat` returns 503.
 
 Deploy the full stack to Azure Container Apps using Bicep with AVM modules and azd.
 
+### Azure Skills Plugin
+
+The Azure Skills plugin for Copilot CLI provides both MCP tools and plugin skills that should be used throughout this phase. Install it with `/plugin install azure@azure-skills` if not already installed.
+
+**MCP Tools — use these during infrastructure generation and deployment:**
+
+| Tool | When to Use |
+|------|-------------|
+| `azure_bicep_schema` | When generating Bicep — look up AVM module properties, required fields, and latest API versions for Container Apps, Cosmos DB, AI Services, etc. |
+| `azure_deploy_iac_guidance` | Before writing Bicep — get best practices for azd project structure and Container Apps configuration |
+| `azure_deploy_plan` | Before running `azd up` — validate the deployment plan, check for missing dependencies or misconfigurations |
+| `azure_deploy_architecture` | After generating Bicep — create a Mermaid architecture diagram to verify the resource topology matches the spec |
+| `azure_deploy_app_logs` | After deployment — fetch Log Analytics logs to troubleshoot Container App startup errors, connection failures, or AI service issues |
+| `azure_deploy_pipeline` | When setting up CI/CD — get GitHub Actions guidance for automated deployments |
+
+**Plugin Skills — use these for infrastructure generation:**
+
+| Skill | When to Use |
+|-------|-------------|
+| `azure-prepare` | Generate Bicep infrastructure, azure.yaml, and deployment configuration from the resource requirements |
+| `azure-validate` | Validate generated infrastructure before deployment |
+| `azure-deploy` | Execute the deployment with azd |
+
 ### Containerization
 
 - **API Dockerfile:** Multi-stage build for your language. Builder stage compiles, final stage runs production artifacts only. Include `.dockerignore` to exclude dependency directories and db files.

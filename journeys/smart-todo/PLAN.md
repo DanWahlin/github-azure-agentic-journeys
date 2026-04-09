@@ -582,6 +582,31 @@ Local dev and production both use API key auth via the `openai` package. The end
 
 Deploy the API to Azure Functions **Flex Consumption** plan — a serverless, scale-to-zero hosting plan with per-function scaling, virtual network support, and configurable instance memory sizes. See [Flex Consumption plan docs](https://learn.microsoft.com/en-us/azure/azure-functions/flex-consumption-plan) for details.
 
+### Azure Skills Plugin
+
+The Azure Skills plugin for Copilot CLI provides both MCP tools and plugin skills that should be used throughout this phase. Install it with `/plugin install azure@azure-skills` if not already installed.
+
+**MCP Tools — use these during infrastructure generation and deployment:**
+
+| Tool | When to Use |
+|------|-------------|
+| `azure_bicep_schema` | When generating Bicep — look up AVM module properties, required fields, and latest API versions for `Microsoft.Web/sites`, `Microsoft.Sql/servers`, `Microsoft.Storage/storageAccounts`, etc. |
+| `azure_deploy_iac_guidance` | Before writing Bicep — get best practices for azd project structure and Flex Consumption configuration |
+| `azure_deploy_plan` | Before running `azd up` — validate the deployment plan, check for missing dependencies or misconfigurations |
+| `azure_deploy_architecture` | After generating Bicep — create a Mermaid architecture diagram to verify the resource topology matches the spec |
+| `azure_deploy_app_logs` | After deployment — fetch Log Analytics logs to troubleshoot Function App startup errors, SQL connection failures, or AI service issues |
+| `azure_deploy_pipeline` | When setting up CI/CD — get GitHub Actions guidance for automated deployments |
+
+**Plugin Skills — use these for infrastructure generation:**
+
+| Skill | When to Use |
+|-------|-------------|
+| `azure-prepare` | Generate Bicep infrastructure, azure.yaml, and deployment configuration from the resource requirements |
+| `azure-validate` | Validate generated infrastructure before deployment |
+| `azure-deploy` | Execute the deployment with azd |
+
+These tools and skills help Copilot CLI produce correct Bicep on the first try and diagnose issues faster when something goes wrong. For example, running `azure_bicep_schema` for `Microsoft.Web/sites` would reveal that Flex Consumption requires `siteConfig.alwaysOn = false` and that `FUNCTIONS_WORKER_RUNTIME` must not be set in app settings.
+
 ### Azure Resources (AVM Modules)
 
 | Resource | AVM Module | Purpose |
