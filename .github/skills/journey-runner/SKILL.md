@@ -178,7 +178,41 @@ curl -s "$API_URL/api/todos?userId=user-1"
 # ... etc
 ```
 
-#### 4d. Cleanup (if requested)
+#### 4d. Screenshot Web Frontends
+
+If the journey has a web frontend deployed to Azure (a `web` or `frontend` service in `azure.yaml`, or a URL output like `WEB_URL`), capture a screenshot of the running app using Playwright:
+
+1. Get the frontend URL from azd outputs (e.g., `azd env get-value WEB_URL`)
+2. Use Playwright to navigate to the URL, wait for the page to load, and take a full-page screenshot
+3. Save the screenshot to the working directory as `screenshot-<journey-name>.png`
+
+```javascript
+// Playwright screenshot capture
+const { chromium } = require('playwright');
+
+async function captureScreenshot(url, outputPath) {
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+  // Wait an extra 3 seconds for async data to load (API calls, images, etc.)
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: outputPath, fullPage: true });
+  await browser.close();
+}
+```
+
+**When to capture:**
+- Journey has a web frontend URL in its azd outputs (`WEB_URL`, `FRONTEND_URL`, etc.)
+- The URL returns HTTP 200 (skip screenshot if the frontend isn't reachable)
+
+**When to skip:**
+- API-only journeys (no frontend)
+- Mobile-only frontends (iOS/Android — can't screenshot a simulator remotely)
+- OSS deployments where the app requires login before showing content (capture the login page instead)
+
+Include the screenshot path in the final report.
+
+#### 4e. Cleanup (if requested)
 
 If the user asked to clean up after verification:
 
@@ -206,6 +240,7 @@ Output a final report:
   Prompts executed:  12/12
   Verifications:     22/23 passed
   Deployment:        Succeeded
+  Screenshot:        ~/journey-runs/smart-todo-20260405-083000/screenshot-smart-todo.png
   Cleanup:           Skipped (not requested)
 
   Working directory: ~/journey-runs/smart-todo-20260405-083000
