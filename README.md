@@ -9,7 +9,7 @@
 
 > **Build and deploy applications to Azure using agents and skills.**
 
-What if you could go from idea to running in Azure and stay focused on your actual product the entire time? With agents handling the infrastructure — Bicep templates, health probes, database wiring, deployment pipelines — you can spend your time on what makes your app interesting instead of what makes it run. *GitHub and Azure Agentic Journeys* shows what that looks like in practice. 
+What if you could go from idea to running in Azure and stay focused on your actual product the entire time? With agents handling the infrastructure (Bicep templates, health probes, database wiring, deployment pipelines), you can spend your time on what makes your app interesting instead of what makes it run. *GitHub and Azure Agentic Journeys* shows what that looks like in practice. 
 
 ![Developer journey: Plan → Agentic AI → Microsoft Foundry → Deploy to Azure](./images/dev-journey.webp)
 

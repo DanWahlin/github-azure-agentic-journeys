@@ -1,4 +1,4 @@
-# Agentic Journey 04: AIMarket — AI-Powered Marketplace
+# Agentic Journey 04: AIMarket
 
 > ✨ **Build a full-stack marketplace from a spec document, with AI features from search to checkout.**
 
@@ -19,13 +19,13 @@ In this agentic journey, you'll build AIMarket, a lightweight marketplace app wi
 
 > ⏱️ **Estimated Time**: ~2-3 hours (includes building, testing, and deploying all 4 phases)
 >
-> 💰 **Estimated Cost**: ~$100-115/month (AI Search Basic tier is the main cost — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
+> 💰 **Estimated Cost**: ~$100-115/month (AI Search Basic tier is the main cost; see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
 >
 > 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
 >
 > **Additional prerequisites for this journey:**
-> - [Docker](https://docs.docker.com/get-docker/) — needed for image builds in Phase 4
-> - [GitHub CLI](https://cli.github.com/) (`gh`) — needed for repo creation and issue management in Phases 2-3
+> - [Docker](https://docs.docker.com/get-docker/): needed for image builds in Phase 4
+> - [GitHub CLI](https://cli.github.com/) (`gh`): needed for repo creation and issue management in Phases 2-3
 > - Your language runtime: Node.js LTS, Python 3.10+, .NET 8+, or Java 17+
 
 ---
@@ -68,18 +68,18 @@ graph TB
 
 **Azure resources created:**
 
-- **Azure Container Apps** — Serverless hosting for the API and frontend
-- **Database** — SQLite embedded (default). Swappable to Cosmos DB or PostgreSQL via `DATA_PROVIDER` env var
-- **Azure AI Search** (Basic tier) — Semantic product discovery
-- **Microsoft Foundry** (AIServices) — gpt-5-mini shopping assistant
-- **Azure Container Registry** — Docker image storage
-- **Azure Log Analytics** — Monitoring and diagnostics
+- **Azure Container Apps**: Serverless hosting for the API and frontend
+- **Database**: SQLite embedded (default). Swappable to Cosmos DB or PostgreSQL via `DATA_PROVIDER` env var
+- **Azure AI Search** (Basic tier): Semantic product discovery
+- **Microsoft Foundry** (AIServices): gpt-5-mini shopping assistant
+- **Azure Container Registry**: Docker image storage
+- **Azure Log Analytics**: Monitoring and diagnostics
 
 ---
 
 ## The Spec
 
-AIMarket is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey folder. It defines the data models, API contracts, validation rules, and seed data. You don't need to read the whole thing — Copilot CLI reads it for you and generates code that matches.
+AIMarket is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey folder. It defines the data models, API contracts, validation rules, and seed data. You don't need to read the whole thing. Copilot CLI reads it for you and generates code that matches.
 
 **Core data model (the parts you'll build):**
 
@@ -106,9 +106,9 @@ AIMarket is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey fo
 
 ## The Journey
 
-AIMarket is built in four phases. Each phase teaches a different way of working with agentic AI — from interactive prompting to code review to delegation to deployment. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
+AIMarket is built in four phases. Each phase uses a different agentic AI workflow: interactive prompting, code review, delegation, and deployment. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
 
-**How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally — ask Copilot CLI for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
+**How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally: ask Copilot CLI for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
 
 > **💡 Tip: Track issues as you go.** When giving Copilot CLI a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives Copilot CLI a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
 
@@ -152,9 +152,9 @@ Then install the plugin:
 
 #### Step 2: Generate the data models
 
-Start with just the data models — not the whole API. This lets you inspect what Copilot CLI produces before building on top of it.
+Start with just the data models, not the whole API. This lets you inspect what Copilot CLI produces before building on top of it.
 
-> **Pick your language here.** The prompts below say `[YOUR LANGUAGE]` — replace with your choice: Node.js/Express with TypeScript, Python/FastAPI, .NET Minimal APIs with C#, or Java/Spring Boot. See the "Choose Your Stack" table in PLAN.md for framework and library recommendations.
+> **Pick your language here.** The prompts below say `[YOUR LANGUAGE]`. Replace with your choice: Node.js/Express with TypeScript, Python/FastAPI, .NET Minimal APIs with C#, or Java/Spring Boot. See the "Choose Your Stack" table in PLAN.md for framework and library recommendations.
 
 ```
 > Read the PLAN.md file in this directory. Create a [YOUR LANGUAGE] project 
@@ -179,7 +179,7 @@ If anything's off, tell Copilot CLI:
   values from the spec. Fix it to reject invalid categories.
 ```
 
-**💡 What you're learning:** Copilot CLI reads your spec and generates types + validation. But you need to verify it matched the spec — especially constraints and edge cases. The AI gets the shape right but sometimes misses business rules.
+**💡 What you're learning:** Copilot CLI reads your spec and generates types + validation, but you still need to verify it matched, especially constraints and edge cases. It usually gets the shape right but always double-check.
 
 #### Step 3: Generate the data layer with repository pattern
 
@@ -200,14 +200,14 @@ Now add the database layer. The spec calls for a repository pattern so you can s
 Open the SQLite implementation file and look for:
 - **Tags storage:** SQLite has no array type. The spec says to store tags as JSON strings (`'["laptop","ultrabook"]'`) and parse them on read. Did Copilot CLI do this?
 - **Order items:** Are they in a junction table (`order_items`) or embedded? The spec says junction table.
-- **Seed orders:** Do they decrement inventory? They shouldn't — they're historical data.
+- **Seed orders:** Do they decrement inventory? They shouldn't; they're historical data.
 
 ```
 > Show me how tags are stored and retrieved in the SQLite implementation. 
   Are they JSON strings in SQLite, parsed to arrays on read?
 ```
 
-**💡 What you're learning:** The repository pattern is a real architectural decision, not just boilerplate. By separating interfaces from implementation, Phase 4 (deployment) becomes trivial — you write a new Cosmos DB or PostgreSQL implementation that follows the same interfaces. You're also seeing how SQLite's limitations (no arrays, no nested objects) require serialization workarounds.
+**💡 What you're learning:** The repository pattern is a real architectural decision, not boilerplate. Separating interfaces from implementation means Phase 4 (deployment) is straightforward: you write a new Cosmos DB or PostgreSQL implementation that follows the same interfaces. You're also seeing how SQLite's limitations (no arrays, no nested objects) force serialization workarounds.
 
 #### Step 4: Generate the API routes
 
@@ -224,7 +224,7 @@ Now add the route handlers that use the repository interfaces.
 
 **🔍 Inspect what was generated:**
 
-Check the order creation route — this is the most complex endpoint. Look for:
+Check the order creation route. This is the most complex endpoint. Look for:
 1. Does `POST /orders` validate that all product IDs exist and are active?
 2. Does it check inventory before creating the order?
 3. Does it decrement inventory after creating the order?
@@ -283,7 +283,7 @@ If any test fails, this is the real workflow: describe the failure to Copilot CL
   SQLite implementation.
 ```
 
-**💡 What you're learning:** Testing yourself (not delegating to Copilot CLI) builds understanding. You now know what the API does, what the response format looks like, and how inventory decrement works. When something breaks in production, you'll know where to look.
+**💡 What you're learning:** Testing yourself (instead of delegating to Copilot CLI) builds understanding. After this, you know what the API returns, how inventory decrement works, and where to look when something breaks in production.
 
 ---
 
@@ -322,7 +322,7 @@ Start both services, then open `http://localhost:5173` in your browser.
 
 - Do all 10 products display with images, prices, and ratings?
 - Does typing in the search bar filter products?
-- Click "Electronics" — do only 3 products show?
+- Click "Electronics". Do only 3 products show?
 - Click a product → does the detail page load with the full description?
 - Add 2 items to the cart → does the cart icon show "2"?
 - Go to the cart → are quantities and totals correct?
@@ -377,7 +377,7 @@ This phase teaches two things: how to integrate Azure AI services, and how to de
 
 Run the commands, then set environment variables for the connection strings.
 
-#### Step 2: Add semantic product search (CLI — interactive)
+#### Step 2: Add semantic product search (interactive CLI)
 
 This one you'll do interactively so you can see how search integration works.
 
@@ -392,7 +392,7 @@ This one you'll do interactively so you can see how search integration works.
 **🔍 Inspect the search service code:**
 
 Open the search service file. Key things to understand:
-- The search index has a **semantic configuration** — this is what makes "lightweight for travel" match "UltraBook Pro" even though those words don't appear together
+- The search index has a **semantic configuration**. This is what makes "lightweight for travel" match "UltraBook Pro" even though those words don't appear together
 - The endpoint does a **two-step process**: search returns IDs and scores, then full product details come from your database
 - There's a **fallback**: when Azure credentials aren't set, it uses a SQLite LIKE query instead
 
@@ -410,13 +410,13 @@ curl -X POST http://localhost:3000/api/products/search \
   -d '{"query": "gift for a kid"}'
 ```
 
-**💡 What you're learning:** Semantic search is an API call, not a machine learning project. Azure AI Search handles embeddings and ranking. You're learning the integration pattern: push documents to an index, query with natural language, merge results with your database.
+**💡 What you're learning:** Semantic search is an API call, not a machine learning project. Azure AI Search handles embeddings and ranking. You push documents to an index, query with natural language, and merge the results with your database.
 
 #### Step 3: Delegate the shopping assistant to the cloud agent
 
 Now try a completely different agentic workflow. Instead of prompting Copilot CLI interactively, you'll write a GitHub issue and let the GitHub Copilot cloud agent implement it asynchronously.
 
-**Why delegate this one?** The shopping assistant is well-scoped (one endpoint + one component) with clear acceptance criteria in the spec. That makes it a good candidate for async delegation — you don't need to be in the loop for every decision.
+**Why delegate this one?** The shopping assistant is well-scoped (one endpoint + one component) with clear acceptance criteria in the spec. That makes it a good candidate for async delegation since you don't need to be in the loop for every decision.
 
 **Option A: Delegate from Copilot CLI**
 
@@ -461,7 +461,7 @@ Read PLAN.md in the repo root. Implement:
 - If Azure credentials are missing, endpoint returns 503"
 ```
 
-Then assign it to the GitHub Copilot cloud agent — navigate to the issue on GitHub and click **"Assign to Copilot"**.
+Then assign it to the GitHub Copilot cloud agent. Navigate to the issue on GitHub and click **"Assign to Copilot"**.
 
 While the cloud agent works on it, you can move on to Phase 4 or take a break. When it opens a PR:
 
@@ -483,9 +483,9 @@ If something's off, comment on the PR and let the agent fix it. Then merge:
 gh pr merge <PR_NUMBER>
 ```
 
-> **If the agent's PR doesn't work:** After 2 rounds of feedback, close the PR and implement it yourself interactively using the "AI Feature 2: Shopping Assistant" section in PLAN.md. Not every task is a good fit for delegation — that's a lesson too.
+> **If the agent's PR doesn't work:** After 2 rounds of feedback, close the PR and implement it yourself interactively using the "AI Feature 2: Shopping Assistant" section in PLAN.md. Not every task is a good fit for delegation, and that's a lesson too.
 
-**💡 What you're learning:** The cloud agent workflow is different from CLI prompting. You write a well-scoped issue with acceptance criteria, delegate, and review the result. It works best when the task is self-contained, there's a spec the agent can read, and the acceptance criteria are testable. This is where you learn when to drive interactively vs. when to delegate.
+**💡 What you're learning:** The cloud agent workflow is different from CLI prompting. You write a well-scoped issue with acceptance criteria, delegate, and review the result. It works best for self-contained tasks where there's a spec the agent can read and the acceptance criteria are testable. You'll get a feel for when to drive interactively vs. when to hand something off.
 
 ---
 
@@ -495,7 +495,7 @@ gh pr merge <PR_NUMBER>
   <img src="./images/azure-deployment.webp" alt="Phase 4: Deploy to Azure" width="800" />
 </p>
 
-Before starting, verify Docker is installed and running — you'll need it to build container images:
+Before starting, verify Docker is installed and running. You'll need it to build container images:
 
 ```bash
 docker --version  # Need Docker Desktop or Docker Engine
@@ -519,13 +519,13 @@ docker --version  # Need Docker Desktop or Docker Engine
 
 **🔍 Before deploying, review these critical details:**
 
-1. Open `infra/main.bicep` — do both container apps have `tags: { 'azd-service-name': '...' }`? Without these, `azd deploy` can't find the apps.
+1. Open `infra/main.bicep`. Do both container apps have `tags: { 'azd-service-name': '...' }`? Without these, `azd deploy` can't find the apps.
 2. Is there an Azure Container Registry resource? Without it, there's nowhere to push images.
-3. Open `api/Dockerfile` — does it use the correct base image for your language? If using Node.js with `better-sqlite3`, it needs native build tools (`python3 make g++`).
-4. Open `client/nginx.conf` — does it ONLY have `try_files` for SPA routing? No `/api/` proxy block. (With public ingress on Container Apps, each service has its own URL — nginx proxying to `aimarket-api` will crash because that hostname doesn't resolve.)
-5. Open `client/.dockerignore` — does it exclude dependency directories? Without this, the Docker build context is huge and may fail.
-6. Open `api/.dockerignore` — make sure it does NOT exclude build config files like `tsconfig.json`. The Docker build needs them to compile.
-7. Open `client/Dockerfile` — does it have `ARG VITE_API_URL` and `ENV VITE_API_URL=$VITE_API_URL` BEFORE the `npm run build` step? Without these, the `--build-arg` in Step 3 is silently ignored and the frontend can't find the API.
+3. Open `api/Dockerfile`. Does it use the correct base image for your language? If using Node.js with `better-sqlite3`, it needs native build tools (`python3 make g++`).
+4. Open `client/nginx.conf`. Does it ONLY have `try_files` for SPA routing? No `/api/` proxy block. (With public ingress on Container Apps, each service has its own URL, so nginx proxying to `aimarket-api` will crash because that hostname doesn't resolve.)
+5. Open `client/.dockerignore`. Does it exclude dependency directories? Without this, the Docker build context is huge and may fail.
+6. Open `api/.dockerignore`. Make sure it does NOT exclude build config files like `tsconfig.json`. The Docker build needs them to compile.
+7. Open `client/Dockerfile`. Does it have `ARG VITE_API_URL` and `ENV VITE_API_URL=$VITE_API_URL` BEFORE the `npm run build` step? Without these, the `--build-arg` in Step 3 is silently ignored and the frontend can't find the API.
 
 **💡 What you're learning:** Deployment infrastructure has sharp edges that break silently. Missing service tags = deployment succeeds but app doesn't update. Missing `.dockerignore` = disk space errors. Wrong nginx config = container crashes on startup. These are the real-world issues that agentic AI can help generate, but you still need to review.
 
@@ -567,7 +567,7 @@ Then ask Copilot CLI to update the container app with the new image:
 
 Wait ~30 seconds for the new revision to start, then verify the frontend loads products.
 
-**💡 What you're learning:** Build-time environment variables (like `VITE_API_URL` for React/Vite) are a deployment gotcha. The API URL isn't known until after provisioning, but the frontend needs it baked in at build time. This is a common issue with SPAs deployed as static files — the workaround is rebuilding after the first deploy. In production, teams solve this with runtime config injection or CI/CD pipelines that deploy in two stages.
+**💡 What you're learning:** Build-time environment variables (like `VITE_API_URL` for React/Vite) are a real deployment gotcha. The API URL isn't known until after provisioning, but the frontend needs it baked in at build time. SPAs deployed as static files always have this problem. The workaround is rebuilding after the first deploy. Production teams solve this with runtime config injection or two-stage CI/CD pipelines.
 
 #### Step 4: Verify the live deployment
 
@@ -583,9 +583,9 @@ curl -s "$API_URL/api/products" | python3 -c "import sys,json; d=json.load(sys.s
 curl -s -o /dev/null -w "HTTP %{http_code}" "$WEB_URL"
 ```
 
-Open `$WEB_URL` in your browser. You should see the product grid with 10 products. If you see "Failed to load products," the `VITE_API_URL` isn't set correctly — go back to Step 3.
+Open `$WEB_URL` in your browser. You should see the product grid with 10 products. If you see "Failed to load products," the `VITE_API_URL` isn't set correctly. Go back to Step 3.
 
-Also check the browser dev tools Network tab — product requests should go to `https://ca-api-xxx.../api/products`, not `/api/products` (the relative path means the fix didn't take).
+Also check the browser dev tools Network tab. Product requests should go to `https://ca-api-xxx.../api/products`, not `/api/products` (the relative path means the fix didn't take).
 
 #### 🧪 Try it yourself: Add an endpoint
 
@@ -612,11 +612,11 @@ Here's where agentic AI shows up in this journey:
 | Layer | Use Case | What It Demonstrates |
 |-------|----------|---------------------|
 | **Code generation** | Copilot CLI scaffolds models, routes, and data layer from a spec | Break work into pieces, inspect each one, iterate on gaps |
-| **Code review** | You review generated code for business logic correctness | AI gets structure right but misses edge cases — you catch them |
+| **Code review** | You review generated code for business logic correctness | AI gets structure right but misses edge cases; you catch them |
 | **Delegation** | Cloud agent implements a feature from a GitHub issue | Write well-scoped issues with acceptance criteria, review the PR |
 | **Product search** | Azure AI Search with semantic ranking | AI-powered features are API calls, not ML projects |
 | **Shopping assistant** | Azure OpenAI grounded in product catalog | Ground LLMs in real data to prevent hallucination |
-| **Infrastructure** | Copilot CLI generates Bicep templates and Dockerfiles | Review deployment config carefully — silent failures are common |
+| **Infrastructure** | Copilot CLI generates Bicep templates and Dockerfiles | Review deployment config carefully; silent failures are common |
 | **Debugging** | Ask Copilot CLI to diagnose deployment failures | Describe errors, let AI suggest fixes, verify yourself |
 
 ---
@@ -632,7 +632,7 @@ Here's where agentic AI shows up in this journey:
 | Log Analytics | Pay-per-GB | ~$2-5 |
 | **Total** | | **~$100-115/month** |
 
-Scale-to-zero on Container Apps and serverless Cosmos DB keep costs low during development. Azure AI Search Basic tier is required for semantic ranking — remember to clean up with `azd down` when done to avoid ongoing charges.
+Scale-to-zero on Container Apps keeps costs low during development. Azure AI Search Basic tier is the main ongoing cost. Clean up with `azd down` when done.
 
 ---
 
@@ -651,7 +651,7 @@ java --version    # Java (need 17+)
 
 ### Semantic search returns no results
 
-**Cause:** The search index is empty — products haven't been pushed to Azure AI Search.
+**Cause:** The search index is empty. Products haven't been pushed to Azure AI Search.
 
 **Fix:** Run the indexing script to push products:
 
@@ -745,11 +745,11 @@ az group delete --name aimarket-rg --yes --no-wait
 
 ## Key Learnings
 
-- **The spec is the prompt** — hand Copilot CLI a well-written plan and it generates code that matches
-- **Delegate with context** — the GitHub Copilot cloud agent produces better PRs when your repo has a spec it can read
-- **Ground your AI in real data** — the shopping assistant works because it gets the product catalog as context, not because the LLM memorized products
-- **AI features are APIs** — semantic search and chat are REST endpoints backed by Azure services; no ML expertise required
-- **Start with SQLite, swap to cloud** — build and test locally, then switch the data provider for deployment
+- **The spec is the prompt**: hand Copilot CLI a well-written plan and it generates code that matches
+- **Delegate with context**: the GitHub Copilot cloud agent produces better PRs when your repo has a spec it can read
+- **Ground your AI in real data**: the shopping assistant works because it gets the product catalog as context, not because the LLM memorized products
+- **AI features are APIs**: semantic search and chat are REST endpoints backed by Azure services; no ML expertise required
+- **Start with SQLite, swap to cloud**: build and test locally, then switch the data provider for deployment
 
 ---
 
@@ -763,7 +763,7 @@ az group delete --name aimarket-rg --yes --no-wait
 
 ## What's Next
 
-In Agentic Journey 05, you'll build SmartTodo — an iPhone app where AI breaks vague goals into actionable steps, backed by Azure Functions, Azure SQL, and Microsoft Foundry. Check out the [SmartTodo journey](../smart-todo/README.md).
+In Agentic Journey 05, you'll build SmartTodo, an iPhone app where AI breaks vague goals into actionable steps, backed by Azure Functions, Azure SQL, and Microsoft Foundry. Check out the [SmartTodo journey](../smart-todo/README.md).
 
 > 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
 
@@ -771,7 +771,7 @@ In Agentic Journey 05, you'll build SmartTodo — an iPhone app where AI breaks 
 
 ## Resources
 
-- [AIMarket Spec](./PLAN.md) — The plan document used by Copilot CLI to scaffold the app
+- [AIMarket Spec](./PLAN.md): The plan document used by Copilot CLI to scaffold the app
 - [Azure AI Search Documentation](https://learn.microsoft.com/azure/search/)
 - [Azure OpenAI Service](https://learn.microsoft.com/azure/ai-services/openai/)
 - [Azure Cosmos DB](https://learn.microsoft.com/azure/cosmos-db/)

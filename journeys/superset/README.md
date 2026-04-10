@@ -6,7 +6,7 @@
   <img src="./images/superset-data-exploration.webp" alt="Apache Superset: BI on Azure" width="800" />
 </p>
 
-Some apps are too complex for Container Apps. [Apache Superset](https://superset.apache.org/) needs init containers, shared volumes, and custom config mounting — patterns that require Kubernetes. The agent knows this and generates AKS infrastructure instead. You'll deploy a full BI platform and learn when to reach for Kubernetes vs. Container Apps.
+Some apps are too complex for Container Apps. [Apache Superset](https://superset.apache.org/) needs init containers, shared volumes, and custom config mounting, all patterns that require Kubernetes. The agent knows this and generates AKS infrastructure instead. You'll deploy a full BI platform and learn when to reach for Kubernetes vs. Container Apps.
 
 ## Learning Objectives
 
@@ -18,12 +18,12 @@ Some apps are too complex for Container Apps. [Apache Superset](https://superset
 
 > ⏱️ **Estimated Time**: ~30 minutes
 >
-> 💰 **Estimated Cost**: ~$175-185/month (AKS nodes are the main cost — see [Cost Breakdown](#cost-breakdown)). Clean up with `azd down` when done!**
+> 💰 **Estimated Cost**: ~$175-185/month (AKS nodes are the main cost, see [Cost Breakdown](#cost-breakdown)). Clean up with `azd down` when done!**
 >
 > 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
 >
 > **Additional prerequisites for this journey:**
-> - [`kubectl`](https://kubernetes.io/docs/tasks/tools/) — needed for AKS cluster management
+> - [`kubectl`](https://kubernetes.io/docs/tasks/tools/): needed for AKS cluster management
 
 ---
 
@@ -64,11 +64,11 @@ graph TB
 
 **Azure resources created:**
 
-- **Azure Kubernetes Service (AKS)** — Managed Kubernetes cluster (2x Standard_D2s_v3 nodes)
-- **Azure Database for PostgreSQL Flexible Server** — Managed database (required)
-- **Azure Load Balancer** — Public IP for external access
-- **NGINX Ingress Controller** — HTTP routing within the cluster
-- **Azure Log Analytics** — Monitoring and diagnostics
+- **Azure Kubernetes Service (AKS)**: Managed Kubernetes cluster (2x Standard_D2s_v3 nodes)
+- **Azure Database for PostgreSQL Flexible Server**: Managed database (required)
+- **Azure Load Balancer**: Public IP for external access
+- **NGINX Ingress Controller**: HTTP routing within the cluster
+- **Azure Log Analytics**: Monitoring and diagnostics
 
 **Infrastructure directory:** [`infra-superset/`](../../infra-superset/) (generated at repo root during deployment)
 
@@ -144,7 +144,7 @@ Tell the agent what you want in a single prompt:
 The agent handles the entire deployment:
 
 1. Loads the right skills (`superset-azure`, `azure-aks-deployment`, `azure-bicep-generation`, `azd-deployment`)
-2. Recommends AKS over Container Apps — it knows Superset needs init containers, shared volumes, and ConfigMap mounting
+2. Recommends AKS over Container Apps because it knows Superset needs init containers, shared volumes, and ConfigMap mounting
 3. Generates Bicep + Kubernetes infrastructure in `infra-superset/`
 4. Updates `azure.yaml`, registers Azure providers, sets environment variables
 5. Runs `azd up` (~15-20 minutes)
@@ -221,7 +221,7 @@ SECRET_KEY = os.environ.get('SUPERSET_SECRET_KEY', 'change-me')
 
 WTF_CSRF_ENABLED = True
 WTF_CSRF_EXEMPT_LIST = []
-WTF_CSRF_TIME_LIMIT = 60 * 60 * 24 * 365  # 1 year — extended for long dashboard sessions
+WTF_CSRF_TIME_LIMIT = 60 * 60 * 24 * 365  # 1 year, extended for long dashboard sessions
 
 FEATURE_FLAGS = {
     "DASHBOARD_NATIVE_FILTERS": True,
@@ -279,9 +279,9 @@ Superset takes **60-90+ seconds** to start due to database migrations and Flask 
 
 | Probe | Initial Delay | Period | Failure Threshold | Max Wait |
 |-------|---------------|--------|-------------------|----------|
-| Startup | — | 10s | 60 | 10 minutes |
-| Liveness | 90s | 15s | 5 | — |
-| Readiness | 45s | 10s | 5 | — |
+| Startup | n/a | 10s | 60 | 10 minutes |
+| Liveness | 90s | 15s | 5 | n/a |
+| Readiness | 45s | 10s | 5 | n/a |
 
 Health endpoint: `GET /health` → `{"status": "OK"}` (HTTP 200)
 
@@ -329,9 +329,9 @@ The agent knows this means psycopg2 isn't installed or PYTHONPATH isn't set, and
 ### Pod Stuck in Init:0/1
 
 **Possible causes:**
-1. PostgreSQL not reachable — check firewall rules
-2. Wrong credentials — verify connection string
-3. psycopg2 not installed — see above
+1. PostgreSQL not reachable: check firewall rules
+2. Wrong credentials: verify connection string
+3. psycopg2 not installed: see above
 
 Ask the agent to diagnose:
 
@@ -402,26 +402,26 @@ Teardown takes 5-10 minutes (AKS + PostgreSQL deletion is slow).
 
 ## Key Learnings
 
-- **The agent knows when to use AKS** — it recommends Kubernetes when Container Apps can't handle init containers, shared volumes, or ConfigMap mounting
-- **emptyDir volumes share data between init and main containers** — this is the pattern for installing runtime dependencies
-- **"SQLiteImpl" in logs = misconfiguration** — if you see this, the PostgreSQL connection string isn't reaching Superset
+- **The agent knows when to use AKS.** It recommends Kubernetes when Container Apps can't handle init containers, shared volumes, or ConfigMap mounting.
+- **emptyDir volumes share data between init and main containers.** This is the pattern for installing runtime dependencies.
+- **"SQLiteImpl" in logs means misconfiguration.** If you see this, the PostgreSQL connection string isn't reaching Superset.
 
 ---
 
 ## Assignment
 
-1. Verify that Superset is using PostgreSQL, not SQLite — ask the agent: *"Is my Superset deployment using PostgreSQL?"*
-2. Compare the three deployments: Grafana (~$10-20, 2 min), n8n (~$25-35, 7 min), Superset (~$175-185, 15-20 min) — when would you choose each?
+1. Verify that Superset is using PostgreSQL, not SQLite. Ask the agent: *"Is my Superset deployment using PostgreSQL?"*
+2. Compare the three deployments: Grafana (~$10-20, 2 min), n8n (~$25-35, 7 min), Superset (~$175-185, 15-20 min). When would you choose each?
 3. Clean up with `azd down --force --purge`
 
 ---
 
 ## What's Next
 
-You've completed the OSS deployment agentic journeys. Here's where to go from here:
+You've completed the OSS deployment journeys. Here's where to go from here:
 
-- **Ask the agent** — Start a session with `@oss-to-azure-deployer` and ask *"How would I deploy Gitea to Azure?"*
-- **Contribute** — Found a bug or want to add an app? [Open an issue](https://github.com/DanWahlin/github-azure-agentic-journeys/issues)
+- **Ask the agent**: Start a session with `@oss-to-azure-deployer` and ask *"How would I deploy Gitea to Azure?"*
+- **Contribute**: Found a bug or want to add an app? [Open an issue](https://github.com/DanWahlin/github-azure-agentic-journeys/issues)
 
 > 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
 

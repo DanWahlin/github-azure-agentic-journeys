@@ -48,10 +48,10 @@ graph TB
 
 **Azure resources created:**
 
-- **Azure Container Apps** — Serverless hosting with scale-to-zero
-- **Azure Database for PostgreSQL Flexible Server** — Managed database for persistent storage
-- **Azure Log Analytics** — Centralized monitoring and logging
-- **User-Assigned Managed Identity** — Secure access to Azure resources
+- **Azure Container Apps**: Serverless hosting with scale-to-zero
+- **Azure Database for PostgreSQL Flexible Server**: Managed database for persistent storage
+- **Azure Log Analytics**: Centralized monitoring and logging
+- **User-Assigned Managed Identity**: Secure access to Azure resources
 
 **Infrastructure directory:** [`infra-n8n/`](../../infra-n8n/) (generated at repo root during deployment)
 
@@ -191,9 +191,9 @@ n8n requires **60+ seconds** to start. Without proper health probes, Azure kills
 
 | Probe | Initial Delay | Period | Failure Threshold | Max Wait |
 |-------|---------------|--------|-------------------|----------|
-| Startup | — | 10s | 30 | 5 minutes |
-| Liveness | 60s | 30s | 3 | — |
-| Readiness | — | 10s | 3 | — |
+| Startup | n/a | 10s | 30 | 5 minutes |
+| Liveness | 60s | 30s | 3 | n/a |
+| Readiness | n/a | 10s | 3 | n/a |
 
 ### Secrets Management
 
@@ -318,9 +318,9 @@ Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently delet
 ## Key Learnings
 
 - **Post-provision hooks** solve circular dependencies (like WEBHOOK_URL needing the deployed URL)
-- **Azure MCP tools** give the agent real-time access to Bicep schemas — it's looking up actual API versions, not guessing
-- **Register providers first** — prevents 409 conflicts during deployment
-- **Same agent, different skills** — the agent loaded `n8n-azure` and adapted to n8n's specific requirements automatically
+- **Azure MCP tools** give the agent real-time access to Bicep schemas. It's looking up actual API versions, not guessing.
+- **Register providers first.** This prevents 409 conflicts during deployment.
+- **Same agent, different skills.** The agent loaded `n8n-azure` and adapted to n8n's specific requirements automatically.
 
 ---
 
@@ -333,7 +333,7 @@ Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently delet
 
 ## What's Next
 
-In [Agentic Journey 02: Grafana](../grafana/README.md), you'll deploy a metrics and visualization platform, the simplest deployment in the project (~2 minutes, no external database required). You'll see how the same agent and skill system adapts to a completely different application.
+In [Agentic Journey 02: Grafana](../grafana/README.md), you'll deploy a metrics and visualization platform, the simplest deployment in the project (~2 minutes, no external database). You'll see how the same agent adapts when the app has different requirements.
 
 > 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
 

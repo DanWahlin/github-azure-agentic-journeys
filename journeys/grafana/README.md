@@ -6,7 +6,7 @@
   <img src="./images/grafana-observability.webp" alt="Grafana: Observability on Azure" width="800" />
 </p>
 
-In this agentic journey, you'll deploy [Grafana OSS](https://grafana.com/oss/grafana/), the industry-standard observability platform, to Azure Container Apps. Grafana uses an embedded SQLite database by default, so there's no external database to provision. That makes it one of the simplest deployments in the project. You'll also look at when to swap SQLite for PostgreSQL.
+In this agentic journey, you'll deploy [Grafana OSS](https://grafana.com/oss/grafana/), a popular open-source observability platform, to Azure Container Apps. Grafana uses an embedded SQLite database by default, so there's no external database to provision. That makes it one of the simplest deployments in the project. You'll also look at when to swap SQLite for PostgreSQL.
 
 ## Learning Objectives
 
@@ -45,9 +45,9 @@ graph TB
 
 **Azure resources created:**
 
-- **Azure Container Apps** — Serverless hosting with scale-to-zero
-- **Azure Log Analytics** — Monitoring and diagnostics
-- **SQLite** (default) — Embedded database, no external dependency
+- **Azure Container Apps**: Serverless hosting with scale-to-zero
+- **Azure Log Analytics**: Monitoring and diagnostics
+- **SQLite** (default): Embedded database, no external dependency
 - Optional: **Azure Database for PostgreSQL Flexible Server** for production persistence
 
 **Infrastructure directory:** [`infra-grafana/`](../../infra-grafana/) (generated at repo root during deployment)
@@ -112,7 +112,7 @@ Tell the agent what you want in a single prompt:
 The agent handles the entire deployment:
 
 1. Loads the right skills (`grafana-azure`, `azure-container-apps`, `azure-bicep-generation`, `azd-deployment`)
-2. Generates a lean Bicep structure in `infra-grafana/` — no PostgreSQL module needed (SQLite is the default)
+2. Generates a lean Bicep structure in `infra-grafana/` with no PostgreSQL module needed (SQLite is the default)
 3. Updates `azure.yaml`, registers Azure providers, sets environment variables
 4. Runs `azd up` (~2 minutes)
 
@@ -182,9 +182,9 @@ Grafana starts fast (~15-30 seconds) and provides a dedicated health endpoint at
 
 | Probe | Initial Delay | Period | Failure Threshold |
 |-------|---------------|--------|-------------------|
-| Startup | — | 10s | 30 (5 min max) |
+| Startup | n/a | 10s | 30 (5 min max) |
 | Liveness | 15s | 30s | 3 |
-| Readiness | — | 10s | 3 |
+| Readiness | n/a | 10s | 3 |
 
 Health endpoint response:
 ```json
@@ -194,7 +194,7 @@ Health endpoint response:
 ### Storage: SQLite vs PostgreSQL
 
 **SQLite (default):**
-- Zero setup — embedded in the container
+- Zero setup, embedded in the container
 - ⚠️ Dashboards lost on container restart (ephemeral storage)
 - Good for dev/testing
 
@@ -235,7 +235,7 @@ Ask the agent to diagnose:
 > My Grafana container won't start. Check the logs and tell me what's wrong.
 ```
 
-The agent uses `azure_deploy_app_logs` to pull logs and identify the issue — typically health probes that are too aggressive. The Bicep templates in `infra-grafana/` include proper timing.
+The agent uses `azure_deploy_app_logs` to pull logs and identify the issue, typically health probes that are too aggressive. The Bicep templates in `infra-grafana/` include proper timing.
 
 ### 502 Bad Gateway
 
@@ -320,16 +320,16 @@ Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
 ## Key Learnings
 
-- **No database ≠ no persistence problem** — SQLite is ephemeral in containers; know this before deploying
-- **Scale-to-zero cold starts are normal** — 30-60s on first request isn't an error
-- **Same agent, different skills** — the agent loaded `grafana-azure` instead of `n8n-azure` and adapted automatically
-- **Simpler apps = simpler infrastructure** — no database dependency means fewer moving parts to break
+- **No database doesn't mean no persistence problem.** SQLite is ephemeral in containers. Know this before deploying.
+- **Scale-to-zero cold starts are normal.** 30-60s on first request isn't an error.
+- **Same agent, different skills.** The agent loaded `grafana-azure` instead of `n8n-azure` and adapted automatically.
+- **Simpler apps mean simpler infrastructure.** No database dependency means fewer moving parts to break.
 
 ---
 
 ## Assignment
 
-1. Create a dashboard in Grafana, then restart the container app with `az containerapp revision restart` — notice your dashboard is gone. Why? Ask the agent: *"Why did my Grafana dashboard disappear after a restart?"*
+1. Create a dashboard in Grafana, then restart the container app with `az containerapp revision restart`. Notice your dashboard is gone. Why? Ask the agent: *"Why did my Grafana dashboard disappear after a restart?"*
 2. Try the fix: ask the agent *"How do I make Grafana dashboards persist across restarts?"* and implement what it suggests
 3. Clean up with `azd down --force --purge`
 
@@ -337,7 +337,7 @@ Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
 ## What's Next
 
-In [Agentic Journey 03: Apache Superset](../superset/README.md), you'll tackle the most complex deployment, a full BI platform on Azure Kubernetes Service. You'll learn why some applications need Kubernetes instead of Container Apps, and how the agent handles init containers, shared volumes, and psycopg2 installation.
+In [Agentic Journey 03: Apache Superset](../superset/README.md), you'll deploy a full BI platform on Azure Kubernetes Service. You'll see why some apps need Kubernetes instead of Container Apps, and how the agent handles init containers, shared volumes, and psycopg2 installation.
 
 > 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
 

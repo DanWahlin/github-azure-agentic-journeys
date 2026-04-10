@@ -1,32 +1,32 @@
-# Agentic Journey 05: SmartTodo — AI-Powered Task Breakdown
+# Agentic Journey 05: SmartTodo
 
-> ✨ **Type a fuzzy goal, get a step-by-step action plan — powered by Azure Functions, Azure SQL, and Microsoft Foundry.**
+> ✨ **Type a fuzzy goal, get a step-by-step action plan, powered by Azure Functions, Azure SQL, and Microsoft Foundry.**
 
 <p align="center">
   <img src="./images/smart-todo-hero.webp" alt="SmartTodo — AI-Powered Task Breakdown" width="800" />
 </p>
 
-You'll build SmartTodo: an iPhone app where you add a todo like "Prepare Conference talk" and AI breaks it into concrete steps you can check off. The backend is an API on Azure Functions Flex Consumption, Azure SQL stores the data, and gpt-5-mini on Microsoft Foundry does the thinking. You pick your language (Node.js, Python, .NET, or Java), hand Copilot CLI a spec, and watch it scaffold the API, generate SwiftUI screens, and deploy the backend to Azure.
+You'll build SmartTodo: an iPhone app where you type a todo like "Prepare Conference talk" and AI breaks it into concrete steps you can check off. The backend runs on Azure Functions Flex Consumption, Azure SQL stores the data, and gpt-5-mini on Microsoft Foundry handles the thinking. Pick your language (Node.js, Python, .NET, or Java), hand Copilot CLI a spec, and it scaffolds the API, generates SwiftUI screens, and deploys the backend to Azure.
 
 ## Learning Objectives
 
 - Use a spec document as shared context for Copilot CLI to scaffold a serverless API and iOS app together
 - Build an Azure Functions API in your language of choice with the repository pattern
-- Connect Azure Functions to Azure SQL using managed identity — no passwords in code
+- Connect Azure Functions to Azure SQL using managed identity, with no passwords in code
 - Call gpt-5-mini via Microsoft Foundry to decompose vague goals into actionable steps
 - Structure a SwiftUI app that talks to a cloud API with async/await networking
 - Deploy the backend to Azure Functions Flex Consumption with `azd` and point the iOS app at the live URL
 
 > ⏱️ **Estimated Time**: ~2.5 hours (includes building, testing, and deploying all 3 phases)
 >
-> 💰 **Estimated Cost**: ~$10-30/month (Functions Flex Consumption + SQL Basic + AI pay-per-token — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
+> 💰 **Estimated Cost**: ~$10-30/month (Functions Flex Consumption + SQL Basic + AI pay-per-token; see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
 >
 > 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
 >
 > **Additional prerequisites for this journey:**
 > - Your language runtime: [Node.js LTS](https://nodejs.org/), [Python 3.10+](https://python.org/), [.NET 8+](https://dotnet.microsoft.com/), or [Java 17+](https://learn.microsoft.com/java/openjdk/download)
-> - [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local) — local Functions development
-> - [Xcode](https://developer.apple.com/xcode/) — iOS simulator installed (macOS only)
+> - [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local): local Functions development
+> - [Xcode](https://developer.apple.com/xcode/): iOS simulator installed (macOS only)
 
 ---
 
@@ -73,17 +73,17 @@ graph TB
 
 **Azure resources created:**
 
-- **Azure Flex Functions** — Serverless hosting for the API (Flex Consumption plan)
-- **Azure SQL Database** — Stores todos and AI-generated action steps
-- **Microsoft Foundry** (AIServices) — gpt-5-mini for task decomposition
-- **Application Insights + Log Analytics** — Monitoring and diagnostics
-- **Storage Account** — Required by Functions runtime
+- **Azure Flex Functions**: Serverless hosting for the API (Flex Consumption plan)
+- **Azure SQL Database**: Stores todos and AI-generated action steps
+- **Microsoft Foundry** (AIServices): gpt-5-mini for task decomposition
+- **Application Insights + Log Analytics**: Monitoring and diagnostics
+- **Storage Account**: Required by Functions runtime
 
 ---
 
 ## The Spec
 
-SmartTodo is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey folder. It defines the data models, API contracts, AI prompt design, and seed data. You don't need to read the whole thing — Copilot CLI reads it for you and generates code that matches.
+SmartTodo is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey folder. It defines the data models, API contracts, AI prompt design, and seed data. You don't need to read the whole thing. Copilot CLI reads it for you and generates code that matches.
 
 **Core data model (the parts you'll build):**
 
@@ -109,11 +109,11 @@ SmartTodo is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey f
 
 SmartTodo is built in three phases. Phase 1 builds the API with Azure SQL, Phase 2 adds the SwiftUI app, and Phase 3 deploys the backend to Azure. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
 
-**How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally — ask Copilot CLI for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
+**How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally. Ask Copilot CLI for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
 
 > **💡 Tip: Track issues as you go.** When giving Copilot CLI a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives Copilot CLI a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
 
-> **Note on the iOS app:** The SwiftUI app runs on your Mac (Simulator) or iPhone. It is NOT deployed by `azd` — only the Azure backend is. The app points at the deployed API URL via a `Config.swift` file.
+> **Note on the iOS app:** The SwiftUI app runs on your Mac (Simulator) or iPhone. It is NOT deployed by `azd`. Only the Azure backend is. The app points at the deployed API URL via a `Config.swift` file.
 
 ### Phase 1: Build the API (~45 min)
 
@@ -155,7 +155,7 @@ Then install the plugin:
 
 #### Step 2: Generate the data models and data layer
 
-Start with the data models and repository pattern — not the full API. This lets you inspect what Copilot CLI produces before building on top of it.
+Start with the data models and repository pattern, not the full API. This lets you inspect what Copilot CLI produces before building on top of it.
 
 ```
 > Read the PLAN.md file in this directory. Create an Azure Functions v2 
@@ -188,7 +188,7 @@ If anything's off, tell Copilot CLI:
   It's a reserved word in SQL — wrap it in brackets: [order].
 ```
 
-**💡 What you're learning:** The repository pattern separates "what data operations exist" from "how they talk to a database." Functions never import the database client directly — they get a `DataStore` from the factory. This keeps your function handlers clean and testable.
+**💡 What you're learning:** The repository pattern separates "what data operations exist" from "how they talk to a database." Functions never import the database client directly. Instead, they get a `DataStore` from the factory. This keeps function handlers clean and testable.
 
 #### Step 3: Generate the API endpoints
 
@@ -221,7 +221,7 @@ Check the step update function:
   implement it.
 ```
 
-**💡 What you're learning:** Auto-completion is a cross-entity business rule — changing a step affects the parent todo's status. AI generation usually gets single-entity CRUD right but misses these cross-cutting concerns. Reviewing the step update function teaches you to look for side effects.
+**💡 What you're learning:** Auto-completion is a cross-entity business rule. Changing a step affects the parent todo's status. AI generation usually gets single-entity CRUD right but misses these cross-cutting concerns. This is exactly the kind of thing to look for when reviewing generated code.
 
 #### Step 4: Add AI-powered step generation
 
@@ -247,7 +247,7 @@ Now wire up the real AI call to replace the stub.
 4. Does it handle AI service errors gracefully (timeout, rate limit → 503)?
 5. Does it set `stepsGenerated = true` on the todo after inserting steps?
 
-**💡 What you're learning:** Getting an LLM to return consistent, parseable output is the hardest part of AI integration. The system prompt needs to be explicit about format ("ONLY a JSON array, no markdown"), and the code needs defensive parsing. This is true for every LLM-backed feature, not just SmartTodo.
+**💡 What you're learning:** Getting an LLM to return consistent, parseable output is the hardest part of AI integration. The system prompt has to be explicit about format ("ONLY a JSON array, no markdown"), and the code needs defensive parsing. This applies to every LLM-backed feature, not just SmartTodo.
 
 #### Step 5: Test the API yourself
 
@@ -300,7 +300,7 @@ If any test fails, describe the failure to Copilot CLI and let it fix it:
   204 with no response body.
 ```
 
-**💡 What you're learning:** Testing yourself (not delegating to Copilot CLI) builds understanding. You now know what the API does, what the response format looks like, and how cascade deletes work. When something breaks after deployment, you'll know where to look.
+**💡 What you're learning:** Running tests yourself (instead of delegating) builds understanding. After this, you know what the API returns, how cascade deletes work, and where to look when something breaks after deployment.
 
 ---
 
@@ -347,7 +347,7 @@ Open `ActionStepsView.swift`. Look for:
   flight. Disable the Generate button during loading.
 ```
 
-**💡 What you're learning:** The iOS app is a thin client — all business logic lives in the API. The app's job is to display data and send user actions. This separation means you can update the AI prompt, change the database, or add new features without touching the Swift code (as long as the API contract doesn't change).
+**💡 What you're learning:** The iOS app is a thin client. All business logic lives in the API. The app just displays data and sends user actions. You can update the AI prompt, change the database, or add features without touching the Swift code, as long as the API contract stays the same.
 
 #### Step 2: Test on the Simulator
 
@@ -405,13 +405,13 @@ If the app can't reach the API, check that:
 
 **🔍 Before deploying, review these critical details:**
 
-1. Open `infra/main.bicep` — does the Function App have `tags: { 'azd-service-name': 'api' }`? Without this, `azd deploy` can't find the app.
+1. Open `infra/main.bicep`. Does the Function App have `tags: { 'azd-service-name': 'api' }`? Without this, `azd deploy` can't find the app.
 2. Are ALL resources from AVM modules (not raw resource definitions)?
 3. Is there a role assignment giving the Function App's managed identity `Cognitive Services User` on the AI Services resource?
 4. Does the SQL server have a firewall rule allowing Azure services (`0.0.0.0` start/end IP)?
 5. Are outputs in SCREAMING_SNAKE_CASE? (`API_URL`, not `apiUrl`)
 
-**💡 What you're learning:** Managed identity means the Function App authenticates to Azure SQL and AI Services without API keys or connection strings. The Bicep template creates the identity and role assignments declaratively — no manual portal clicks. This is the production-grade approach to Azure service-to-service auth.
+**💡 What you're learning:** Managed identity means the Function App authenticates to Azure SQL and AI Services without API keys or connection strings. The Bicep template creates the identity and role assignments declaratively, with no portal clicks required. This is how production Azure apps handle service-to-service auth.
 
 ##### Step 2: Deploy
 
@@ -539,7 +539,7 @@ Here's where agentic AI shows up in this journey:
 | **Code generation** | Copilot CLI scaffolds Functions, data layer, and SwiftUI app from a spec | Break work into pieces, inspect each one, iterate on gaps |
 | **Code review** | You review generated code for business logic correctness | AI gets CRUD right but misses cross-entity rules like auto-completion |
 | **Task decomposition** | gpt-5-mini breaks vague goals into actionable steps | LLMs excel at structured output when prompts are explicit about format |
-| **Infrastructure** | Copilot CLI generates Bicep with AVM modules and managed identity | Review deployment config carefully — missing role assignments break silently |
+| **Infrastructure** | Copilot CLI generates Bicep with AVM modules and managed identity | Review deployment config carefully. Missing role assignments break silently |
 | **Debugging** | Ask Copilot CLI to diagnose deployment or runtime errors | Describe errors, let AI suggest fixes, verify yourself |
 | **Delegation** | GitHub Copilot cloud agent creates the deployment PR from an issue | Write well-scoped issues with acceptance criteria, review the PR |
 
@@ -557,7 +557,7 @@ Here's where agentic AI shows up in this journey:
 | Storage Account | Standard LRS | ~$1 |
 | **Total** | | **~$10-30/month** |
 
-Functions and AI Services scale to zero when idle — you pay almost nothing during development. Azure SQL Basic is the floor at ~$5/month. Clean up with `azd down` when done.
+Functions and AI Services scale to zero when idle, so you pay almost nothing during development. Azure SQL Basic is the floor at ~$5/month. Clean up with `azd down` when done.
 
 ---
 
@@ -682,16 +682,16 @@ Teardown takes 2-3 minutes. This deletes all Azure resources including the SQL d
 
 ## Assignment
 
-1. **Add due dates** — ask Copilot CLI to *"Add a dueDate field to todos and have the AI suggest deadlines for each action step based on the todo's due date."* Create a todo with a due date, generate steps, and observe whether the AI respects the timeline. Ask Copilot CLI why some steps have unrealistic deadlines and how to fix the prompt.
+1. **Add due dates**: Ask Copilot CLI to *"Add a dueDate field to todos and have the AI suggest deadlines for each action step based on the todo's due date."* Create a todo with a due date, generate steps, and observe whether the AI respects the timeline. Ask Copilot CLI why some steps have unrealistic deadlines and how to fix the prompt.
 
-2. **Add a "Regenerate" button** — the UI already shows "Regenerate Steps" when steps exist. Test it: generate steps, then regenerate. Are the new steps different? Ask Copilot CLI to explain why the results vary and how to make them more deterministic (hint: temperature).
+2. **Add a "Regenerate" button**: The UI already shows "Regenerate Steps" when steps exist. Test it: generate steps, then regenerate. Are the new steps different? Ask Copilot CLI to explain why the results vary and how to make them more deterministic (hint: temperature).
 
-3. **Try a different model** — ask Copilot CLI to *"Switch from gpt-5-mini to gpt-4.1 in the Foundry deployment."* Generate steps for the same todo with each model. Compare quality, specificity, and latency. Which is better for this use case?
+3. **Try a different model**: Ask Copilot CLI to *"Switch from gpt-5-mini to gpt-4.1 in the Foundry deployment."* Generate steps for the same todo with each model. Compare quality, specificity, and latency. Which is better for this use case?
 
-4. **Harden security** — the deployed app has no authentication, no rate limiting, and the AI key is in plaintext app settings. Ask Copilot CLI to help with any of these:
+4. **Harden security**: The deployed app has no authentication, no rate limiting, and the AI key is in plaintext app settings. Ask Copilot CLI to help with any of these:
    - *"Add Azure Key Vault and move AZURE_AI_KEY to a Key Vault secret reference."*
    - *"Switch the AI integration from API key auth to managed identity using DefaultAzureCredential."*
-   - *"Add rate limiting to the generate-steps endpoint — max 10 calls per userId per hour."*
+   - *"Add rate limiting to the generate-steps endpoint, max 10 calls per userId per hour."*
    - *"Change the function auth level from Anonymous to Function and configure the iOS app to send the function key."*
    
    See the [Security Considerations](./PLAN.md#security-considerations) section in PLAN.md for the full list of recommendations.
@@ -708,7 +708,7 @@ Explore the [AIMarket journey](../aimarket/README.md) to build a full-stack mark
 
 ## Resources
 
-- [SmartTodo Spec](./PLAN.md) — The plan document used by Copilot CLI to scaffold the app
+- [SmartTodo Spec](./PLAN.md): The plan document used by Copilot CLI to scaffold the app
 - [Azure Functions Flex Consumption plan](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan)
 - [Azure Functions developer guide](https://learn.microsoft.com/azure/azure-functions/functions-reference)
 - [Azure SQL managed identity auth](https://learn.microsoft.com/azure/azure-sql/database/authentication-aad-configure)
