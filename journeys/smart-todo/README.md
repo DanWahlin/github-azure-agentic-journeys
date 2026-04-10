@@ -439,16 +439,20 @@ Deployment takes ~5 minutes. If it fails, ask Copilot CLI to help diagnose:
 
 ##### Step 3: Set up Azure SQL managed identity access
 
-The Bicep template creates the identity, but Azure SQL requires a SQL command to grant access. Run the post-provision script:
+The Bicep template creates the identity, but Azure SQL requires a SQL command to grant access. Install `sqlcmd` if needed (`brew install sqlcmd` on macOS), then run:
 
 ```bash
 SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)
 SQL_DB=$(azd env get-value SQL_DATABASE_NAME)
 FUNC_APP=$(azd env get-value FUNCTION_APP_NAME)
 
-# You must be Azure AD admin on the SQL server for this to work
-az sql db execute --server "$SQL_SERVER" --database "$SQL_DB" \
-  --query "CREATE USER [$FUNC_APP] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [$FUNC_APP]; ALTER ROLE db_datawriter ADD MEMBER [$FUNC_APP];"
+# Get an access token for Azure SQL (you must be Azure AD admin on the SQL server)
+ACCESS_TOKEN=$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)
+
+# Create the managed identity user and grant roles
+sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" \
+  --authentication-method=ActiveDirectoryAccessToken --access-token "$ACCESS_TOKEN" \
+  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') BEGIN CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; END"
 ```
 
 ##### Step 4: Verify the live deployment
@@ -570,9 +574,11 @@ Functions and AI Services scale to zero when idle — you pay almost nothing dur
 SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)
 SQL_DB=$(azd env get-value SQL_DATABASE_NAME)
 FUNC_APP=$(azd env get-value FUNCTION_APP_NAME)
+ACCESS_TOKEN=$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)
 
-az sql db execute --server "$SQL_SERVER" --database "$SQL_DB" \
-  --query "CREATE USER [$FUNC_APP] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [$FUNC_APP]; ALTER ROLE db_datawriter ADD MEMBER [$FUNC_APP];"
+sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" \
+  --authentication-method=ActiveDirectoryAccessToken --access-token "$ACCESS_TOKEN" \
+  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') BEGIN CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; END"
 ```
 
 ### AI step generation returns empty or malformed results

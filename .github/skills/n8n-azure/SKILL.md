@@ -134,29 +134,9 @@ n8n requires **60+ seconds** to start. See `config/health-probes.md`.
 | Log Analytics | ~$2-5 |
 | **Total** | **~$25-35/month** |
 
-## Verification Checklist
+## Verification
 
-After `azd up` completes:
-
-```bash
-# 1. Get URL
-N8N_URL=$(azd env get-value N8N_URL)
-
-# 2. Test HTTP response
-curl -s -o /dev/null -w "%{http_code}" "$N8N_URL"  # Should be 200
-
-# 3. Verify n8n page loads
-curl -s "$N8N_URL" | grep -o "<title>[^<]*</title>"
-# Expected: <title>n8n.io - Workflow Automation</title>
-
-# 4. Check WEBHOOK_URL is set (by post-provision hook)
-azd env get-value N8N_CONTAINER_APP_NAME
-az containerapp show --name <app-name> --resource-group <rg-name> \
-  --query "properties.template.containers[0].env[?name=='WEBHOOK_URL'].value" -o tsv
-
-# 5. Check container logs
-az containerapp logs show --name <app-name> --resource-group <rg-name> --tail 20
-```
+After `azd up`, run the verification commands in [troubleshooting.md](troubleshooting.md). Key checks: HTTP 200 from the n8n URL, `WEBHOOK_URL` is set on the container, and container logs show no errors.
 
 ## Tear Down
 
@@ -166,15 +146,12 @@ azd down --force --purge
 
 **Note:** Teardown takes 5-10 minutes (PostgreSQL deletion is slow).
 
-## Differences from Generic Patterns
+## n8n-Specific Quirks
 
-n8n has specific quirks not covered by generic Azure skills:
-
-1. **Slow startup** - Needs 60s+ initial delay on liveness probe
-2. **SSL configuration** - Requires `SSL_REJECT_UNAUTHORIZED=false` for Azure
-3. **WEBHOOK_URL** - Must be set post-deployment (circular dependency via post-provision hook)
-4. **Encryption key** - Auto-generated via `newGuid()` parameter default
-5. **Port 5678** - Non-standard port for health checks and ingress
+1. **Slow startup** — needs 60s+ `initialDelaySeconds` on liveness probe
+2. **SSL** — requires `SSL_REJECT_UNAUTHORIZED=false` for Azure PostgreSQL
+3. **WEBHOOK_URL** — set post-deployment via hook (circular dependency with FQDN)
+4. **Port 5678** — non-standard port for health checks and ingress
 
 ## Azure MCP Tools
 

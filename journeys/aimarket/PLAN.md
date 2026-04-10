@@ -15,7 +15,7 @@ Pick your API language. Data models, endpoints, and acceptance criteria are iden
 | **Framework** | Express + TypeScript | FastAPI | ASP.NET Core Minimal APIs | Spring Boot |
 | **SQLite** | `better-sqlite3` | `sqlite3` (stdlib) | `Microsoft.Data.Sqlite` | `JdbcTemplate` + SQLite |
 
-Frontend is always React 18 + Tailwind CSS. AI via **gpt-5-mini on Microsoft Foundry** (fallback to gpt-4o if quota is unavailable). Deploy with **azd** + **Bicep using Azure Verified Modules (AVM)**. See [`data-access-abstraction` skill](../../.github/skills/data-access-abstraction/SKILL.md) for repository pattern examples in all four languages.
+Frontend is always React 18 + Tailwind CSS. AI via **gpt-5-mini on Microsoft Foundry** (fallback to gpt-4.1 if unavailable in your region). Deploy with **azd** + **Bicep using Azure Verified Modules (AVM)**. See [`data-access-abstraction` skill](../../.github/skills/data-access-abstraction/SKILL.md) for repository pattern examples in all four languages.
 
 ## Project Structure
 
@@ -559,7 +559,7 @@ Current catalog:
 
 **Behavior:**
 - On each request, fetch all active products and inject them into the system prompt as JSON
-- Use Azure OpenAI chat completions API with `gpt-5-mini` (fallback to `gpt-4o` if quota is unavailable)
+- Use Azure OpenAI chat completions API with `gpt-5-mini` (fallback to `gpt-4.1` if unavailable in your region)
 - Temperature: `0.7`
 - Max tokens: `500`
 - Pass the full message history from the request (the client maintains conversation state)
@@ -577,26 +577,17 @@ Deploy the full stack to Azure Container Apps using Bicep with AVM modules and a
 
 ### Azure Skills Plugin
 
-The Azure Skills plugin for Copilot CLI provides both MCP tools and plugin skills that should be used throughout this phase. Install it with `/plugin install azure@azure-skills` if not already installed.
+The Azure Skills plugin for Copilot CLI provides MCP tools and plugin skills for infrastructure generation and deployment. Install it with `/plugin install azure@azure-skills` if not already installed.
 
-**MCP Tools — use these during infrastructure generation and deployment:**
-
-| Tool | When to Use |
+| Tool / Skill | When to Use |
 |------|-------------|
-| `azure_bicep_schema` | When generating Bicep — look up AVM module properties, required fields, and latest API versions for Container Apps, Cosmos DB, AI Services, etc. |
-| `azure_deploy_iac_guidance` | Before writing Bicep — get best practices for azd project structure and Container Apps configuration |
-| `azure_deploy_plan` | Before running `azd up` — validate the deployment plan, check for missing dependencies or misconfigurations |
-| `azure_deploy_architecture` | After generating Bicep — create a Mermaid architecture diagram to verify the resource topology matches the spec |
-| `azure_deploy_app_logs` | After deployment — fetch Log Analytics logs to troubleshoot Container App startup errors, connection failures, or AI service issues |
-| `azure_deploy_pipeline` | When setting up CI/CD — get GitHub Actions guidance for automated deployments |
-
-**Plugin Skills — use these for infrastructure generation:**
-
-| Skill | When to Use |
-|-------|-------------|
-| `azure-prepare` | Generate Bicep infrastructure, azure.yaml, and deployment configuration from the resource requirements |
-| `azure-validate` | Validate generated infrastructure before deployment |
-| `azure-deploy` | Execute the deployment with azd |
+| `azure_bicep_schema` | Look up AVM module properties, required fields, and latest API versions |
+| `azure_deploy_iac_guidance` | Get best practices for azd project structure and Container Apps configuration |
+| `azure_deploy_plan` | Before `azd up` — validate deployment plan and check for misconfigurations |
+| `azure_deploy_app_logs` | Post-deployment — fetch Log Analytics logs to troubleshoot startup errors |
+| `azure-prepare` (skill) | Generate Bicep infrastructure, azure.yaml, and deployment configuration |
+| `azure-validate` (skill) | Validate generated infrastructure before deployment |
+| `azure-deploy` (skill) | Execute the deployment with azd |
 
 ### Containerization
 
@@ -615,7 +606,7 @@ Use **Azure Verified Modules (AVM)** from `br/public:avm/...` where possible. Fo
 | Azure AI Search | `br/public:avm/res/search/search-service` (Basic SKU — required for semantic ranking) + `existing` ref for `listAdminKeys()` | Semantic product search |
 | Container Apps Env | `br/public:avm/res/app/managed-environment` | Hosts API + frontend |
 | Container Apps (×2) | `br/public:avm/res/app/container-app` | API + web |
-| Microsoft Foundry | Raw resource (`Microsoft.CognitiveServices/accounts` with `kind: AIServices`, `allowProjectManagement: true`) + child project + model deployment | gpt-5-mini (fallback: gpt-4o) + Foundry project. Raw because the AVM `ai-foundry` pattern module generates internal resource names we can't predict, making `listKeys()` impossible. |
+| Microsoft Foundry | Raw resource (`Microsoft.CognitiveServices/accounts` with `kind: AIServices`, `allowProjectManagement: true`) + child project + model deployment | gpt-5-mini (fallback: gpt-4.1) + Foundry project. Raw because the AVM `ai-foundry` pattern module generates internal resource names we can't predict, making `listKeys()` impossible. |
 
 **Pattern for wiring secrets:** At subscription scope, `existing` resource references cannot use `dependsOn`, so `listKeys()`/`listCredentials()` fail because the resource hasn't been created yet. **Solution: create wrapper Bicep modules** scoped at resource group level. Each wrapper calls the AVM module, then uses an `existing` ref with `dependsOn` to extract keys. The main template calls these wrappers and reads keys from their outputs. Create wrapper modules for: Container Registry (outputs loginServer, username, password), AI Search (outputs endpoint, adminKey), and AI Services (outputs endpoint, key).
 

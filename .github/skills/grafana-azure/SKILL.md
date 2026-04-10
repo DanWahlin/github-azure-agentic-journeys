@@ -27,13 +27,7 @@ Without this, azd and Azure MCP tools will fail silently or produce incomplete d
 
 ## Critical: Bicep Output Naming
 
-Bicep outputs MUST use SCREAMING_SNAKE_CASE for azd to map them into environment values:
-```bicep
-output GRAFANA_URL string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
-output GRAFANA_FQDN string = containerApp.properties.configuration.ingress.fqdn
-output GRAFANA_ADMIN_USER string = grafanaAdminUser
-```
-If outputs don't follow this convention, `azd env get-value GRAFANA_URL` will return "key not found".
+Bicep outputs MUST use SCREAMING_SNAKE_CASE (e.g., `GRAFANA_URL`, `GRAFANA_FQDN`) for azd to map them into environment values. Without this, `azd env get-value` returns "key not found".
 
 ## Architecture
 
@@ -78,16 +72,6 @@ azd env get-value GRAFANA_URL
 - Container Apps Environment: ~38s
 - Grafana Container App: ~10s
 - **Total: ~2 minutes**
-
-## Parameters
-
-| Parameter | Description | Default | Required |
-|-----------|-------------|---------|----------|
-| `environmentName` | Environment name (used for resource naming) | - | Yes |
-| `location` | Azure region | westus | No |
-| `grafanaImage` | Container image | docker.io/grafana/grafana:latest | No |
-| `grafanaAdminUser` | Admin username | admin | No |
-| `grafanaAdminPassword` | Admin password | - | Yes |
 
 ## Environment Variables
 
@@ -147,16 +131,6 @@ azd down --force --purge
 ```
 
 **Note:** Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
-
-## Comparison with n8n Deployment
-
-| Aspect | Grafana | n8n |
-|--------|---------|-----|
-| Database | SQLite (default) | PostgreSQL (required) |
-| Port | 3000 | 5678 |
-| Resources | 0.5 CPU, 1GB RAM | 1 CPU, 2GB RAM |
-| Complexity | Simple | Moderate |
-| Deploy Time | ~2 minutes | ~5 minutes |
 
 ## Azure MCP Tools
 

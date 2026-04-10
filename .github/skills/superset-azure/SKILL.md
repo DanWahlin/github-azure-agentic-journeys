@@ -132,66 +132,18 @@ See [references/kubernetes-manifests.md](references/kubernetes-manifests.md) for
 
 ## Health Checks
 
-### Liveness Probe
-```yaml
-livenessProbe:
-  httpGet:
-    path: /health
-    port: 8088
-  initialDelaySeconds: 90
-  periodSeconds: 15
-  timeoutSeconds: 10
-  failureThreshold: 5
-```
-
-### Readiness Probe
-```yaml
-readinessProbe:
-  httpGet:
-    path: /health
-    port: 8088
-  initialDelaySeconds: 45
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 5
-```
+See [config/health-probes.md](config/health-probes.md) for liveness, readiness, and startup probe configuration. Key values: `/health` on port `8088`, `initialDelaySeconds: 90` for liveness (Superset is slow to start).
 
 ## Resource Requirements
 
-| Component | CPU Request | CPU Limit | Memory Request | Memory Limit |
-|-----------|-------------|-----------|----------------|--------------|
-| Superset Web | 250m | 1000m | 512Mi | 2Gi |
-| Init Container | 100m | 500m | 256Mi | 1Gi |
+| Component | CPU | Memory |
+|-----------|-----|--------|
+| Superset Web | 250m–1000m | 512Mi–2Gi |
+| Init Container | 100m–500m | 256Mi–1Gi |
 
 ## Common Issues & Solutions
 
-### 1. ModuleNotFoundError: No module named 'psycopg2'
-**Symptom**: Init container or main container fails with psycopg2 import error
-**Cause**: psycopg2-binary not installed or not in PYTHONPATH
-**Fix**: Install with `--target=/psycopg2-lib` and set `PYTHONPATH=/psycopg2-lib`
-
-### 2. "Context impl SQLiteImpl" in logs
-**Symptom**: Superset uses SQLite instead of PostgreSQL
-**Cause**: superset_config.py missing or SQLALCHEMY_DATABASE_URI not read from env
-**Fix**: Create ConfigMap with superset_config.py that reads from os.environ
-
-### 3. Permission denied during pip install
-**Symptom**: `PermissionError: [Errno 13] Permission denied`
-**Cause**: Trying to install to read-only virtualenv
-**Fix**: Use `pip install --target=/psycopg2-lib` with emptyDir volume
-
-### 4. Init Container Fails
-**Symptom**: Pod stuck in `Init:Error`
-**Cause**: Database not ready or wrong credentials
-**Fix**: Check PostgreSQL firewall rules, verify connection string
-
-### 5. Secret Key Error
-**Symptom**: "SUPERSET_SECRET_KEY must be a non-empty string"
-**Fix**: Ensure `SUPERSET_SECRET_KEY` env var is set (32+ chars)
-
-### 6. SSL Connection Required
-**Symptom**: "SSL connection required"
-**Fix**: Add `?sslmode=require` to DATABASE_URL
+See [troubleshooting.md](troubleshooting.md) for detailed fixes. Most common: psycopg2 import errors (install to `/psycopg2-lib` with `PYTHONPATH`), SQLite fallback (check `superset_config.py` ConfigMap), and SSL connection errors (add `?sslmode=require`).
 
 ## Azure MCP Tools
 
@@ -207,19 +159,7 @@ Use these Azure MCP Server tools for Superset deployments:
 
 ## Deployment Checklist
 
-- [ ] PostgreSQL Flexible Server created with firewall rule
-- [ ] AKS cluster running with kubectl access
-- [ ] ConfigMap created with superset_config.py
-- [ ] Kubernetes secret created with SQLALCHEMY_DATABASE_URI, SUPERSET_SECRET_KEY, ADMIN_PASSWORD
-- [ ] emptyDir volume mounted for psycopg2
-- [ ] PYTHONPATH set to /psycopg2-lib in both containers
-- [ ] SUPERSET_CONFIG_PATH set to config file location
-- [ ] Init container installs psycopg2 and runs migrations
-- [ ] Logs show "PostgresqlImpl" not "SQLiteImpl"
-- [ ] Superset pod reaches 1/1 Running state
-- [ ] Ingress configured with external IP
-- [ ] `curl http://<IP>/login/` returns HTTP 200
-- [ ] Can login with admin credentials
+Before verifying: ensure PostgreSQL has a firewall rule, AKS has kubectl access, ConfigMap has `superset_config.py`, K8s secret has `SQLALCHEMY_DATABASE_URI` + `SUPERSET_SECRET_KEY` + `ADMIN_PASSWORD`, and `PYTHONPATH=/psycopg2-lib` is set. See [troubleshooting.md](troubleshooting.md) for the full verification checklist.
 
 ## Default Credentials
 

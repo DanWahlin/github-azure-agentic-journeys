@@ -13,7 +13,7 @@ Pick your API language. Data models, endpoints, and acceptance criteria are iden
 | | Node.js | Python | .NET | Java |
 |---|---------|--------|------|------|
 | **Framework** | Azure Functions v2 model + TypeScript | Azure Functions v2 model + Python | Azure Functions (isolated worker) + C# | Azure Functions + Java |
-| **Azure SQL** | `mssql` | `pyodbc` | `Microsoft.Data.SqlClient` | `JdbcTemplate` + `mssql-jdbc` |
+| **Azure SQL** | `mssql` + `@types/mssql` (dev) | `pyodbc` | `Microsoft.Data.SqlClient` | `JdbcTemplate` + `mssql-jdbc` |
 | **AI** | `openai` | `openai` | `Azure.AI.OpenAI` | `com.openai:openai-java` |
 
 Frontend: Swift/SwiftUI (iOS 17+). Deploy backend with **azd** + **Bicep using Azure Verified Modules (AVM)**.
@@ -82,6 +82,8 @@ DataStore:
 ```
 
 Functions never import the database client directly — they get a `DataStore` from the factory. The factory should call `initialize()` once and cache the result so that HTTP function handlers don't pay the cost of `CREATE TABLE IF NOT EXISTS` on every request.
+
+> **Note:** The `update()` method on `TodoRepository` must also support updating `stepsGenerated` (boolean) — the `generateSteps` function sets this to `true` after inserting AI-generated steps. Include `stepsGenerated` as an optional field in your update input type alongside `title` and `status`.
 
 **Node.js entry point note:** Set `"main": "dist/functions/*.js"` in `package.json` — this must match where `tsc` emits the compiled function files. Since `tsconfig.json` uses `rootDir: "src"` and `outDir: "dist"`, source files under `src/functions/` compile to `dist/functions/` (the `src/` prefix is stripped). A common mistake is writing `"main": "dist/src/functions/*.js"` which causes Azure Functions Core Tools to find zero functions.
 
@@ -260,46 +262,16 @@ Response (200):
     {
       "id": "step-uuid-1",
       "title": "Choose talk topic and submit abstract",
-      "description": "Review the Conference conference themes and pick a topic you're passionate about. Write a compelling 200-word abstract that highlights what attendees will learn.",
+      "description": "Review the conference themes and pick a topic you're passionate about. Write a compelling 200-word abstract.",
       "order": 1,
-      "isCompleted": false,
-      "createdAt": "2026-04-05T10:05:00.000Z"
-    },
-    {
-      "id": "step-uuid-2",
-      "title": "Research and outline the presentation",
-      "description": "Spend 2-3 hours researching your topic. Create a detailed outline with 5-7 main sections. Include key talking points, code demos, and audience interaction moments.",
-      "order": 2,
-      "isCompleted": false,
-      "createdAt": "2026-04-05T10:05:00.000Z"
-    },
-    {
-      "id": "step-uuid-3",
-      "title": "Build the slide deck",
-      "description": "Create slides in your preferred tool. Aim for 30-40 slides for a 45-minute talk. Use visuals over bullet points. Include a title slide, agenda, and summary slide.",
-      "order": 3,
-      "isCompleted": false,
-      "createdAt": "2026-04-05T10:05:00.000Z"
-    },
-    {
-      "id": "step-uuid-4",
-      "title": "Prepare code demos",
-      "description": "Build 2-3 working code demos that illustrate your key points. Test them on conference WiFi speed. Record a backup video of each demo in case of technical issues.",
-      "order": 4,
-      "isCompleted": false,
-      "createdAt": "2026-04-05T10:05:00.000Z"
-    },
-    {
-      "id": "step-uuid-5",
-      "title": "Rehearse the full talk",
-      "description": "Practice the complete talk at least 3 times. Time yourself to stay within your slot. Practice transitions between slides and demos. Get feedback from a colleague.",
-      "order": 5,
       "isCompleted": false,
       "createdAt": "2026-04-05T10:05:00.000Z"
     }
   ]
 }
 ```
+
+The `steps` array contains 3-7 AI-generated steps. Each has `title`, `description`, `order`, and `isCompleted`.
 
 404 if todo not found. 503 if AI service is unavailable or returns unparseable output after retry.
 
@@ -552,7 +524,7 @@ Respond with ONLY a valid JSON array. No markdown, no code fences, no explanatio
 **User prompt:** The todo's `title` field, verbatim.
 
 **Model config:**
-- Model: `gpt-5-mini` (fallback: `gpt-4o`)
+- Model: `gpt-5-mini` (fallback: `gpt-4.1` — check regional availability with `az cognitiveservices model list --location <region>`)
 - Temperature: `0.7`
 - Max tokens: `1500`
 
@@ -584,28 +556,17 @@ Deploy the API to Azure Functions **Flex Consumption** plan — a serverless, sc
 
 ### Azure Skills Plugin
 
-The Azure Skills plugin for Copilot CLI provides both MCP tools and plugin skills that should be used throughout this phase. Install it with `/plugin install azure@azure-skills` if not already installed.
+The Azure Skills plugin for Copilot CLI provides MCP tools and plugin skills for infrastructure generation and deployment. Install it with `/plugin install azure@azure-skills` if not already installed.
 
-**MCP Tools — use these during infrastructure generation and deployment:**
-
-| Tool | When to Use |
+| Tool / Skill | When to Use |
 |------|-------------|
-| `azure_bicep_schema` | When generating Bicep — look up AVM module properties, required fields, and latest API versions for `Microsoft.Web/sites`, `Microsoft.Sql/servers`, `Microsoft.Storage/storageAccounts`, etc. |
-| `azure_deploy_iac_guidance` | Before writing Bicep — get best practices for azd project structure and Flex Consumption configuration |
-| `azure_deploy_plan` | Before running `azd up` — validate the deployment plan, check for missing dependencies or misconfigurations |
-| `azure_deploy_architecture` | After generating Bicep — create a Mermaid architecture diagram to verify the resource topology matches the spec |
-| `azure_deploy_app_logs` | After deployment — fetch Log Analytics logs to troubleshoot Function App startup errors, SQL connection failures, or AI service issues |
-| `azure_deploy_pipeline` | When setting up CI/CD — get GitHub Actions guidance for automated deployments |
-
-**Plugin Skills — use these for infrastructure generation:**
-
-| Skill | When to Use |
-|-------|-------------|
-| `azure-prepare` | Generate Bicep infrastructure, azure.yaml, and deployment configuration from the resource requirements |
-| `azure-validate` | Validate generated infrastructure before deployment |
-| `azure-deploy` | Execute the deployment with azd |
-
-These tools and skills help Copilot CLI produce correct Bicep on the first try and diagnose issues faster when something goes wrong. For example, running `azure_bicep_schema` for `Microsoft.Web/sites` would reveal that Flex Consumption requires `siteConfig.alwaysOn = false` and that `FUNCTIONS_WORKER_RUNTIME` must not be set in app settings.
+| `azure_bicep_schema` | Look up AVM module properties, required fields, and latest API versions |
+| `azure_deploy_iac_guidance` | Get best practices for azd project structure and Flex Consumption configuration |
+| `azure_deploy_plan` | Before `azd up` — validate deployment plan and check for misconfigurations |
+| `azure_deploy_app_logs` | Post-deployment — fetch Log Analytics logs to troubleshoot startup errors |
+| `azure-prepare` (skill) | Generate Bicep infrastructure, azure.yaml, and deployment configuration |
+| `azure-validate` (skill) | Validate generated infrastructure before deployment |
+| `azure-deploy` (skill) | Execute the deployment with azd |
 
 ### Azure Resources (AVM Modules)
 
@@ -635,6 +596,10 @@ services:
 infra:
   provider: bicep
   path: ./infra
+hooks:
+  postprovision:
+    - shell: sh
+      run: ./infra/hooks/postprovision.sh
 ```
 
 Single service only — no `web` service. The iOS app runs on device, not in Azure.
@@ -681,22 +646,21 @@ SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)
 SQL_DB=$(azd env get-value SQL_DATABASE_NAME)
 FUNC_APP=$(azd env get-value FUNCTION_APP_NAME)
 
-# Get an access token for Azure SQL
-ACCESS_TOKEN=$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)
+# Add firewall rule for local IP (required to run sqlcmd from developer machine)
+MY_IP=$(curl -s https://api.ipify.org)
+az sql server firewall-rule create --server "$SQL_SERVER" --resource-group $(azd env get-value RESOURCE_GROUP_NAME) \
+  --name "PostProvision-$MY_IP" --start-ip-address "$MY_IP" --end-ip-address "$MY_IP" 2>/dev/null
 
 # Create the managed identity user and grant roles (requires sqlcmd: brew install sqlcmd)
-sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" --authentication-method=ActiveDirectoryAccessToken --access-token "$ACCESS_TOKEN" \
+# Uses ActiveDirectoryAzCli auth (go-sqlcmd). For ODBC sqlcmd, use --access-token instead.
+sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" --authentication-method ActiveDirectoryAzCli \
   -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') BEGIN CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; END" \
   || echo "⚠️ Managed identity user creation skipped (may require manual setup)"
-```
 
-Wire it in azure.yaml:
-
-```yaml
-hooks:
-  postprovision:
-    - shell: sh
-      run: ./infra/hooks/postprovision.sh
+# Create tables if they don't exist (schema file created in next section)
+sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" --authentication-method ActiveDirectoryAzCli \
+  -i ./infra/hooks/postprovision-schema.sql \
+  || echo "⚠️ Schema creation skipped"
 ```
 
 ### Database Schema Initialization
@@ -705,12 +669,7 @@ Create `infra/hooks/postprovision-schema.sql` with the CREATE TABLE statements f
 
 ### Mobile Distribution
 
-The iOS app is NOT deployed via azd. For testing:
-
-1. **Against deployed API**: Replace the `Config.swift` contents with the deployed URL directly (remove the `#if DEBUG` conditional). Get the URL with `azd env get-value API_URL`. Run from Xcode on the Simulator with ⌘R.
-2. **Against local API**: Restore the `#if DEBUG` conditional in `Config.swift` with `http://localhost:7071` for the debug build. Run the Functions dev server locally first.
-3. **Physical device**: Use the deployed URL in `Config.swift` (no conditional), build with a development signing profile.
-4. **TestFlight** (optional): Archive and upload via Xcode → App Store Connect for beta testing with others.
+The iOS app is NOT deployed via azd. To test: replace the `Config.swift` `apiBaseURL` with the deployed URL (`azd env get-value API_URL`) and run from Xcode on the Simulator (⌘R). For physical devices, use the deployed URL with a development signing profile.
 
 ### Known Deployment Gotchas
 
@@ -718,17 +677,12 @@ The iOS app is NOT deployed via azd. For testing:
 2. **Azure SQL AD admin** — the deploying user must be set as Azure AD admin on the SQL server for the post-provision managed identity script to work. The Bicep template should set this.
 3. **Functions cold start** — first request after idle takes 5-10 seconds on consumption plan. The iOS app should show loading state during API calls.
 4. **AI model deployment lag** — model deployment may take 1-2 minutes during provisioning. The `generate-steps` endpoint returns 503 until it's ready.
-5. **Provider registration** — run these once per subscription before first deploy:
+5. **Provider registration** — run these once per subscription before first deploy: `az provider register --namespace Microsoft.Web`, `Microsoft.Sql`, `Microsoft.CognitiveServices`, `Microsoft.OperationalInsights`
 6. **SQL provisioning restricted** — some subscriptions have SQL provisioning disabled in certain regions (e.g., `eastus`, `eastus2`). Try `westus3`, `centralus`, or `southcentralus` if you get `ProvisioningDisabled`.
-7. **AI model region availability** — `gpt-5-mini` is not available in all regions. Check availability with `az cognitiveservices model list --location <region>`. Use `gpt-4o-mini` as a fallback.
+7. **AI model region availability** — `gpt-5-mini` is not available in all regions. Check availability with `az cognitiveservices model list --location <region>`. Use `gpt-4.1` as a fallback — it is widely available and works well for task decomposition.
 8. **Storage 403 on deploy** — if `azd deploy` fails with a 403 storage error, ensure the Storage Account `networkAcls.defaultAction` is `Allow` and the deploying user has `Storage Blob Data Contributor` role.
-
-```bash
-az provider register --namespace Microsoft.Web
-az provider register --namespace Microsoft.Sql
-az provider register --namespace Microsoft.CognitiveServices
-az provider register --namespace Microsoft.OperationalInsights
-```
+9. **Blob container URI malformed on deploy** — `azd deploy` may fail with `InaccessibleStorageException: Blob Container Uri is malformed` if the Function App's `functionAppConfig.deployment.storage.value` only contains the container name instead of the full URL. This can happen due to eventual consistency after provisioning. Wait 30 seconds and retry `azd deploy`. If it persists, verify the value via `az resource show` and patch it with the full `https://<account>.blob.core.windows.net/deploymentpackage` URI.
+10. **SQL firewall blocks post-provision script** — the Bicep template only allows Azure services (`0.0.0.0`). The post-provision script runs from the developer's machine and needs a firewall rule for the developer's IP. The post-provision script should auto-add one (see the script above), or add it manually: `az sql server firewall-rule create --server <name> --resource-group <rg> --name MyIP --start-ip-address <my-ip> --end-ip-address <my-ip>`.
 
 ---
 
