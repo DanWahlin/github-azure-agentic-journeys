@@ -1,4 +1,4 @@
-# Agentic Journey 04: AIMarket
+# AIMarket
 
 > ✨ **Build a full-stack marketplace from a spec document, with AI features from search to checkout.**
 
@@ -136,6 +136,8 @@ copilot
 ```
 
 Once inside the interactive session, add the marketplace (first time only):
+
+> **Note:** Lines starting with `>` in the code blocks below show what to type in the Copilot CLI session. Don't include the `>` character itself.
 
 ```
 > /plugin marketplace add microsoft/azure-skills
@@ -366,16 +368,27 @@ gh repo create aimarket --private --source=. --push
 
 This phase teaches two things: how to integrate Azure AI services, and how to delegate work to the Copilot cloud agent instead of doing everything through the CLI.
 
-#### Step 1: Set up Azure AI resources
+#### Step 1: Set up Azure AI services
+
+Phase 3 requires Azure AI Search and Azure OpenAI services. Ask Copilot CLI to help you create them, or if you already have them, set the environment variables:
+
+```bash
+# Azure AI Search (create a Basic tier instance in the Azure Portal)
+export AZURE_SEARCH_ENDPOINT="https://<your-search-service>.search.windows.net"
+export AZURE_SEARCH_KEY="<your-admin-key>"
+export AZURE_SEARCH_INDEX="aimarket-products"
+
+# Azure OpenAI (from your Microsoft Foundry deployment)
+export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com"
+export AZURE_OPENAI_KEY="<your-api-key>"
+export AZURE_OPENAI_DEPLOYMENT="gpt-5-mini"
+```
+
+You can find these values in the Azure Portal under each resource's "Keys and Endpoint" section. If you don't have these services yet, ask Copilot CLI:
 
 ```
-> Generate Azure CLI commands to create:
-  1. An Azure AI Search service (Basic tier — required for semantic ranking)
-  2. A Microsoft Foundry (AIServices) resource with a gpt-5-mini deployment
-  Use resource group "aimarket-rg" in westus (search) and eastus2 (AI).
+> I need an Azure AI Search service (Basic tier) and an Azure OpenAI deployment with gpt-5-mini for the AIMarket Phase 3 features. Help me create them.
 ```
-
-Run the commands, then set environment variables for the connection strings.
 
 #### Step 2: Add semantic product search (interactive CLI)
 
@@ -409,6 +422,8 @@ curl -X POST http://localhost:3000/api/products/search \
   -H "Content-Type: application/json" \
   -d '{"query": "gift for a kid"}'
 ```
+
+> **No results?** If search returns no results, make sure products have been pushed to the search index. Restart the API (which indexes on startup) or call `POST /api/products/reindex`.
 
 **💡 What you're learning:** Semantic search is an API call, not a machine learning project. Azure AI Search handles embeddings and ranking. You push documents to an index, query with natural language, and merge the results with your database.
 
@@ -546,13 +561,19 @@ Deployment takes ~3 minutes. If it fails, ask Copilot CLI to help diagnose:
 `azd deploy` builds the frontend Docker image but doesn't pass `VITE_API_URL` as a build arg. The React app defaults to `/api` (the Vite proxy path), which doesn't work in production since the frontend and API are separate Container Apps. You need to rebuild the frontend image with the actual API URL.
 
 ```bash
+# Get the deployed API URL from azd environment
 API_URL=$(azd env get-value API_URL)
+# Get the ACR login server (e.g., myregistry.azurecr.io)
 ACR=$(azd env get-value AZURE_CONTAINER_REGISTRY_ENDPOINT)
+# Extract just the registry name (strip .azurecr.io)
 ACR_NAME=${ACR%%.*}
 
+# Log in to the container registry
 az acr login --name $ACR_NAME
 cd client
+# Rebuild the frontend with the real API URL baked in
 docker build --build-arg VITE_API_URL="$API_URL/api" -t "$ACR/aimarket-web:v1" .
+# Push the new image to ACR
 docker push "$ACR/aimarket-web:v1"
 ```
 
@@ -701,6 +722,17 @@ az provider register --namespace Microsoft.OperationalInsights
 > Check if the AIMarket API can connect to Cosmos DB. 
   Look at the container logs for connection errors.
 ```
+
+### Docker Build Fails
+
+**Build context too large:**
+Check that `client/.dockerignore` and `api/.dockerignore` exclude `node_modules/`, `.git/`, and build output directories.
+
+**Wrong platform (Apple Silicon):**
+Add `--platform linux/amd64` to your `docker build` commands. Azure Container Apps runs Linux AMD64 containers.
+
+**Frontend can't find the API (`VITE_API_URL` not set):**
+The `ARG VITE_API_URL` line must come BEFORE the `npm run build` step in `client/Dockerfile`. If it's after, the build arg is silently ignored.
 
 ---
 
