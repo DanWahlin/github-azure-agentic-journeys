@@ -18,7 +18,7 @@
 
 > ⏱️ **Estimated Time**: ~30 minutes
 >
-> 💰 **Estimated Cost**: ~$175-185/month (AKS nodes are the main cost, see [Cost Breakdown](#cost-breakdown)). Clean up with `azd down` when done!**
+> 💰 **Estimated Cost**: ~$200-215/month (AKS nodes are the main cost, see [Cost Breakdown](#cost-breakdown)). Clean up with `azd down` when done!**
 >
 > 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
 >
@@ -316,10 +316,10 @@ Health endpoint: `GET /health` → `{"status": "OK"}` (HTTP 200)
 
 | Resource | SKU | Monthly Cost |
 |----------|-----|--------------|
-| AKS Cluster | 2x Standard_D2s_v3 | ~$140-145 |
+| AKS Cluster | 2x Standard_D2s_v3 | ~$170 |
 | PostgreSQL Flexible Server | B_Standard_B1ms | ~$15 |
 | Load Balancer | Standard | ~$20 |
-| **Total** | | **~$175-185/month** |
+| **Total** | | **~$200-215/month** |
 
 ⚠️ **Superset on AKS is significantly more expensive** than the Container Apps deployments (n8n ~$25-35, Grafana ~$10-20). Consider Container Apps if AKS features aren't required. Each Standard_D2s_v3 node costs ~$70/month ($0.096/hr × 730 hrs).
 
@@ -422,7 +422,7 @@ Teardown takes 5-10 minutes (AKS + PostgreSQL deletion is slow).
 ## Assignment
 
 1. Verify that Superset is using PostgreSQL, not SQLite. Ask the agent: *"Is my Superset deployment using PostgreSQL?"*
-2. Compare the three deployments: Grafana (~$10-20, 2 min), n8n (~$25-35, 7 min), Superset (~$175-185, 15-20 min). When would you choose each?
+2. Compare the three deployments: Grafana (~$10-20, 2 min), n8n (~$25-35, 7 min), Superset (~$200-215, 15-20 min). When would you choose each?
 3. Clean up with `azd down --force --purge`
 
 ---
