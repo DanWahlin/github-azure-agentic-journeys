@@ -1,4 +1,4 @@
-# Agentic Journey 03: Apache Superset on Azure Kubernetes Service
+# Apache Superset on Azure Kubernetes Service
 
 > ✨ **When Container Apps isn't enough, you need Kubernetes. The agent knows when and why.**
 
@@ -6,15 +6,15 @@
   <img src="./images/superset-data-exploration.webp" alt="Apache Superset: BI on Azure" width="800" />
 </p>
 
-Some apps are too complex for Container Apps. [Apache Superset](https://superset.apache.org/) needs init containers, shared volumes, and custom config mounting, all patterns that require Kubernetes. The agent knows this and generates AKS infrastructure instead. You'll deploy a full BI platform and learn when to reach for Kubernetes vs. Container Apps.
+[Apache Superset](https://superset.apache.org/) needs init containers (containers that run before the main app starts, used for setup tasks like database migrations), shared volumes, and custom config mounting, all patterns that are natural in Kubernetes. The agent knows this and generates AKS infrastructure. You'll deploy a full BI platform and learn when Kubernetes is the right choice.
 
 ## Learning Objectives
 
 - Understand when AKS is required instead of Container Apps
-- Deploy Superset with init containers, shared volumes, and ConfigMap mounting
-- Install psycopg2-binary into a shared emptyDir volume for PostgreSQL connectivity
+- Deploy Superset with init containers, shared volumes, and ConfigMap (a Kubernetes object that stores configuration files) mounting
+- Install psycopg2-binary into a shared emptyDir (a temporary shared volume that both containers can access) for PostgreSQL connectivity
 - Use `azure_deploy_plan` with `target=AKS` for Kubernetes deployment planning
-- Debug AKS-specific issues: init container failures, CrashLoopBackOff, SQLite fallback
+- Debug AKS-specific issues: init container failures, CrashLoopBackOff (a Kubernetes state where a container keeps crashing and restarting), SQLite fallback
 
 > ⏱️ **Estimated Time**: ~30 minutes
 >
@@ -82,7 +82,7 @@ Superset requires:
 
 These patterns are natural in Kubernetes but complex or unavailable in Container Apps.
 
-> **Where does NGINX come from?** The post-provision hook installs the NGINX Ingress Controller into the cluster using Helm. It provides HTTP routing and a public Load Balancer IP for external access.
+> **Where does NGINX come from?** The post-provision hook installs the NGINX Ingress Controller into the cluster using Helm (a package manager for Kubernetes). It provides HTTP routing and a public Load Balancer IP for external access.
 
 ---
 
@@ -107,6 +107,8 @@ copilot
 ```
 
 Once inside the interactive session, add the marketplace (first time only):
+
+> **Note:** Lines starting with `>` in the code blocks below show what to type in the Copilot CLI session. Don't include the `>` character itself.
 
 ```
 > /plugin marketplace add microsoft/azure-skills
@@ -145,7 +147,7 @@ The agent handles the entire deployment:
 
 1. Loads the right skills (`superset-azure`, `azure-aks-deployment`, `azure-bicep-generation`, `azd-deployment`)
 2. Recommends AKS over Container Apps because it knows Superset needs init containers, shared volumes, and ConfigMap mounting
-3. Generates Bicep + Kubernetes infrastructure in `infra-superset/`
+3. Generates Bicep (Azure's infrastructure-as-code language) + Kubernetes infrastructure in `infra-superset/`
 4. Updates `azure.yaml`, registers Azure providers, sets environment variables
 5. Runs `azd up` (~15-20 minutes)
 6. Runs post-provision hooks (`kubectl apply` for Kubernetes manifests, waits for external IP)
@@ -168,16 +170,23 @@ Ask the agent to confirm everything is working:
 You can also verify manually (open a new terminal or exit Copilot CLI with `Ctrl+C` first):
 
 ```bash
-# Check pod status (expect 1/1 Running)
+# Check pod status
 kubectl get pods -n superset
+# Expected output:
+# NAME                        READY   STATUS    RESTARTS   AGE
+# superset-xxxxxxxxx-xxxxx   1/1     Running   0          5m
 
 # Verify PostgreSQL is being used (not SQLite)
 POD=$(kubectl get pods -n superset -o jsonpath='{.items[0].metadata.name}')
 kubectl logs -n superset $POD -c superset-init | grep -i "PostgresqlImpl"
+# Expected output:
+# INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
 
 # Get the external URL
 SUPERSET_URL=$(azd env get-value SUPERSET_URL)
-curl -I "$SUPERSET_URL/health"  # Expect HTTP 200
+curl -I "$SUPERSET_URL/health"
+# Expected output:
+# HTTP/1.1 200 OK
 ```
 
 If the pod is stuck, just ask. You're still in the same session:
@@ -186,9 +195,23 @@ If the pod is stuck, just ask. You're still in the same session:
 > My Superset pod is stuck in Init:0/1
 ```
 
+### Step 4: Open Superset
+
+Get your Superset URL and open it in the browser:
+
+```bash
+SUPERSET_URL=$(azd env get-value SUPERSET_URL)
+echo "Open in browser: $SUPERSET_URL"
+```
+
+Log in with the username `admin` and the password you set during deployment (the `SUPERSET_ADMIN_PASSWORD` value). You should see the Superset home page with options to create charts and dashboards.
+
 ---
 
 ## Configuration Reference
+
+<details>
+<summary>Configuration Reference (handled by the agent automatically)</summary>
 
 ### Environment Variables
 
@@ -285,6 +308,8 @@ Superset takes **60-90+ seconds** to start due to database migrations and Flask 
 
 Health endpoint: `GET /health` → `{"status": "OK"}` (HTTP 200)
 
+</details>
+
 ---
 
 ## Cost Breakdown
@@ -301,6 +326,13 @@ Health endpoint: `GET /health` → `{"status": "OK"}` (HTTP 200)
 ---
 
 ## Troubleshooting
+
+### Deployment Failed (`azd up` errors)
+
+**Common causes:**
+1. **Provider not registered**: Run `az provider register --namespace Microsoft.ContainerService` and retry
+2. **Subscription quota exceeded**: Check your VM quota with `az vm list-usage --location <region>`. AKS needs at least 4 vCPUs.
+3. **Region capacity**: Try a different region if you see capacity errors
 
 ### ModuleNotFoundError: No module named 'psycopg2'
 
@@ -366,27 +398,6 @@ Ask the agent:
 **Symptom:** `SUPERSET_SECRET_KEY must be a non-empty string`
 
 **Fix:** Ensure `SUPERSET_SECRET_KEY` is set in Kubernetes secrets (32+ characters).
-
----
-
-## Verification Checklist
-
-Ask the agent to run a full verification:
-
-```
-> Verify my Superset deployment: check that the pod is running, confirm it's using PostgreSQL not SQLite, and test the health endpoint.
-```
-
-Or verify manually (open a new terminal or exit Copilot CLI with `Ctrl+C` first):
-
-```bash
-# Pod is running (expect 1/1 Running)
-kubectl get pods -n superset
-
-# Health endpoint (expect HTTP 200)
-SUPERSET_URL=$(azd env get-value SUPERSET_URL)
-curl -I "$SUPERSET_URL/health"
-```
 
 ---
 

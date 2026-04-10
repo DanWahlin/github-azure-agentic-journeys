@@ -1,4 +1,4 @@
-# Agentic Journey 01: n8n on Azure Container Apps
+# n8n on Azure Container Apps
 
 > ✨ **Deploy a self-hosted workflow automation platform to Azure by having a conversation with an AI agent.**
 
@@ -6,7 +6,7 @@
   <img src="./images/n8n-workflow-automation.webp" alt="n8n: Workflow Automation on Azure" width="800" />
 </p>
 
-Want workflow automation on Azure but don't want to write Bicep? Tell an AI agent what you want, and it generates the infrastructure, configures health probes, and deploys it. You'll have [n8n](https://n8n.io) (think Zapier, but self-hosted) running on Container Apps with PostgreSQL in about 20 minutes.
+Want workflow automation on Azure but don't want to write Bicep (Azure's infrastructure-as-code language)? Tell an AI agent what you want, and it generates the infrastructure, configures health probes, and deploys it. You'll have [n8n](https://n8n.io)running on Container Apps with PostgreSQL in about 20 minutes.
 
 ## Learning Objectives
 
@@ -14,7 +14,7 @@ Want workflow automation on Azure but don't want to write Bicep? Tell an AI agen
 - Understand how the agent loads app-specific and generic skills to build Bicep templates
 - Deploy n8n to Azure Container Apps with PostgreSQL using `azd up`
 - Configure health probes for slow-starting containers
-- Troubleshoot common deployment issues using Azure MCP tools and container logs
+- Troubleshoot common deployment issues using Azure MCP (Model Context Protocol) tools and container logs
 
 > ⏱️ **Estimated Time**: ~20 minutes
 >
@@ -79,6 +79,8 @@ copilot
 
 Once inside the interactive session, add the marketplace (first time only):
 
+> **Note:** Lines starting with `>` in the code blocks below show what to type in the Copilot CLI session. Don't include the `>` character itself.
+
 ```
 > /plugin marketplace add microsoft/azure-skills
 ```
@@ -112,6 +114,8 @@ Tell the agent what you want in a single prompt:
 > Deploy n8n to Azure using Bicep and azd. Set the location to westus, generate secure passwords for all credentials, and resolve any issues that come up.
 ```
 
+The deployment takes 5+ minutes. You'll see the agent generating Bicep files, registering Azure providers, and running `azd up`. It may prompt you to confirm your Azure subscription.
+
 The agent handles the entire deployment:
 
 1. Loads the right skills (`n8n-azure`, `azure-container-apps`, `azure-bicep-generation`, `azd-deployment`)
@@ -143,6 +147,10 @@ You can also verify manually (open a new terminal or exit Copilot CLI with `Ctrl
 ```bash
 N8N_URL=$(azd env get-value N8N_URL)
 curl -s -o /dev/null -w "%{http_code}" "$N8N_URL"  # Expect 200
+# Expected: 200
+
+curl -s "$N8N_URL" | grep -o "<title>[^<]*</title>"
+# Expected: <title>n8n.io - Workflow Automation</title>
 ```
 
 If something goes wrong, just ask. You're still in the same session with full context:
@@ -150,6 +158,8 @@ If something goes wrong, just ask. You're still in the same session with full co
 ```
 > The container is in CrashLoopBackOff, what's happening?
 ```
+
+For a more detailed checklist, see the troubleshooting section.
 
 ---
 
@@ -283,28 +293,6 @@ param n8nEncryptionKey string = newGuid()
 
 ---
 
-## Verification Checklist
-
-Ask the agent to run a full verification:
-
-```
-> Verify my n8n deployment: check the health endpoint, confirm WEBHOOK_URL is set, and check container logs for errors.
-```
-
-Or verify manually (open a new terminal or exit Copilot CLI with `Ctrl+C` first):
-
-```bash
-N8N_URL=$(azd env get-value N8N_URL)
-
-# Test HTTP response (expect 200)
-curl -s -o /dev/null -w "%{http_code}" "$N8N_URL"
-
-# Verify n8n page loads
-curl -s "$N8N_URL" | grep -o "<title>[^<]*</title>"
-```
-
----
-
 ## Cleanup
 
 ```bash
@@ -327,7 +315,8 @@ Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently delet
 ## Assignment
 
 1. Ask the agent: *"How would I add a custom domain to my n8n deployment?"*
-2. Clean up with `azd down --force --purge`
+2. Create a simple workflow in n8n: add an HTTP Request node that calls `https://api.github.com/zen`, connect it to a Set node, and run it. This confirms your deployed n8n instance can make outbound API calls.
+3. Clean up with `azd down --force --purge`
 
 ---
 

@@ -1,4 +1,4 @@
-# Agentic Journey 05: SmartTodo
+# SmartTodo - AI-Powered Task App
 
 > ✨ **Type a fuzzy goal, get a step-by-step action plan, powered by Azure Functions, Azure SQL, and Microsoft Foundry.**
 
@@ -27,6 +27,8 @@ You'll build SmartTodo: an iPhone app where you type a todo like "Prepare Confer
 > - Your language runtime: [Node.js LTS](https://nodejs.org/), [Python 3.10+](https://python.org/), [.NET 8+](https://dotnet.microsoft.com/), or [Java 17+](https://learn.microsoft.com/java/openjdk/download)
 > - [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local): local Functions development
 > - [Xcode](https://developer.apple.com/xcode/): iOS simulator installed (macOS only)
+
+> ⚠️ **macOS required for Phase 2:** The SwiftUI iOS app requires Xcode, which only runs on macOS. If you're on Windows or Linux, you can complete Phase 1 (API) and Phase 3 (Deploy) and test the API with curl instead of the iOS app.
 
 ---
 
@@ -121,6 +123,12 @@ SmartTodo is built in three phases. Phase 1 builds the API with Azure SQL, Phase
   <img src="./images/phase1-api.webp" alt="Phase 1: Building the API" width="800" />
 </p>
 
+> **📋 Local database setup:** This API uses Azure SQL. For local development, you have two options:
+> 1. **Use a local SQL Server** (recommended): Run `docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=YourStrong!Pass123" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2022-latest` and set `AZURE_SQL_SERVER=localhost`, `AZURE_SQL_USER=sa`, `AZURE_SQL_PASSWORD=YourStrong!Pass123` in `local.settings.json`.
+> 2. **Use Azure SQL directly**: Create a free-tier Azure SQL database in the portal and use its connection details in `local.settings.json`.
+>
+> Phase 3 creates the production Azure SQL instance automatically, so if you don't want to worry about it locally, you can skip local setup.
+
 You'll build the API in stages, not all at once. Each step teaches a different aspect of working with Copilot CLI.
 
 #### Step 1: Set up the project
@@ -140,6 +148,8 @@ copilot
 
 Once inside the interactive session, add the marketplace (first time only):
 
+> **Note:** Lines starting with `>` in the code blocks below show what to type in the Copilot CLI session. Don't include the `>` character itself.
+
 ```
 > /plugin marketplace add microsoft/azure-skills
 ```
@@ -152,6 +162,27 @@ Then install the plugin:
 
 > **Already installed?** The plugin persists across sessions. If you've done a previous journey, skip the install commands.
 > For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
+
+Your `local.settings.json` should look like this (fill in your values):
+
+```json
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AZURE_SQL_SERVER": "localhost",
+    "AZURE_SQL_DATABASE": "SmartTodo",
+    "AZURE_SQL_USER": "sa",
+    "AZURE_SQL_PASSWORD": "YourStrong!Pass123",
+    "AZURE_AI_ENDPOINT": "",
+    "AZURE_AI_DEPLOYMENT": "gpt-5-mini",
+    "AZURE_AI_KEY": ""
+  }
+}
+```
+
+Leave the AI values empty for now. You'll fill them in during Step 4 when you add AI-powered step generation.
 
 #### Step 2: Generate the data models and data layer
 
@@ -269,28 +300,35 @@ cd src/api
 ```bash
 # Does the server start and respond?
 curl http://localhost:7071/api/todos?userId=user-1
+# Expected: JSON array of seed todos, e.g. [{"id":"todo-1","title":"...","status":"not_started",...}, ...]
 
 # Create a new todo
 curl -X POST http://localhost:7071/api/todos \
   -H "Content-Type: application/json" \
   -d '{"title": "Prepare Conference talk", "userId": "user-1"}'
+# Expected: 201 response with the created todo JSON, e.g. {"id":"<new-uuid>","title":"Prepare Conference talk",...}
 
 # Update a todo's status
 curl -X PATCH http://localhost:7071/api/todos/todo-1 \
   -H "Content-Type: application/json" \
   -d '{"status": "in_progress"}'
+# Expected: 200 response with updated todo, status should be "in_progress"
 
 # Generate AI steps (requires AZURE_AI_ENDPOINT and AZURE_AI_KEY in local.settings.json)
 curl -X POST http://localhost:7071/api/todos/todo-1/generate-steps
+# Expected: 200 response with {"steps": [...]} containing 3-7 action steps
 
 # Toggle a step's completion
 curl -X PATCH http://localhost:7071/api/todos/todo-2/steps/step-2-3 \
   -H "Content-Type: application/json" \
   -d '{"isCompleted": true}'
+# Expected: 200 response with the step JSON, isCompleted should be true
 
 # Delete a todo (should cascade-delete steps)
 curl -X DELETE http://localhost:7071/api/todos/todo-3
+# Expected: 204 No Content (empty response body)
 curl http://localhost:7071/api/todos?userId=user-1  # todo-3 should be gone
+# Expected: JSON array without todo-3
 ```
 
 If any test fails, describe the failure to Copilot CLI and let it fix it:
@@ -309,6 +347,8 @@ If any test fails, describe the failure to Copilot CLI and let it fix it:
 <p align="center">
   <img src="./images/phase2-ios.webp" alt="Phase 2: SwiftUI App" width="800" />
 </p>
+
+> **New to Swift?** SwiftUI uses `Codable` for JSON serialization (similar to TypeScript interfaces), `async/await` for network calls (same concept as JavaScript/Python), and `#if DEBUG` for compile-time feature flags. The `.xcodeproj` file is Xcode's project format. Copilot CLI generates the Swift source files, but you'll open the project in Xcode to build and run it.
 
 #### Step 1: Generate the SwiftUI project
 
@@ -440,6 +480,10 @@ Deployment takes ~5 minutes. If it fails, ask Copilot CLI to help diagnose:
 ##### Step 3: Set up Azure SQL managed identity access
 
 The Bicep template creates the identity, but Azure SQL requires a SQL command to grant access. Install `sqlcmd` if needed (`brew install sqlcmd` on macOS), then run:
+
+This command creates a database user for the Function App's managed identity and grants it read/write permissions. Bicep can create Azure-level role assignments, but SQL Server has its own user system that requires a separate SQL command. You need to be an Azure AD admin on the SQL server for this to work. The Bicep template sets the deploying user as the Azure AD admin, so this should work if you ran `azd up` from the same account.
+
+> ⚠️ **You must be the Azure AD admin on the SQL server.** If this command fails with a permissions error, check that your Azure account is set as the server's Azure AD admin in the Azure Portal under SQL Server > Microsoft Entra admin.
 
 ```bash
 SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)

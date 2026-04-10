@@ -1,4 +1,4 @@
-# Agentic Journey 02: Grafana on Azure Container Apps
+# Grafana on Azure Container Apps
 
 > ✨ **No external database, no complex probes, just Grafana on Container Apps.**
 
@@ -50,6 +50,8 @@ graph TB
 - **SQLite** (default): Embedded database, no external dependency
 - Optional: **Azure Database for PostgreSQL Flexible Server** for production persistence
 
+> ⚠️ **Storage note:** Grafana uses SQLite by default, which lives inside the container. Dashboards and data sources are lost when the container restarts. See [Storage Considerations](#storage-sqlite-vs-postgresql) for production options.
+
 **Infrastructure directory:** [`infra-grafana/`](../../infra-grafana/) (generated at repo root during deployment)
 
 ---
@@ -75,6 +77,8 @@ copilot
 ```
 
 Once inside the interactive session, add the marketplace (first time only):
+
+> **Note:** Lines starting with `>` in the code blocks below show what to type in the Copilot CLI session. Don't include the `>` character itself.
 
 ```
 > /plugin marketplace add microsoft/azure-skills
@@ -112,7 +116,10 @@ Tell the agent what you want in a single prompt:
 The agent handles the entire deployment:
 
 1. Loads the right skills (`grafana-azure`, `azure-container-apps`, `azure-bicep-generation`, `azd-deployment`)
-2. Generates a lean Bicep structure in `infra-grafana/` with no PostgreSQL module needed (SQLite is the default)
+
+The agent loads the `grafana-azure` skill, which provides Grafana-specific configuration for health probes, ports, and environment variables.
+
+2. Generates a lean Bicep (Azure's infrastructure-as-code language) structure in `infra-grafana/` with no PostgreSQL module needed (SQLite is the default)
 3. Updates `azure.yaml`, registers Azure providers, sets environment variables
 4. Runs `azd up` (~2 minutes)
 
@@ -139,6 +146,8 @@ GRAFANA_URL=$(azd env get-value GRAFANA_URL)
 curl -s "$GRAFANA_URL/api/health"
 # Expected: {"commit":"...","database":"ok","version":"10.x.x"}
 ```
+
+Open `$GRAFANA_URL` in your browser. Log in with the admin username and the password you set during deployment. You should see the Grafana home page with a welcome panel.
 
 If something goes wrong, just ask. You're still in the same session:
 
@@ -285,25 +294,6 @@ resources: {
   cpu: json('0.5')
   memory: '2Gi'  // Increase from 1Gi
 }
-```
-
----
-
-## Verification Checklist
-
-Ask the agent to run a full verification:
-
-```
-> Verify my Grafana deployment: check the health endpoint, test admin login, and confirm the container is running.
-```
-
-Or verify manually (open a new terminal or exit Copilot CLI with `Ctrl+C` first):
-
-```bash
-GRAFANA_URL=$(azd env get-value GRAFANA_URL)
-
-# Health check (expect HTTP 200 with JSON)
-curl "$GRAFANA_URL/api/health"
 ```
 
 ---
