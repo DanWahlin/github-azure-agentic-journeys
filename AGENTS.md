@@ -52,6 +52,7 @@ Skills are loaded automatically based on context:
 | `data-access-abstraction` | Repository pattern for swappable data layers (SQLite, Cosmos DB, PostgreSQL) |
 | `journey-runner` | Run a journey end-to-end: extract prompts, build, deploy, verify |
 | `journey-template` | Create a new agentic journey from an app idea (full-stack or OSS deployment) |
+| `journey-test-harness` | Run all journeys as a test suite: build, deploy, screenshot, teardown, report |
 
 ### Workflow
 
@@ -250,6 +251,10 @@ journeys/
         └── SKILL.md
     └── journey-runner/          # Run journeys end-to-end: prompts → build → deploy → verify
         └── SKILL.md
+    └── journey-test-harness/   # Test suite: run all journeys, deploy, screenshot, teardown
+        └── SKILL.md
+scripts/
+└── setup-journey-tests.sh       # Configure GitHub secrets/variables for CI
 AGENTS.md                         # This file
 README.md
 ```
