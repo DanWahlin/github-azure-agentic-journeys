@@ -3,7 +3,7 @@ name: journey-runner
 description: |
   Run an agentic journey end-to-end: extract prompts from a journey README, execute them in sequence, build the app, deploy to Azure, and verify. Use for full-stack and OSS journeys.
   USE FOR: test a journey, run a journey end-to-end, validate journey prompts, deploy a journey to Azure, walk through a journey, execute journey steps, CI journey test.
-  DO NOT USE FOR: creating new journeys (use journey-template), reviewing journey content (use content-reviewer), modifying journey code (use coder). Say "run journey-runner for [journey name]" to start.
+  DO NOT USE FOR: creating new journeys (use journey-template), reviewing journey content (use content-reviewer), modifying journey code (use coder). Say "run journey runner" to start.
 ---
 
 # Journey Runner Skill
