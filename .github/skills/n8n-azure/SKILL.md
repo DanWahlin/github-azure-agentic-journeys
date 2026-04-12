@@ -27,6 +27,61 @@ azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 ```
 Without this, azd and Azure MCP tools will fail silently or produce incomplete deployments.
 
+## Critical: PostgreSQL Network Access
+
+The AVM PostgreSQL Flexible Server module **defaults `publicNetworkAccess` to disabled**. When public access is off, firewall rules are silently ignored and Container Apps cannot connect.
+
+**Always set this explicitly in Bicep:**
+```bicep
+// For AVM module br/public:avm/res/db-for-postgre-sql/flexible-server
+params: {
+  // ... other params
+  publicNetworkAccess: 'Enabled'
+  authConfig: {
+    passwordAuth: 'Enabled'        // AVM defaults to Disabled (Entra-only)!
+    activeDirectoryAuth: 'Disabled'
+  }
+  firewallRules: [
+    {
+      name: 'AllowAllAzureServices'
+      startIpAddress: '0.0.0.0'
+      endIpAddress: '0.0.0.0'
+    }
+  ]
+}
+```
+
+Without `publicNetworkAccess: 'Enabled'`, firewall rules are silently ignored.
+Without `passwordAuth: 'Enabled'`, n8n will fail with "authentication failed" because only Entra ID auth is allowed.
+
+## Critical: Secrets and Redeploy Safety
+
+**Do NOT rely on `newGuid()` for PostgreSQL passwords.** `newGuid()` regenerates a new value on every deployment, but PostgreSQL keeps the original password — causing authentication failures on redeploy.
+
+**Solution:** Pin passwords to azd environment variables so they persist across deployments:
+
+```bash
+# Generate once and store in azd env
+azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
+azd env set N8N_ENCRYPTION_KEY "$(openssl rand -hex 16)"
+azd env set N8N_AUTH_PASSWORD "$(openssl rand -hex 16)"
+```
+
+Then reference them in `main.parameters.json`:
+```json
+{
+  "postgresPassword": { "value": "${POSTGRES_PASSWORD}" },
+  "n8nEncryptionKey": { "value": "${N8N_ENCRYPTION_KEY}" },
+  "n8nAuthPassword": { "value": "${N8N_AUTH_PASSWORD}" }
+}
+```
+
+This ensures the same password is used across deploys. Keep `newGuid()` only as a fallback default:
+```bicep
+@secure()
+param postgresPassword string = newGuid()  // Overridden by main.parameters.json
+```
+
 ## Critical: PostgreSQL SKU Format
 
 Azure PostgreSQL Flexible Server requires BOTH `sku.name` and `sku.tier`:
@@ -54,18 +109,19 @@ az provider register --namespace Microsoft.OperationalInsights
 # 2. Create environment
 azd env new my-n8n-env
 
-# 3. Set required variables
+# 3. Set required variables (passwords pinned — safe for redeploy)
 azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 azd env set AZURE_LOCATION "westus"
-azd env set POSTGRES_PASSWORD "$(openssl rand -base64 16)"
-azd env set N8N_BASIC_AUTH_PASSWORD "$(openssl rand -base64 16)"
+azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
+azd env set N8N_ENCRYPTION_KEY "$(openssl rand -hex 16)"
+azd env set N8N_AUTH_PASSWORD "$(openssl rand -hex 16)"
 
-# 4. Deploy (~7 minutes)
+# 4. Deploy (~7-10 minutes)
 azd up
 
 # 5. Access n8n
 azd env get-value N8N_URL
-# Login: admin / <your N8N_BASIC_AUTH_PASSWORD>
+# Login: admin / $(azd env get-value N8N_AUTH_PASSWORD)
 ```
 
 **Deployment time breakdown:**
@@ -152,6 +208,10 @@ azd down --force --purge
 2. **SSL** — requires `SSL_REJECT_UNAUTHORIZED=false` for Azure PostgreSQL
 3. **WEBHOOK_URL** — set post-deployment via hook (circular dependency with FQDN)
 4. **Port 5678** — non-standard port for health checks and ingress
+5. **PostgreSQL publicNetworkAccess** — AVM module defaults to disabled; must explicitly enable or Container Apps can't connect
+6. **Password pinning** — use azd env variables for passwords, not `newGuid()` alone; `newGuid()` regenerates on redeploy causing auth failures
+7. **HA not supported on Burstable** — must set `highAvailability: 'Disabled'` when using `Burstable` tier
+8. **AVM probe failureThreshold cap** — AVM container-app module caps `failureThreshold` at 10; use `periodSeconds: 30` with `failureThreshold: 10` for 5 min startup window
 
 ## Azure MCP Tools
 

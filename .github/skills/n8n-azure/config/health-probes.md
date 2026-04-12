@@ -111,6 +111,7 @@ startup_probe {
 - **`failureThreshold: 30`** × 10s interval = **5 minutes max**
 - Until startup probe succeeds, liveness/readiness are disabled
 - Essential for first-time deployments with database migrations
+- **⚠️ AVM Note:** The AVM container-app module (`br/public:avm/res/app/container-app`) caps `failureThreshold` at 10. To achieve the same 5-minute window, use `periodSeconds: 30` with `failureThreshold: 10` (30s × 10 = 300s).
 
 ## Why These Specific Values?
 

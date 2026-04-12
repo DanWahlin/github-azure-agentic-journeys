@@ -212,3 +212,102 @@ az containerapp update --name $APP_NAME --resource-group $RG \
 5. **Register providers first** - prevents 409 conflicts
 6. **Post-provision hooks automate WEBHOOK_URL** - eliminates manual steps
 7. **15-20 minute deployment is normal** - don't panic
+8. **Enable publicNetworkAccess explicitly** - AVM defaults to disabled
+9. **Pin passwords in azd env** - `newGuid()` regenerates on redeploy, causing auth failures
+10. **Burstable SKU doesn't support HA** - set `highAvailability: 'Disabled'`
+
+---
+
+## Issue 9: PostgreSQL Connection Timeout (publicNetworkAccess)
+
+**Symptoms:**
+- n8n logs show "Could not establish database connection within the configured timeout of 60,000 ms"
+- Container exits with code 1
+- PostgreSQL is provisioned but unreachable
+
+**Root Cause:** The AVM PostgreSQL Flexible Server module defaults `publicNetworkAccess` to disabled. When disabled, **all firewall rules are silently ignored** — even `AllowAllAzureServices`.
+
+**Solution:** Explicitly enable public network access in Bicep:
+
+```bicep
+module postgresServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.15.2' = {
+  params: {
+    // ...
+    publicNetworkAccess: 'Enabled'  // CRITICAL — default is disabled
+    firewallRules: [
+      { name: 'AllowAllAzureServices', startIpAddress: '0.0.0.0', endIpAddress: '0.0.0.0' }
+    ]
+  }
+}
+```
+
+**Manual fix for existing deployment:**
+```bash
+az postgres flexible-server update --resource-group $RG --name $PG_NAME --public-access Enabled
+az postgres flexible-server firewall-rule create --resource-group $RG --name $PG_NAME \
+  --rule-name AllowAzure --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
+```
+
+---
+
+## Issue 10: Authentication Failed After Redeploy
+
+**Symptoms:**
+- n8n logs show "authentication failed for user"
+- First deploy worked, redeploy fails
+- PostgreSQL is reachable but rejects credentials
+
+**Root Cause:** `newGuid()` generates a **new password on every deployment**. PostgreSQL was created with the first password but the second deploy sends a different one.
+
+**Solution:** Pin passwords to azd environment variables:
+
+```bash
+# Set once — persists across deploys
+azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
+```
+
+Reference in `main.parameters.json`:
+```json
+{ "postgresPassword": { "value": "${POSTGRES_PASSWORD}" } }
+```
+
+The Bicep param keeps `newGuid()` as a fallback default but the pinned value takes precedence:
+```bicep
+@secure()
+param postgresPassword string = newGuid()  // Overridden by parameter file
+```
+
+---
+
+## Issue 11: HA Not Supported for Burstable SKU
+
+**Symptoms:**
+- `azd up` fails with "HANotSupportedForBurstableSkuWithMoreInfo"
+
+**Root Cause:** Burstable tier doesn't support high availability. The AVM module may default to enabling it.
+
+**Solution:**
+```bicep
+highAvailability: 'Disabled'  // Required for Burstable tier
+```
+
+---
+
+## Issue 12: Password Auth Disabled by Default (Entra-Only)
+
+**Symptoms:**
+- n8n logs show "authentication failed for user n8nadmin"
+- Resetting password via `az postgres flexible-server update --admin-password` has no effect
+- `az postgres flexible-server show` reveals `"passwordAuth": "Disabled"`
+
+**Root Cause:** AVM PostgreSQL Flexible Server module (v0.15.2) defaults `passwordAuth` to `Disabled`, enabling only Microsoft Entra ID authentication. n8n uses password-based auth and cannot use Entra ID.
+
+**Solution:** Explicitly enable password auth in Bicep:
+```bicep
+authConfig: {
+  passwordAuth: 'Enabled'
+  activeDirectoryAuth: 'Disabled'
+}
+```
+
+**This is the #1 gotcha with the AVM PostgreSQL module.** Without it, every password-based application (n8n, Grafana with PostgreSQL, Superset) will fail to connect.
