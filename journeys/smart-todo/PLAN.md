@@ -614,18 +614,22 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 
 - Use AVM modules for ALL resources — no raw resource definitions
 - System-assigned managed identity on the Function App
-- Role assignment: `Cognitive Services User` for Function App identity → AI Services
-- Role assignment: `Storage Blob Data Owner` for Function App identity → Storage Account (required for Flex Consumption deployment)
-- Role assignment: `Storage Blob Data Contributor` for the deploying user → Storage Account (required for `azd deploy` to upload the zip package)
-- Azure SQL: set deploying user as Azure AD admin, firewall rule allowing Azure services (`0.0.0.0`)
+- Role assignment: `Cognitive Services User` (`a97b65f3-24c7-4388-baec-2e87135dc908`) for Function App identity → AI Services
+- Role assignment: `Storage Blob Data Owner` (`b7e6dc6d-f1e8-4753-8033-0f276bb0955b`) for Function App identity → Storage Account (required for Flex Consumption deployment)
+- Role assignment: `Storage Blob Data Contributor` (`ba92f5b4-2d11-453d-a403-e96b0029c9fe`) for the deploying user → Storage Account (required for `azd deploy` to upload the zip package)
+- Azure SQL: set deploying user AND Function App managed identity as Azure AD admins, firewall rule allowing Azure services (`0.0.0.0`)
+- **Azure SQL: Function App identity must be an AD admin** — without this, the Function App gets "Login failed for user '<token-identified principal>'" when using Entra auth. Add the Function App's `principalId` to the SQL Server `administrators` block, or run `az sql server ad-admin create` post-provisioning.
 - Azure SQL Database: set `maxSizeBytes: 2147483648` (2 GB) when using Basic tier (default 32 GB exceeds the limit)
+- **Azure SQL Database: set `zoneRedundant: false`** — Basic tier does not support zone redundancy. AVM module may default to true, causing "ProvisioningDisabled: Provisioning of zone redundant database/pool is not supported."
 - AI Services: `disableLocalAuth: false` for development, system-assigned managed identity
+- **AI model version is region-specific** — use `az cognitiveservices model list --location <region> --query "[?model.name=='gpt-5-mini']"` to find the correct version before generating Bicep. For example, `westus` requires `2025-08-07` (not `2025-02-27`).
 - Outputs in SCREAMING_SNAKE_CASE: `API_URL`, `SQL_SERVER_NAME`, `SQL_DATABASE_NAME`, `FUNCTION_APP_NAME`, `AZURE_AI_ENDPOINT`, `AZURE_AI_DEPLOYMENT`, `RESOURCE_GROUP_NAME`
 - `azd-service-name: 'api'` tag on the Function App
 - Function App settings: `AZURE_AI_ENDPOINT`, `AZURE_AI_DEPLOYMENT`, `AZURE_AI_KEY`, `AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`
 - **Do NOT include `FUNCTIONS_WORKER_RUNTIME` in app settings** — Flex Consumption sets this via `functionAppConfig.runtime`, and having it in app settings causes a deployment error
 - **Set `siteConfig.alwaysOn` to `false`** — the AVM module defaults to `true`, which is invalid for Flex Consumption
 - **Set Storage Account `networkAcls.defaultAction` to `Allow`** — the AVM module defaults to `Deny`, which blocks `azd deploy` zip uploads
+- **Flex Consumption `deploymentpackage` container** — `azd deploy` uploads the zip to a blob container named `deploymentpackage`. This container may not exist after first provisioning. If `azd deploy` fails with "The specified container does not exist", create it with `az storage container create --name deploymentpackage --account-name <name> --auth-mode login` and retry.
 
 ### .NET-Specific Notes
 

@@ -8,15 +8,9 @@ description: |
 
 # Container Apps Deployment Patterns
 
-Additional patterns and gotchas for Azure Container Apps deployments. This skill **supplements** the official `azure-prepare` plugin skill — it does not replace it.
+Supplements the official `azure-prepare` plugin skill with additional gotchas for Container Apps deployments — zone redundancy, azure.yaml, and SPA frontend patterns.
 
-> **📖 ACR Authentication:** For wiring Container Apps to Azure Container Registry, follow the **two-phase pattern** in the `azure-prepare` plugin's `references/services/container-apps/bicep.md`. That pattern uses managed identity + AcrPull role assignment and lets `azd deploy` handle the registry link automatically. Do NOT add a `registries` block in Bicep — `azd deploy` calls `az containerapp registry set --identity system` for you.
-
-## When to Use
-
-- **After** `azure-prepare` generates infrastructure — to catch region-specific and configuration gotchas
-- Multi-service deployments with a React/Vite SPA frontend + separate API container
-- Troubleshooting Container Apps deployment failures not covered by the plugin
+> **📖 ACR Authentication:** Follow the **two-phase pattern** in `azure-prepare` plugin's `references/services/container-apps/bicep.md`. Do NOT add a `registries` block in Bicep — `azd deploy` calls `az containerapp registry set --identity system` for you.
 
 ## Region-Specific Gotchas
 

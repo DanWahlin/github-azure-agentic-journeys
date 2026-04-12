@@ -5,19 +5,7 @@ description: n8n workflow automation configuration for Azure. Use when deploying
 
 # n8n Azure Configuration Skill
 
-Application-specific configuration for deploying n8n to Azure Container Apps with PostgreSQL.
-
-## When to Use
-
-- Deploying n8n to Azure
-- Troubleshooting n8n on Azure
-- Configuring n8n environment variables
-
-**Note:** This skill is n8n-specific. Use the official `azure-prepare` skill to generate infrastructure from scratch.
-
-## Critical: Infrastructure Generation
-
-This skill provides n8n-specific configuration only. Infrastructure (Bicep, azure.yaml) should be generated fresh each time by the official `azure-prepare` → `azure-validate` → `azure-deploy` pipeline. Do NOT rely on pre-existing infra code.
+Application-specific configuration for deploying n8n to Azure Container Apps with PostgreSQL. Infrastructure should be generated fresh by the `azure-prepare` → `azure-validate` → `azure-deploy` pipeline.
 
 ## Critical: Subscription Context
 
@@ -25,73 +13,23 @@ This skill provides n8n-specific configuration only. Infrastructure (Bicep, azur
 ```bash
 azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 ```
-Without this, azd and Azure MCP tools will fail silently or produce incomplete deployments.
 
-## Critical: PostgreSQL Network Access
+## Critical: PostgreSQL AVM Defaults
 
-The AVM PostgreSQL Flexible Server module **defaults `publicNetworkAccess` to disabled**. When public access is off, firewall rules are silently ignored and Container Apps cannot connect.
+**📖 See [../config/postgresql-avm-defaults.md](../config/postgresql-avm-defaults.md) for all PostgreSQL AVM gotchas** (publicNetworkAccess, passwordAuth, HA, password pinning). Without these settings, n8n will fail with "authentication failed" or "connection timeout".
 
-**Always set this explicitly in Bicep:**
-```bicep
-// For AVM module br/public:avm/res/db-for-postgre-sql/flexible-server
-params: {
-  // ... other params
-  publicNetworkAccess: 'Enabled'
-  authConfig: {
-    passwordAuth: 'Enabled'        // AVM defaults to Disabled (Entra-only)!
-    activeDirectoryAuth: 'Disabled'
-  }
-  firewallRules: [
-    {
-      name: 'AllowAllAzureServices'
-      startIpAddress: '0.0.0.0'
-      endIpAddress: '0.0.0.0'
-    }
-  ]
-}
-```
-
-Without `publicNetworkAccess: 'Enabled'`, firewall rules are silently ignored.
-Without `passwordAuth: 'Enabled'`, n8n will fail with "authentication failed" because only Entra ID auth is allowed.
-
-## Critical: Secrets and Redeploy Safety
-
-**Do NOT rely on `newGuid()` for PostgreSQL passwords.** `newGuid()` regenerates a new value on every deployment, but PostgreSQL keeps the original password — causing authentication failures on redeploy.
-
-**Solution:** Pin passwords to azd environment variables so they persist across deployments:
-
+**n8n-specific:** Also pin n8n's own secrets:
 ```bash
-# Generate once and store in azd env
 azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
 azd env set N8N_ENCRYPTION_KEY "$(openssl rand -hex 16)"
 azd env set N8N_AUTH_PASSWORD "$(openssl rand -hex 16)"
 ```
 
-Then reference them in `main.parameters.json`:
-```json
-{
-  "postgresPassword": { "value": "${POSTGRES_PASSWORD}" },
-  "n8nEncryptionKey": { "value": "${N8N_ENCRYPTION_KEY}" },
-  "n8nAuthPassword": { "value": "${N8N_AUTH_PASSWORD}" }
-}
-```
-
-This ensures the same password is used across deploys. Keep `newGuid()` only as a fallback default:
-```bicep
-@secure()
-param postgresPassword string = newGuid()  // Overridden by main.parameters.json
-```
-
 ## Critical: PostgreSQL SKU Format
 
-Azure PostgreSQL Flexible Server requires BOTH `sku.name` and `sku.tier`:
 ```bicep
-sku: {
-  name: 'Standard_B1ms'    // NOT 'B_Standard_B1ms'
-  tier: 'Burstable'        // REQUIRED - omitting causes deployment failure
-}
+sku: { name: 'Standard_B1ms', tier: 'Burstable' }  // Both fields required
 ```
-Valid tier values: `Burstable`, `GeneralPurpose`, `MemoryOptimized`.
 
 ## Official Documentation
 
@@ -208,10 +146,8 @@ azd down --force --purge
 2. **SSL** — requires `SSL_REJECT_UNAUTHORIZED=false` for Azure PostgreSQL
 3. **WEBHOOK_URL** — set post-deployment via hook (circular dependency with FQDN)
 4. **Port 5678** — non-standard port for health checks and ingress
-5. **PostgreSQL publicNetworkAccess** — AVM module defaults to disabled; must explicitly enable or Container Apps can't connect
-6. **Password pinning** — use azd env variables for passwords, not `newGuid()` alone; `newGuid()` regenerates on redeploy causing auth failures
-7. **HA not supported on Burstable** — must set `highAvailability: 'Disabled'` when using `Burstable` tier
-8. **AVM probe failureThreshold cap** — AVM container-app module caps `failureThreshold` at 10; use `periodSeconds: 30` with `failureThreshold: 10` for 5 min startup window
+5. **PostgreSQL AVM defaults** — see [../config/postgresql-avm-defaults.md](../config/postgresql-avm-defaults.md)
+6. **AVM probe failureThreshold cap** — capped at 10; use `periodSeconds: 30` with `failureThreshold: 10` for 5 min window
 
 ## Azure MCP Tools
 

@@ -21,67 +21,28 @@ azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 ```
 Without this, azd and Azure MCP tools will fail silently or produce incomplete deployments.
 
-## Critical: PostgreSQL SKU Format
+## Critical: PostgreSQL AVM Defaults
 
-Azure PostgreSQL Flexible Server requires BOTH `sku.name` and `sku.tier`:
-```bicep
-sku: {
-  name: 'Standard_B1ms'    // NOT 'B_Standard_B1ms'
-  tier: 'Burstable'        // REQUIRED - omitting causes deployment failure
-}
-```
+**📖 See [../config/postgresql-avm-defaults.md](../config/postgresql-avm-defaults.md) for all PostgreSQL AVM gotchas** (publicNetworkAccess, passwordAuth, HA, password pinning). Without these, Superset will fail with "authentication failed" or "connection timeout".
 
-## Critical: PostgreSQL AVM Module Defaults
-
-The AVM PostgreSQL module (`br/public:avm/res/db-for-postgre-sql/flexible-server:0.15.2`) has defaults that break password-based apps:
-
-```bicep
-module postgresServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.15.2' = {
-  params: {
-    // ... other params
-    publicNetworkAccess: 'Enabled'    // Default is Disabled — firewall rules silently ignored
-    highAvailability: 'Disabled'      // Required for Burstable tier
-    authConfig: {
-      passwordAuth: 'Enabled'         // Default is Disabled (Entra-only)!
-      activeDirectoryAuth: 'Disabled'
-    }
-  }
-}
-```
-
-Without these, Superset will fail with "authentication failed" or "connection timeout".
-
-## Critical: AKS AVM Module Defaults
-
-The AVM AKS module (`br/public:avm/res/container-service/managed-cluster`) has defaults that cause deployment failures:
-
-```bicep
-module aksCluster 'br/public:avm/res/container-service/managed-cluster:0.9.0' = {
-  params: {
-    // ... other params
-    disableLocalAccounts: false       // Default requires AAD integration
-    primaryAgentPoolProfiles: [
-      {
-        name: 'system'
-        availabilityZones: []         // Some regions (e.g., westus) don't support AZ
-        // ...
-      }
-    ]
-  }
-}
-```
-
-- **`disableLocalAccounts: false`** — AVM defaults to disabling local accounts, which requires AAD integration. Without AAD, deployment fails with "disableLocalAccounts can only be set on Azure AD integration enabled cluster."
-- **`availabilityZones: []`** — AVM may default to zone 1. Some regions (westus) don't support AZ for AKS. Explicitly set to empty array to avoid "AvailabilityZoneNotSupported" errors.
-
-## Critical: Pin Passwords for Redeploy Safety
-
-**Do NOT rely on `newGuid()` for PostgreSQL passwords.** See n8n-azure skill for details. Pin passwords to azd env variables:
-
+**Superset-specific:** Also pin Superset secrets:
 ```bash
 azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
 azd env set SUPERSET_SECRET_KEY "$(openssl rand -hex 32)"
 azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -hex 16)"
+```
+
+## Critical: AKS AVM Module Defaults
+
+```bicep
+module aksCluster 'br/public:avm/res/container-service/managed-cluster:0.9.0' = {
+  params: {
+    disableLocalAccounts: false       // Default requires AAD — fails without it
+    primaryAgentPoolProfiles: [
+      { name: 'system', availabilityZones: [] }  // westus doesn't support AZ
+    ]
+  }
+}
 ```
 
 ## Quick Start (Verified)
