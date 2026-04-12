@@ -31,6 +31,59 @@ sku: {
 }
 ```
 
+## Critical: PostgreSQL AVM Module Defaults
+
+The AVM PostgreSQL module (`br/public:avm/res/db-for-postgre-sql/flexible-server:0.15.2`) has defaults that break password-based apps:
+
+```bicep
+module postgresServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.15.2' = {
+  params: {
+    // ... other params
+    publicNetworkAccess: 'Enabled'    // Default is Disabled — firewall rules silently ignored
+    highAvailability: 'Disabled'      // Required for Burstable tier
+    authConfig: {
+      passwordAuth: 'Enabled'         // Default is Disabled (Entra-only)!
+      activeDirectoryAuth: 'Disabled'
+    }
+  }
+}
+```
+
+Without these, Superset will fail with "authentication failed" or "connection timeout".
+
+## Critical: AKS AVM Module Defaults
+
+The AVM AKS module (`br/public:avm/res/container-service/managed-cluster`) has defaults that cause deployment failures:
+
+```bicep
+module aksCluster 'br/public:avm/res/container-service/managed-cluster:0.9.0' = {
+  params: {
+    // ... other params
+    disableLocalAccounts: false       // Default requires AAD integration
+    primaryAgentPoolProfiles: [
+      {
+        name: 'system'
+        availabilityZones: []         // Some regions (e.g., westus) don't support AZ
+        // ...
+      }
+    ]
+  }
+}
+```
+
+- **`disableLocalAccounts: false`** — AVM defaults to disabling local accounts, which requires AAD integration. Without AAD, deployment fails with "disableLocalAccounts can only be set on Azure AD integration enabled cluster."
+- **`availabilityZones: []`** — AVM may default to zone 1. Some regions (westus) don't support AZ for AKS. Explicitly set to empty array to avoid "AvailabilityZoneNotSupported" errors.
+
+## Critical: Pin Passwords for Redeploy Safety
+
+**Do NOT rely on `newGuid()` for PostgreSQL passwords.** See n8n-azure skill for details. Pin passwords to azd env variables:
+
+```bash
+azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
+azd env set SUPERSET_SECRET_KEY "$(openssl rand -hex 32)"
+azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -hex 16)"
+```
+
 ## Quick Start (Verified)
 
 ```bash
@@ -42,19 +95,19 @@ az provider register --namespace Microsoft.OperationalInsights
 # 2. Create environment
 azd env new my-superset-env
 
-# 3. Set required variables
+# 3. Set required variables (passwords pinned — safe for redeploy)
 azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 azd env set AZURE_LOCATION "westus"
-azd env set POSTGRES_PASSWORD "$(openssl rand -base64 16)"
-azd env set SUPERSET_SECRET_KEY "$(openssl rand -base64 32)"
-azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -base64 16)"
+azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
+azd env set SUPERSET_SECRET_KEY "$(openssl rand -hex 32)"
+azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -hex 16)"
 
 # 4. Deploy (~15-20 minutes)
 azd up
 
 # 5. Access Superset
 azd env get-value SUPERSET_URL
-# Login: admin / <your SUPERSET_ADMIN_PASSWORD>
+# Login: admin / $(azd env get-value SUPERSET_ADMIN_PASSWORD)
 ```
 
 **Deployment time breakdown:**
@@ -136,10 +189,12 @@ See [config/health-probes.md](config/health-probes.md) for liveness, readiness, 
 
 ## Resource Requirements
 
-| Component | CPU | Memory |
-|-----------|-----|--------|
-| Superset Web | 250m–1000m | 512Mi–2Gi |
-| Init Container | 100m–500m | 256Mi–1Gi |
+| Component | CPU Request | CPU Limit | Memory Request | Memory Limit |
+|-----------|-------------|-----------|----------------|--------------|
+| Superset Web | 250m | 1000m | 512Mi | 2Gi |
+| Init Container | (inherits) | (inherits) | (inherits) | (inherits) |
+
+**⚠️ CPU Gotcha:** Standard_DS2_v2 (2 vCPU) only has ~500m available after AKS system pods. Set CPU **request** to 250m (not 500m) or the pod will be stuck in `Pending` with "Insufficient cpu". CPU **limit** can stay at 1000m for bursting.
 
 ## Common Issues & Solutions
 

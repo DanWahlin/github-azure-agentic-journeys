@@ -307,3 +307,94 @@ curl -I http://<IP>/login/
 6. **Startup probe allows 10 minutes** - First deploy with migrations takes time
 7. **"SQLiteImpl" in logs = misconfiguration** - Must see "PostgresqlImpl" for PostgreSQL
 8. **Init container logs are separate** - Use `-c superset-init` to debug migration issues
+9. **AVM PostgreSQL passwordAuth defaults to Disabled** - Must set `authConfig.passwordAuth: 'Enabled'`
+10. **AVM PostgreSQL publicNetworkAccess defaults to Disabled** - Must set `publicNetworkAccess: 'Enabled'`
+11. **AVM AKS disableLocalAccounts defaults to true** - Must set `disableLocalAccounts: false` without AAD
+12. **AVM AKS availabilityZones** - Some regions don't support AZ; set `availabilityZones: []` explicitly
+13. **Pin passwords with azd env** - `newGuid()` regenerates on redeploy, causing auth mismatches
+
+---
+
+## Issue 8: AKS AvailabilityZoneNotSupported
+
+### Symptoms
+```
+AvailabilityZoneNotSupported: The zone(s) '1' for resource 'system' is not supported.
+The supported zones for location 'westus' are ''.
+```
+
+### Root Cause
+The AVM AKS module may default the system agent pool to availability zone 1. Some regions (e.g., `westus`) don't support AZ for AKS.
+
+### Solution
+Explicitly set `availabilityZones: []` in the agent pool profile:
+```bicep
+primaryAgentPoolProfiles: [
+  {
+    name: 'system'
+    availabilityZones: []   // No AZ — required for westus
+    // ...
+  }
+]
+```
+
+---
+
+## Issue 9: disableLocalAccounts Requires AAD
+
+### Symptoms
+```
+disableLocalAccounts can only be set on Azure AD integration enabled cluster.
+```
+
+### Root Cause
+The AVM AKS module defaults `disableLocalAccounts` to `true`, which requires AAD (Entra ID) integration. Without AAD configured, deployment fails.
+
+### Solution
+```bicep
+disableLocalAccounts: false
+```
+
+---
+
+## Issue 10: PostgreSQL Authentication Failed
+
+### Symptoms
+- Superset init container logs show "authentication failed for user"
+- Same root cause as n8n Issue 12
+
+### Root Cause
+AVM PostgreSQL module defaults `passwordAuth` to `Disabled` (Entra-only).
+
+### Solution
+```bicep
+authConfig: {
+  passwordAuth: 'Enabled'
+  activeDirectoryAuth: 'Disabled'
+}
+```
+
+---
+
+## Issue 11: Pod Stuck in Pending — Insufficient CPU
+
+### Symptoms
+- Pod stays in `Pending` state indefinitely
+- `kubectl describe pod` shows: "0/1 nodes are available: 1 Insufficient cpu"
+
+### Root Cause
+Standard_DS2_v2 (2 vCPU) has ~500m CPU remaining after AKS system pods. A Superset pod requesting 500m+ CPU won't fit.
+
+### Solution
+Reduce CPU request to 250m (limit can stay at 1000m for bursting):
+```yaml
+resources:
+  requests:
+    cpu: "250m"      # NOT 500m — won't fit on DS2_v2
+    memory: "512Mi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+```
+
+Or use a larger VM size (e.g., Standard_DS3_v2 with 4 vCPU).
