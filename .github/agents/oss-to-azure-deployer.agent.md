@@ -31,6 +31,20 @@ Read the app-specific skill FIRST to understand requirements before generating a
 | Grafana | `grafana-azure` | Port 3000, SQLite default (no DB needed), /api/health probe, GF_* env vars |
 | Superset | `superset-azure` | AKS (not Container Apps), PostgreSQL required, psycopg2 custom Docker image, K8s manifests |
 
+### Step 1b: Load Container Apps Deployment Skill
+
+For ANY deployment targeting Azure Container Apps (n8n, Grafana, or full-stack journeys like AIMarket), also read `.github/skills/container-apps-deployment/SKILL.md`. It supplements the `azure-prepare` plugin with additional gotchas:
+
+- **`zoneRedundant: false`** — required for Container Apps Environment in many regions (westus, etc.)
+- **azure.yaml `language` field** — required even with Docker services
+- **SPA frontend deployment** — postdeploy hook to rebuild frontend with `VITE_API_URL`
+- **Apple Silicon cross-compile** — `--platform linux/amd64`
+- **SCREAMING_SNAKE_CASE outputs** — required for `azd env get-value`
+
+For ACR authentication, follow the `azure-prepare` plugin's two-phase pattern in `references/services/container-apps/bicep.md` (managed identity + AcrPull role assignment). Do not use admin credentials.
+
+This skill is NOT needed for AKS deployments (Superset).
+
 ### Step 2: azure-prepare (Official Plugin)
 
 Generate ALL infrastructure from scratch. Never reuse existing infra code.

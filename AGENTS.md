@@ -50,6 +50,7 @@ Skills are loaded automatically based on context:
 | Skill | Purpose |
 |-------|---------|
 | `data-access-abstraction` | Repository pattern for swappable data layers (SQLite, Cosmos DB, PostgreSQL) |
+| `container-apps-deployment` | Container Apps + ACR deployment patterns (ACR auth, zone redundancy, SPA deploy, azure.yaml) |
 | `journey-runner` | Run a journey end-to-end: extract prompts, build, deploy, verify |
 | `journey-template` | Create a new agentic journey from an app idea (full-stack or OSS deployment) |
 | `journey-test-harness` | Run all journeys as a test suite: build, deploy, screenshot, teardown, report |
@@ -246,6 +247,8 @@ journeys/
     │   ├── config/
     │   └── troubleshooting.md
     └── data-access-abstraction/  # Repository pattern for swappable data layers
+        └── SKILL.md
+    └── container-apps-deployment/ # ACR auth, zone redundancy, SPA deploy patterns
         └── SKILL.md
     └── journey-template/        # Template for creating new agentic journeys
         └── SKILL.md

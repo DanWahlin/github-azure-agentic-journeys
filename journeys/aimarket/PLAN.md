@@ -575,6 +575,8 @@ When not set: search falls back to SQLite LIKE queries; `/api/chat` returns 503.
 
 Deploy the full stack to Azure Container Apps using Bicep with AVM modules and azd.
 
+> **📖 Read the [`container-apps-deployment` skill](../../.github/skills/container-apps-deployment/SKILL.md) before generating infrastructure.** It covers critical gotchas with ACR authentication, zone redundancy, azure.yaml configuration, and SPA frontend deployment that apply to this deployment.
+
 ### Azure Skills Plugin
 
 The Azure Skills plugin for Copilot CLI provides MCP tools and plugin skills for infrastructure generation and deployment. Install it with `/plugin install azure@azure-skills` if not already installed.
