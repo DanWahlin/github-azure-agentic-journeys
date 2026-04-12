@@ -62,8 +62,9 @@ safe-outputs:
     max: 1
   add-comment:
     max: 1
-  upload-asset:
-    max: 10
+  actions:
+    upload-screenshots:
+      uses: actions/upload-artifact@v4
 ---
 
 # Journey End-to-End Test Harness
@@ -144,7 +145,16 @@ These are set from repository secrets and variables:
 
 ## Execution Instructions
 
-### Step 1: Discover Journeys
+### Step 1: Create Suite Results Folder
+
+Create a top-level folder that persists across all journeys for screenshots and the final report:
+
+```bash
+SUITE_DIR=~/journey-runs/test-suite-$(date +%Y%m%d-%H%M%S)
+mkdir -p "$SUITE_DIR/screenshots"
+```
+
+### Step 2: Discover Journeys
 
 List all journey directories in `journeys/`:
 
@@ -154,59 +164,96 @@ ls -d journeys/*/README.md | sed 's|journeys/||;s|/README.md||' | sort
 
 If the journeys input is not "all", filter to only the requested journeys (comma-separated).
 
-### Step 2: Run Each Journey Sequentially
+### Step 3: Run Each Journey Sequentially
 
 For each journey, follow this exact sequence:
 
-#### 2a. Load the journey-runner skill
+#### 3a. Load the journey-runner skill
 
 Read `.github/skills/journey-runner/SKILL.md` to understand the execution pipeline.
 
-#### 2b. Execute the journey
+#### 3b. Create an isolated working directory
+
+All generated infrastructure (`azure.yaml`, `infra/`, Bicep files, hooks) go in the working directory — **never in the source repo**:
+
+```bash
+JOURNEY_DIR=~/journey-runs/<journey>-$(date +%Y%m%d-%H%M%S)
+mkdir -p "$JOURNEY_DIR"
+cd "$JOURNEY_DIR"
+```
+
+Copy `PLAN.md` from the repo if it exists (full-stack journeys only):
+
+```bash
+cp /path/to/journeys/<journey>/PLAN.md . 2>/dev/null
+```
+
+#### 3c. Execute the journey
 
 Run the journey end-to-end using the journey-runner approach:
 
 1. **Parse** the journey's `README.md` — extract journey type (OSS vs full-stack), phases, prompts, shell commands, and verification checks
-2. **Set up working directory**: `~/journey-runs/<journey>-$(date +%Y%m%d-%H%M%S)`
-3. **Copy PLAN.md** if it exists (full-stack journeys)
-4. **Execute phases** — run prompts and shell commands in order
+2. **Execute phases** — run prompts and shell commands in order, generating all code and infra inside `$JOURNEY_DIR`
    - For full-stack journeys, replace `[YOUR LANGUAGE]` with the configured language
    - For smart-todo, **skip Phase 2 (iOS/SwiftUI)** since Xcode is not available in CI
-5. **Deploy**: Run `azd up --no-prompt` (set `AZURE_LOCATION` to the configured location)
-6. **Verify**: Run verification commands from the README
-7. **Screenshot**: If the journey has a web frontend URL, use Playwright to capture a screenshot:
+3. **Deploy**: Run `azd up --no-prompt` from `$JOURNEY_DIR` (set `AZURE_LOCATION` to the configured location)
+4. **Verify**: Run verification commands from the README
+5. **Screenshot**: If the journey has a web frontend URL, use Playwright to capture a screenshot:
    - Navigate to the URL, wait for `networkidle`, wait 3 extra seconds, take a full-page screenshot
-   - Save as `screenshot-<journey>.png` in the working directory
-8. **Tear down**: Always run `azd down --force --purge` regardless of success or failure
+   - Save as `screenshot-<journey>.png` in `$JOURNEY_DIR`
+6. **Copy screenshot to suite folder**: `cp $JOURNEY_DIR/screenshot-*.png $SUITE_DIR/screenshots/`
+7. **Tear down**: Always run `azd down --force --purge --no-prompt` from `$JOURNEY_DIR` regardless of success or failure
+8. **Delete working directory**: `rm -rf $JOURNEY_DIR`
 9. **Log results**: Record pass/fail for build, deploy, verify, cleanup phases
 
-#### 2c. Clean state between journeys
+#### 3d. Clean azd state between journeys
 
 ```bash
-cd ~
-rm -rf ~/journey-runs/<previous-journey>-*  # optional: keep for report
+azd env list 2>/dev/null | grep -v "NAME" | awk '{print $1}' | xargs -I{} azd env delete {} --yes 2>/dev/null
 ```
 
-### Step 3: Generate Consolidated Report
+### Step 4: Generate Consolidated Report
 
 After all journeys complete, create a markdown report with:
 
 - Date, language, location, total duration
 - Per-journey table: journey name, type (OSS/full-stack), build/deploy/verify/cleanup status, overall result
 - Summary counts: PASS / PARTIAL / FAIL / SKIPPED
-- Screenshot file list
+- Screenshot file list (reference `screenshots/` folder)
 - Detailed failure/warning messages for any non-PASS results
 
-Format the report as a GitHub issue body. Include any screenshots as uploaded assets.
+Save the report to `$SUITE_DIR/test-report.md`.
 
-### Step 4: Create GitHub Issue
+Suite folder structure after completion:
+
+```
+~/journey-runs/test-suite-<timestamp>/
+├── test-report.md
+└── screenshots/
+    ├── screenshot-grafana.png
+    ├── screenshot-n8n.png
+    ├── screenshot-superset.png
+    └── screenshot-aimarket.png
+```
+
+### Step 5: Upload Screenshots as Workflow Artifacts
+
+After all journeys complete, upload the screenshots as a workflow artifact by calling the `upload-screenshots` tool with:
+
+- `name`: `journey-screenshots`
+- `path`: The `$SUITE_DIR/screenshots/` directory
+- `retention-days`: `90`
+
+This attaches the screenshots to the workflow run itself. They auto-expire after 90 days and can be downloaded from the Actions run summary.
+
+### Step 6: Create GitHub Issue
 
 Use the `create-issue` safe output to create a GitHub issue with:
 - Title: `Journey E2E Test Report — <date>`
-- Body: The consolidated report markdown
+- Body: The consolidated report markdown from `$SUITE_DIR/test-report.md`
 - Labels: `test-report`, `automated`
 
-If screenshots were captured, reference them in the issue body.
+Note: Screenshots are available as workflow artifacts (linked from the Actions run), not inline in the issue.
 
 ## Journey Reference
 
