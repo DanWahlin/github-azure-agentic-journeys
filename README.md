@@ -5,7 +5,7 @@
 
 🎯 [What You'll Learn](#what-youll-learn) &ensp; ✅ [Prerequisites](#prerequisites) &ensp; 📚 [Agentic Journeys](#agentic-journeys) &ensp; 🚀 [Quick Start](#quick-start)
 
-# GitHub and Azure Agentic Journeys
+# GitHub and Azure Agentic Journeys (Prototype Stage)
 
 > **Build and deploy applications to Azure using agents and skills.**
 
