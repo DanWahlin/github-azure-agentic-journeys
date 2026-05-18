@@ -55,17 +55,20 @@ info "Repository: $REPO"
 
 header "Azure configuration"
 
-# Try to auto-detect from current az login
-if command -v az &>/dev/null && az account show &>/dev/null 2>&1; then
-  DEFAULT_SUB_ID=$(az account show --query id -o tsv 2>/dev/null || echo "")
-  DEFAULT_TENANT_ID=$(az account show --query tenantId -o tsv 2>/dev/null || echo "")
-  info "Detected Azure subscription: ${DEFAULT_SUB_ID:0:8}..."
-  info "Detected Azure tenant: ${DEFAULT_TENANT_ID:0:8}..."
-else
-  DEFAULT_SUB_ID=""
-  DEFAULT_TENANT_ID=""
-  warn "Azure CLI not authenticated — you'll need to enter values manually"
+if ! command -v az &>/dev/null; then
+  error "Azure CLI (az) is required to detect or create the service principal. Install: https://learn.microsoft.com/cli/azure/install-azure-cli"
+  exit 1
 fi
+
+if ! az account show &>/dev/null 2>&1; then
+  error "Azure CLI is not authenticated. Run: az login"
+  exit 1
+fi
+
+DEFAULT_SUB_ID=$(az account show --query id -o tsv 2>/dev/null || echo "")
+DEFAULT_TENANT_ID=$(az account show --query tenantId -o tsv 2>/dev/null || echo "")
+info "Detected Azure subscription: ${DEFAULT_SUB_ID:0:8}..."
+info "Detected Azure tenant: ${DEFAULT_TENANT_ID:0:8}..."
 
 # Prompt for each value with auto-detected defaults
 read_value() {
@@ -87,26 +90,89 @@ read_value() {
   fi
 }
 
+read_secret_value() {
+  local prompt="$1"
+  local var_name="$2"
+  local existing_value="${!var_name:-}"
+
+  if [[ -n "$existing_value" ]]; then
+    echo -en "  ${prompt} ${DIM}[from environment]${RESET}: "
+  else
+    echo -en "  ${prompt}: "
+  fi
+
+  read -rs input
+  echo ""
+  if [[ -z "$input" && -n "$existing_value" ]]; then
+    eval "$var_name='$existing_value'"
+  else
+    eval "$var_name='$input'"
+  fi
+}
+
 read_value "Azure Subscription ID" "$DEFAULT_SUB_ID" "AZURE_SUBSCRIPTION_ID"
 read_value "Azure Tenant ID" "$DEFAULT_TENANT_ID" "AZURE_TENANT_ID"
-read_value "Azure Client ID (Service Principal App ID)" "" "AZURE_CLIENT_ID"
 
-echo -en "  Azure Client Secret (Service Principal Secret): "
-read -rs AZURE_CLIENT_SECRET
-echo ""
+SP_NAME="github-azure-agentic-journeys-e2e"
+ROLE_NAME="Contributor"
+SCOPE="/subscriptions/$AZURE_SUBSCRIPTION_ID"
 
-echo -en "  Copilot GitHub Token (PAT with copilot scope): "
+header "Azure service principal"
+EXISTING_APP_ID=$(az ad sp list --display-name "$SP_NAME" --query "[0].appId" -o tsv 2>/dev/null || echo "")
+
+if [[ -n "$EXISTING_APP_ID" ]]; then
+  info "Found existing service principal: $SP_NAME (${EXISTING_APP_ID:0:8}...)"
+  AZURE_CLIENT_ID="$EXISTING_APP_ID"
+  warn "Azure does not expose existing client secret values. Creating a fresh secret for this workflow."
+  SP_SECRET_JSON=$(az ad app credential reset --id "$AZURE_CLIENT_ID" --display-name "github-actions-journey-e2e" --years 1 -o json)
+  AZURE_CLIENT_SECRET=$(echo "$SP_SECRET_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["password"])')
+else
+  warn "Service principal not found: $SP_NAME"
+  echo -en "  Create it now with $ROLE_NAME on subscription ${AZURE_SUBSCRIPTION_ID:0:8}...? [Y/n]: "
+  read -r CREATE_SP
+  if [[ "$CREATE_SP" =~ ^[Nn]$ ]]; then
+    read_value "Azure Client ID (Service Principal App ID)" "" "AZURE_CLIENT_ID"
+    read_secret_value "Azure Client Secret (Service Principal Secret)" "AZURE_CLIENT_SECRET"
+  else
+    info "Creating service principal: $SP_NAME"
+    SP_JSON=$(az ad sp create-for-rbac \
+      --name "$SP_NAME" \
+      --role "$ROLE_NAME" \
+      --scopes "$SCOPE" \
+      --years 1 \
+      -o json)
+    AZURE_CLIENT_ID=$(echo "$SP_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["appId"])')
+    AZURE_CLIENT_SECRET=$(echo "$SP_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["password"])')
+    CREATED_TENANT_ID=$(echo "$SP_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tenant", ""))')
+    if [[ -n "$CREATED_TENANT_ID" ]]; then
+      AZURE_TENANT_ID="$CREATED_TENANT_ID"
+    fi
+    info "Created service principal: $SP_NAME (${AZURE_CLIENT_ID:0:8}...)"
+  fi
+fi
+
+echo -en "  Copilot GitHub Token (PAT with copilot scope; press Enter to keep existing repo secret if present): "
 read -rs COPILOT_GITHUB_TOKEN
 echo ""
 
+HAS_EXISTING_COPILOT_SECRET=0
+if gh secret list --repo "$REPO" | awk '{print $1}' | grep -qx "COPILOT_GITHUB_TOKEN"; then
+  HAS_EXISTING_COPILOT_SECRET=1
+fi
+
 # Validate we have all values
 MISSING=0
-for var in AZURE_SUBSCRIPTION_ID AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET COPILOT_GITHUB_TOKEN; do
+for var in AZURE_SUBSCRIPTION_ID AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET; do
   if [[ -z "${!var}" ]]; then
     error "Missing required value: $var"
     MISSING=1
   fi
 done
+
+if [[ -z "$COPILOT_GITHUB_TOKEN" && $HAS_EXISTING_COPILOT_SECRET -eq 0 ]]; then
+  error "Missing required value: COPILOT_GITHUB_TOKEN"
+  MISSING=1
+fi
 
 if [[ $MISSING -eq 1 ]]; then
   error "Cannot continue without all required values."
@@ -133,8 +199,12 @@ header "Setting GitHub repository secrets"
 echo -n "$AZURE_CLIENT_SECRET" | gh secret set AZURE_CLIENT_SECRET --repo "$REPO"
 info "AZURE_CLIENT_SECRET"
 
-echo -n "$COPILOT_GITHUB_TOKEN" | gh secret set COPILOT_GITHUB_TOKEN --repo "$REPO"
-info "COPILOT_GITHUB_TOKEN"
+if [[ -n "$COPILOT_GITHUB_TOKEN" ]]; then
+  echo -n "$COPILOT_GITHUB_TOKEN" | gh secret set COPILOT_GITHUB_TOKEN --repo "$REPO"
+  info "COPILOT_GITHUB_TOKEN"
+else
+  info "COPILOT_GITHUB_TOKEN already exists; keeping existing secret"
+fi
 
 # ── Summary ────────────────────────────────────────────────────────
 
