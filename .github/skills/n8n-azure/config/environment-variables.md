@@ -49,6 +49,7 @@ DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED=false
 |----------|-------|----------|-------------|
 | `N8N_PORT` | `5678` | ✅ | HTTP port (default) |
 | `N8N_PROTOCOL` | `https` | ✅ | Protocol for generated URLs |
+| `N8N_ENDPOINT_HEALTH` | `healthz` | ⚠️ | Dedicated health endpoint path; use `/healthz` for Container Apps probes |
 | `N8N_ENCRYPTION_KEY` | (auto-generated) | ✅ | Data encryption key |
 
 ### Encryption Key
@@ -137,6 +138,7 @@ env: [
   { name: 'N8N_ENCRYPTION_KEY', secretRef: 'n8n-encryption-key' }
   { name: 'N8N_PORT', value: '5678' }
   { name: 'N8N_PROTOCOL', value: 'https' }
+  { name: 'N8N_ENDPOINT_HEALTH', value: 'healthz' }
   
   // Authentication
   { name: 'N8N_BASIC_AUTH_ACTIVE', value: string(n8nBasicAuthActive) }

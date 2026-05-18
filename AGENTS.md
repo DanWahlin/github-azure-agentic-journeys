@@ -155,7 +155,8 @@ journeys/<app>/
 
 Slow-starting apps require extended startup time:
 - **Liveness probe**: `initialDelaySeconds: 60`
-- **Startup probe**: `failureThreshold: 30` (allows 5 minutes)
+- **Startup probe**: Use a 5-minute window. With the AVM Container App module, use `failureThreshold: 10` and `periodSeconds: 30` because AVM caps `failureThreshold` at 10.
+- **Probe path**: Use the app's dedicated health endpoint when available, for n8n use `/healthz` instead of `/`.
 
 Without this, containers enter CrashLoopBackOff before initialization completes.
 

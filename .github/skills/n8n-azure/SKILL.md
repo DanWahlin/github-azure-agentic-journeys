@@ -104,7 +104,7 @@ graph TB
 | Port | 5678 | n8n default port |
 | CPU | 1.0 cores | Minimum for responsive UI |
 | Memory | 2Gi | n8n recommended minimum |
-| Min Replicas | 0 | Scale-to-zero for cost |
+| Min Replicas | 1 in CI, 0 after validation | CI needs deterministic readiness; scale-to-zero is fine for demos/cost after tests pass |
 | Max Replicas | 3 | Handle traffic spikes |
 
 ### Health Probes (CRITICAL)
@@ -112,6 +112,8 @@ graph TB
 n8n requires **60+ seconds** to start. See `config/health-probes.md`.
 
 **Without proper health probes, containers will crash before n8n initializes!**
+
+Use the dedicated health endpoint `/healthz` for startup, readiness, and liveness probes. Do not probe `/`; the UI root can redirect or stall while the app is still initializing. When using the AVM Container App module, use `startup.failureThreshold: 10` with `startup.periodSeconds: 30` for a five-minute startup window, because AVM caps `failureThreshold` at 10.
 
 ### Database Requirements
 
@@ -130,7 +132,7 @@ n8n requires **60+ seconds** to start. See `config/health-probes.md`.
 
 ## Verification
 
-After `azd up`, run the verification commands in [troubleshooting.md](troubleshooting.md). Key checks: HTTP 200 from the n8n URL, `WEBHOOK_URL` is set on the container, and container logs show no errors.
+After `azd up`, run the verification commands in [troubleshooting.md](troubleshooting.md). Key checks: HTTP 200 from `$N8N_URL/healthz`, HTTP 200 from the n8n UI URL, `WEBHOOK_URL` is set on the container, and container logs show no errors. In CI, poll `/healthz` for up to 5 minutes before checking the UI.
 
 ## Tear Down
 
@@ -142,12 +144,13 @@ azd down --force --purge
 
 ## n8n-Specific Quirks
 
-1. **Slow startup** — needs 60s+ `initialDelaySeconds` on liveness probe
+1. **Slow startup** — needs 60s+ `initialDelaySeconds` on liveness probe and a five-minute startup window
 2. **SSL** — requires `SSL_REJECT_UNAUTHORIZED=false` for Azure PostgreSQL
 3. **WEBHOOK_URL** — set post-deployment via hook (circular dependency with FQDN)
 4. **Port 5678** — non-standard port for health checks and ingress
 5. **PostgreSQL AVM defaults** — see [../config/postgresql-avm-defaults.md](../config/postgresql-avm-defaults.md)
-6. **AVM probe failureThreshold cap** — capped at 10; use `periodSeconds: 30` with `failureThreshold: 10` for 5 min window
+6. **CI health checks** — set `minReplicas: 1`, probe `/healthz`, and wait for health before UI checks
+7. **AVM probe failureThreshold cap** — capped at 10; use `periodSeconds: 30` with `failureThreshold: 10` for 5 min window
 
 ## Azure MCP Tools
 

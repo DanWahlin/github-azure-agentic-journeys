@@ -111,7 +111,7 @@ Select **`oss-to-azure-deployer`** from the list. You're now in an interactive s
 Tell the agent what you want in a single prompt:
 
 ```
-> Deploy n8n to Azure using Bicep and azd. Set the location to westus, generate secure passwords for all credentials, and resolve any issues that come up.
+> Deploy n8n to Azure using Bicep and azd. Set the location to westus, generate secure passwords for all credentials, set the Container App minReplicas to 1 for this CI/dev deployment, use n8n's /healthz endpoint for startup/readiness/liveness probes, and resolve any issues that come up.
 ```
 
 The deployment takes several minutes. You'll see the agent generating Bicep files, registering Azure providers, and running `azd up`. It may prompt you to confirm your Azure subscription.
@@ -156,7 +156,15 @@ You can also verify manually. Open a new terminal and run the following commands
 # Store your deployed URL in a variable (azd env stores outputs from the deployment)
 N8N_URL=$(azd env get-value N8N_URL)
 
-# Check the HTTP status code (200 means the app is responding)
+# Wait for the dedicated health endpoint first
+for i in {1..30}; do
+  code=$(curl -k -sS -o /tmp/n8n-health.txt -w "%{http_code}" --max-time 20 "$N8N_URL/healthz" || true)
+  [ "$code" = "200" ] && break
+  echo "Waiting for n8n /healthz, attempt $i/30, status=$code"
+  sleep 10
+done
+
+# Check the UI HTTP status code (200 means the app is responding)
 curl -s -o /dev/null -w "%{http_code}" "$N8N_URL"
 # Expected: 200
 
@@ -197,6 +205,7 @@ The deployment automatically configures these n8n environment variables:
 | `N8N_BASIC_AUTH_ACTIVE` | `true` | Enable basic authentication |
 | `N8N_PORT` | `5678` | n8n default port |
 | `N8N_PROTOCOL` | `https` | Protocol for generated URLs |
+| `N8N_ENDPOINT_HEALTH` | `healthz` | Dedicated health endpoint for probes |
 | `WEBHOOK_URL` | Auto-configured | Set by post-provision hook |
 
 ### Container Resources
@@ -206,7 +215,7 @@ The deployment automatically configures these n8n environment variables:
 | Image | `docker.io/n8nio/n8n:latest` |
 | CPU | 1.0 core |
 | Memory | 2 GiB |
-| Min Replicas | 0 (scale-to-zero) |
+| Min Replicas | 1 for CI/dev verification; 0 after validation if you want scale-to-zero |
 | Max Replicas | 3 |
 | Scale Rule | HTTP requests (10 concurrent per replica) |
 
@@ -216,9 +225,11 @@ n8n requires **60+ seconds** to start. Without proper health probes, Azure kills
 
 | Probe | Initial Delay | Period | Failure Threshold | Max Wait |
 |-------|---------------|--------|-------------------|----------|
-| Startup | n/a | 10s | 30 | 5 minutes |
+| Startup | n/a | 30s | 10 | 5 minutes |
 | Liveness | 60s | 30s | 3 | n/a |
 | Readiness | n/a | 10s | 3 | n/a |
+
+Probe path: `/healthz`. Don't probe `/`; that's the UI root and can redirect or hang while n8n is still initializing.
 
 ### Secrets Management
 
@@ -256,7 +267,7 @@ Scale-to-zero keeps costs low during idle periods. For production with `minRepli
 
 **Cause:** n8n needs 60+ seconds to start, and default health probes kill it too early.
 
-**Fix:** Ensure health probes are configured with `initialDelaySeconds: 60` on liveness and `failureThreshold: 30` on startup. The Bicep templates in `infra-n8n/` already include this.
+**Fix:** Ensure health probes target `/healthz`, use `initialDelaySeconds: 60` on liveness, and use a five-minute startup window. With the AVM Container App module, that means `failureThreshold: 10` with `periodSeconds: 30`. For CI/dev verification, keep `minReplicas: 1` until the health check passes.
 
 Ask the agent to diagnose:
 

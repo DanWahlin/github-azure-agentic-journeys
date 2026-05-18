@@ -233,6 +233,7 @@ Run the journey end-to-end using the journey-runner approach:
    - For smart-todo, **skip Phase 2 (iOS/SwiftUI)** since Xcode is not available in CI
 3. **Deploy**: Run `azd up --no-prompt` from `$JOURNEY_DIR` (set `AZURE_LOCATION` to the configured location)
 4. **Verify**: Run verification commands from the README
+   - For n8n, do not immediately curl the UI root after `azd up`. First poll `$N8N_URL/healthz` for up to 5 minutes, then verify the UI root. The n8n journey should generate Container Apps probes against `/healthz` and use `minReplicas: 1` for CI/dev verification.
 5. **Screenshot**: If the journey has a web frontend URL, use Playwright to capture a screenshot:
    - Navigate to the URL, wait for `networkidle`, wait 3 extra seconds, take a full-page screenshot
    - Save as `screenshot-<journey>.png` in `$JOURNEY_DIR`

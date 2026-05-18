@@ -29,15 +29,20 @@ azd env get-values
 - Logs show "Container killed due to health check failure"
 - Deployment seems stuck
 
-**Root Cause:** n8n requires 60+ seconds to start. Default health probes kill it first.
+**Root Cause:** n8n requires 60+ seconds to start. Default health probes kill it first. Probing `/` can also fail because the UI root may redirect or stall during initialization.
 
-**Solution:** Configure health probes with extended timeouts. See `config/health-probes.md`.
+**Solution:** Configure health probes with extended timeouts against the dedicated `/healthz` endpoint. See `config/health-probes.md`.
 
 ```bicep
+scale: {
+  minReplicas: 1 // CI/e2e only; may be 0 for cost-saving demos after validation
+  maxReplicas: 3
+}
+
 probes: [
   {
     type: 'liveness'
-    httpGet: { port: 5678, path: '/', scheme: 'HTTP' }
+    httpGet: { port: 5678, path: '/healthz', scheme: 'HTTP' }
     initialDelaySeconds: 60    // MUST be 60+
     periodSeconds: 30
     timeoutSeconds: 10
@@ -45,13 +50,15 @@ probes: [
   }
   {
     type: 'startup'
-    httpGet: { port: 5678, path: '/', scheme: 'HTTP' }
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 30       // Allow 5 minutes
+    httpGet: { port: 5678, path: '/healthz', scheme: 'HTTP' }
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 10       // AVM cap: 10 × 30s = 5 minutes
   }
 ]
 ```
+
+For CI/e2e runs, set `minReplicas: 1` so the verification step is not testing a scale-to-zero cold start instead of the deployment.
 
 ---
 
@@ -205,7 +212,7 @@ az containerapp update --name $APP_NAME --resource-group $RG \
 
 ## Key Learnings Summary
 
-1. **Health probes are critical** - n8n needs 60s initial delay and 5min startup allowance
+1. **Health probes are critical** - n8n needs 60s initial delay and 5min startup allowance on `/healthz`
 2. **Always use PostgreSQL FQDN** - internal names don't work
 3. **SSL is mandatory** - Azure PostgreSQL requires SSL with relaxed certificate validation
 4. **`newGuid()` is position-sensitive** - only works as parameter default
@@ -215,6 +222,7 @@ az containerapp update --name $APP_NAME --resource-group $RG \
 8. **Enable publicNetworkAccess explicitly** - AVM defaults to disabled
 9. **Pin passwords in azd env** - `newGuid()` regenerates on redeploy, causing auth failures
 10. **Burstable SKU doesn't support HA** - set `highAvailability: 'Disabled'`
+11. **CI should keep n8n warm** - set Container Apps `minReplicas: 1`, then optionally scale to zero after validation
 
 ---
 
@@ -311,3 +319,59 @@ authConfig: {
 ```
 
 **This is the #1 gotcha with the AVM PostgreSQL module.** Without it, every password-based application (n8n, Grafana with PostgreSQL, Superset) will fail to connect.
+
+---
+
+## Issue 13: HTTP 000 / Timeout After Successful azd up
+
+**Symptoms:**
+- `azd up` succeeds and ingress has an FQDN
+- TLS handshake on 443 works
+- `curl` to the app returns HTTP `000` or times out
+- Container App revisions show `Unhealthy`
+
+**Root Cause:** Health probes are using the UI root `/`, startup window is too short, or CI is hitting a scale-to-zero cold start. n8n provides a dedicated health endpoint at `/healthz`; use it.
+
+**Solution:**
+```bicep
+scale: {
+  minReplicas: 1 // CI/e2e only; may be 0 for cost-saving demos after validation
+  maxReplicas: 3
+}
+
+probes: [
+  {
+    type: 'startup'
+    httpGet: { port: 5678, path: '/healthz', scheme: 'HTTP' }
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 10
+  }
+  {
+    type: 'readiness'
+    httpGet: { port: 5678, path: '/healthz', scheme: 'HTTP' }
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  }
+  {
+    type: 'liveness'
+    httpGet: { port: 5678, path: '/healthz', scheme: 'HTTP' }
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  }
+]
+```
+
+Then verify with a polling loop before checking the UI:
+```bash
+N8N_URL=$(azd env get-value N8N_URL)
+for i in {1..30}; do
+  code=$(curl -k -sS -o /tmp/n8n-health.txt -w "%{http_code}" --max-time 20 "$N8N_URL/healthz" || true)
+  [ "$code" = "200" ] && break
+  echo "Waiting for n8n /healthz, attempt $i/30, status=$code"
+  sleep 10
+done
+```
