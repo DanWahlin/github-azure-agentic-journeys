@@ -156,33 +156,7 @@ Query parameters:
 |-------|------|----------|-------------|
 | userId | string | yes | Filter todos by user |
 
-Response (200):
-
-```json
-[
-  {
-    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "title": "Prepare Conference talk",
-    "status": "pending",
-    "userId": "user-1",
-    "stepsGenerated": true,
-    "createdAt": "2026-04-05T10:00:00.000Z",
-    "updatedAt": "2026-04-05T10:05:00.000Z",
-    "steps": [
-      {
-        "id": "s1-uuid",
-        "title": "Choose talk topic and submit abstract",
-        "description": "Review the conference themes and pick a topic you're passionate about. Write a 200-word abstract.",
-        "order": 1,
-        "isCompleted": false,
-        "createdAt": "2026-04-05T10:05:00.000Z"
-      }
-    ]
-  }
-]
-```
-
-400 if `userId` is missing.
+Response (200): `Todo[]` including nested `steps`. 400 if `userId` is missing.
 
 #### `POST /api/todos`
 
@@ -195,22 +169,7 @@ Request body:
 }
 ```
 
-Response (201):
-
-```json
-{
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "title": "Prepare Conference talk",
-  "status": "pending",
-  "userId": "user-1",
-  "stepsGenerated": false,
-  "createdAt": "2026-04-05T10:00:00.000Z",
-  "updatedAt": "2026-04-05T10:00:00.000Z",
-  "steps": []
-}
-```
-
-400 if `title` is empty, missing, or exceeds 500 characters. 400 if `userId` is missing.
+Response (201): Created `Todo` with `status: "pending"`, `stepsGenerated: false`, and empty `steps`. 400 if `title` is empty, missing, or exceeds 500 characters. 400 if `userId` is missing.
 
 #### `PATCH /api/todos/:id`
 
@@ -249,33 +208,7 @@ No request body. Calls the AI service to generate action steps from the todo's t
 9. Set `stepsGenerated = true` on the todo
 10. Return the todo with all generated steps
 
-Response (200):
-
-```json
-{
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "title": "Prepare Conference talk",
-  "status": "pending",
-  "userId": "user-1",
-  "stepsGenerated": true,
-  "createdAt": "2026-04-05T10:00:00.000Z",
-  "updatedAt": "2026-04-05T10:05:00.000Z",
-  "steps": [
-    {
-      "id": "step-uuid-1",
-      "title": "Choose talk topic and submit abstract",
-      "description": "Review the conference themes and pick a topic you're passionate about. Write a compelling 200-word abstract.",
-      "order": 1,
-      "isCompleted": false,
-      "createdAt": "2026-04-05T10:05:00.000Z"
-    }
-  ]
-}
-```
-
-The `steps` array contains 3-7 AI-generated steps. Each has `title`, `description`, `order`, and `isCompleted`.
-
-404 if todo not found. 503 if AI service is unavailable or returns unparseable output after retry.
+Response (200): Updated `Todo` with 3-7 AI-generated `steps`. Each step has `title`, `description`, `order`, and `isCompleted`. 404 if todo not found. 503 if AI service is unavailable or returns unparseable output after retry.
 
 #### `PATCH /api/todos/:id/steps/:stepId`
 
@@ -287,21 +220,7 @@ Request body:
 }
 ```
 
-Response (200): Updated step object.
-
-```json
-{
-  "id": "step-uuid-1",
-  "todoId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "title": "Choose talk topic and submit abstract",
-  "description": "Review the Conference conference themes...",
-  "order": 1,
-  "isCompleted": true,
-  "createdAt": "2026-04-05T10:05:00.000Z"
-}
-```
-
-404 if todo or step not found. 400 if `isCompleted` is not a boolean.
+Response (200): Updated `ActionStep`. 404 if todo or step not found. 400 if `isCompleted` is not a boolean.
 
 **Auto-completion rule:** After updating a step, check all steps for the parent todo. If ALL steps are `isCompleted: true`, set the todo's status to `completed`. If a step is unchecked (`isCompleted: false`) and the todo's status is `completed`, set it back to `in_progress`.
 
@@ -338,22 +257,19 @@ The seed script (`src/api/src/data/seed.ts`) must run before first use so the AP
 | todo-2 | Set up home office | in_progress | true |
 | todo-3 | Plan weekend hiking trip | completed | true |
 
-**Action Steps** (for todo-2, "Set up home office"):
+Seed action steps for `todo-2` and `todo-3` so the app can show generated/completed states immediately:
 
-| id | todoId | title | description | order | isCompleted |
-|----|--------|-------|-------------|-------|-------------|
-| step-2-1 | todo-2 | Choose a desk and chair | Research ergonomic options. Budget $500-800 for a standing desk and $300-500 for an ergonomic chair. Check reviews on Wirecutter. | 1 | true |
-| step-2-2 | todo-2 | Set up monitor and peripherals | Get a 27" 4K monitor, wireless keyboard, and mouse. Use a monitor arm to save desk space. Budget $400-600. | 2 | true |
-| step-2-3 | todo-2 | Organize cable management | Buy cable clips and a cable tray from Amazon ($20-30). Route power and data cables neatly under the desk. | 3 | false |
-| step-2-4 | todo-2 | Set up lighting | Get a desk lamp with adjustable color temperature (3000K-5000K). Position it to avoid screen glare. Budget $50-100. | 4 | false |
+| id | todoId | title | order | isCompleted |
+|----|--------|-------|-------|-------------|
+| step-2-1 | todo-2 | Choose a desk and chair | 1 | true |
+| step-2-2 | todo-2 | Set up monitor and peripherals | 2 | true |
+| step-2-3 | todo-2 | Organize cable management | 3 | false |
+| step-2-4 | todo-2 | Set up lighting | 4 | false |
+| step-3-1 | todo-3 | Pick a trail | 1 | true |
+| step-3-2 | todo-3 | Check weather forecast | 2 | true |
+| step-3-3 | todo-3 | Pack gear and supplies | 3 | true |
 
-**Action Steps** (for todo-3, "Plan weekend hiking trip"):
-
-| id | todoId | title | description | order | isCompleted |
-|----|--------|-------|-------------|-------|-------------|
-| step-3-1 | todo-3 | Pick a trail | Check AllTrails for moderate 5-8 mile hikes within 1 hour drive. Consider elevation gain and current trail conditions. | 1 | true |
-| step-3-2 | todo-3 | Check weather forecast | Look at the 3-day forecast for the trailhead area. Have a backup indoor plan if rain is expected. | 2 | true |
-| step-3-3 | todo-3 | Pack gear and supplies | Pack: hiking boots, water (2L per person), trail snacks, sunscreen, first aid kit, phone charger, downloaded trail map. | 3 | true |
+Use short actionable descriptions for each seed step.
 
 ---
 
@@ -386,37 +302,7 @@ The API URL must be configurable — never hardcode it. Use `#if DEBUG` to switc
 
 ### Models
 
-```swift
-struct Todo: Codable, Identifiable {
-    let id: String
-    var title: String
-    var status: String           // "pending", "in_progress", "completed"
-    let userId: String
-    var stepsGenerated: Bool
-    let createdAt: String
-    var updatedAt: String
-    var steps: [ActionStep]
-}
-
-struct ActionStep: Codable, Identifiable {
-    let id: String
-    let todoId: String
-    let title: String
-    let description: String
-    let order: Int
-    var isCompleted: Bool
-    let createdAt: String
-}
-
-struct APIError: Codable {
-    let error: ErrorDetail
-}
-
-struct ErrorDetail: Codable {
-    let code: String
-    let message: String
-}
-```
+Create Swift `Codable` + `Identifiable` models that match the API `Todo`, `ActionStep`, and `{ error: { code, message } }` shapes exactly.
 
 ### API Client
 
@@ -488,28 +374,9 @@ All methods use `URLSession.shared.data(for:)` with `async throws`. On non-2xx r
 
 **Endpoint:** `POST /api/todos/:id/generate-steps`
 
-**AI SDK:** `openai` npm package (OpenAI-compatible client for Microsoft Foundry)
+**AI SDK:** Use the plain OpenAI-compatible SDK for the chosen language (`openai`, `OpenAI`, or `com.openai:openai-java`) with a normalized `/openai/v1/` base URL.
 
-**Client setup:**
-
-```typescript
-import OpenAI from "openai";
-
-function normalizeOpenAIBaseURL(endpoint: string): string {
-  const trimmed = endpoint.replace(/\/+$/, "");
-  return trimmed.endsWith("/openai/v1") ? `${trimmed}/` : `${trimmed}/openai/v1/`;
-}
-
-const client = new OpenAI({
-  baseURL: normalizeOpenAIBaseURL(process.env.AZURE_AI_ENDPOINT!),
-  apiKey: process.env.AZURE_AI_KEY,
-});
-
-const completion = await client.chat.completions.create({
-  model: process.env.AZURE_AI_DEPLOYMENT!,
-  messages,
-});
-```
+**Client setup:** Normalize `AZURE_AI_ENDPOINT` so it ends with `/openai/v1/`, pass `AZURE_AI_KEY` as the API key, and pass `AZURE_AI_DEPLOYMENT` as the model/deployment name when calling chat completions.
 
 **System prompt:**
 
@@ -568,33 +435,11 @@ Local dev and production both use API key auth via the plain `openai` package. N
 
 Deploy the API to Azure Functions **Flex Consumption** plan — a serverless, scale-to-zero hosting plan with per-function scaling, virtual network support, and configurable instance memory sizes. See [Flex Consumption plan docs](https://learn.microsoft.com/en-us/azure/azure-functions/flex-consumption-plan) for details.
 
-### Azure Skills Plugin
-
-The Azure Skills plugin for Copilot CLI provides MCP tools and plugin skills for infrastructure generation and deployment. Install it with `/plugin install azure@azure-skills` if not already installed.
-
-| Tool / Skill | When to Use |
-|------|-------------|
-| `azure_bicep_schema` | Look up AVM module properties, required fields, and latest API versions |
-| `azure_deploy_iac_guidance` | Get best practices for azd project structure and Flex Consumption configuration |
-| `azure_deploy_plan` | Before `azd up` — validate deployment plan and check for misconfigurations |
-| `azure_deploy_app_logs` | Post-deployment — fetch Log Analytics logs to troubleshoot startup errors |
-| `azure-prepare` (skill) | Generate Bicep infrastructure, azure.yaml, and deployment configuration |
-| `azure-validate` (skill) | Validate generated infrastructure before deployment |
-| `azure-deploy` (skill) | Execute the deployment with azd |
-
 ### Azure Resources
 
 Prefer AVM modules for consistency. If an AVM module blocks deployment because of parameter drift, unsupported passthrough, or schema mismatch, switch that single resource to a raw `Microsoft.*` Bicep resource and document why.
 
-| Resource | AVM Module | Purpose |
-|----------|-----------|---------|
-| Function App | `br/public:avm/res/web/site` (kind: `functionapp,linux`) | API hosting (Flex Consumption) |
-| App Service Plan | `br/public:avm/res/web/serverfarm` (SKU: `FC1`, tier: `FlexConsumption`) | Flex Consumption compute |
-| Azure SQL Server | `br/public:avm/res/sql/server` | Database server |
-| Azure SQL Database | child resource of server | Todo + action step storage |
-| Microsoft Foundry | `br/public:avm/ptn/ai-ml/ai-foundry` | gpt-5-mini model hosting |
-| Monitoring | `br/public:avm/ptn/azd/monitoring` | App Insights + Log Analytics |
-| Storage Account | `br/public:avm/res/storage/storage-account` | Functions runtime storage |
+Required resources: Function App on Flex Consumption, App Service Plan (`FC1`), Azure SQL Server + Database, Microsoft Foundry/Azure OpenAI with `gpt-5-mini`, Storage Account, Log Analytics, and Application Insights.
 
 ### azure.yaml
 
@@ -648,39 +493,19 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 
 ### .NET-Specific Notes
 
-- Use `Azure.AI.OpenAI` NuGet package (not the base `OpenAI` package) — the base package can't construct Azure-specific API URLs. Use `AzureOpenAIClient` from `Azure.AI.OpenAI` in the DI registration.
-- Do NOT add `Microsoft.Azure.Functions.Worker.ApplicationInsights` or `Microsoft.ApplicationInsights.WorkerService` — these cause version conflicts with the Functions runtime on Flex Consumption. App Insights is wired through `configs.applicationInsightResourceId` in the Bicep template instead.
+- Use the `OpenAI` NuGet package for the `/openai/v1/` endpoint path.
+- Do NOT add `Microsoft.Azure.Functions.Worker.ApplicationInsights` or `Microsoft.ApplicationInsights.WorkerService`; App Insights is wired through infrastructure.
 
 ### Post-Provision: Managed Identity SQL Access
 
-Azure SQL requires a SQL command to add the Function App's managed identity as a user. This can't be done in Bicep — it requires a post-provision script or manual step.
+Azure SQL requires a post-provision SQL step to add the Function App's managed identity as a database user. `az sql db execute` does not exist; use `sqlcmd` or a small language-specific script.
 
-Create `infra/hooks/postprovision.sh`:
-
-> **Note:** `az sql db execute` does not exist. Use `sqlcmd` (install via `brew install sqlcmd`) or a Node.js/Python script with the `mssql`/`pyodbc` package to run SQL commands against Azure SQL.
-
-```bash
-#!/bin/bash
-SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)
-SQL_DB=$(azd env get-value SQL_DATABASE_NAME)
-FUNC_APP=$(azd env get-value FUNCTION_APP_NAME)
-
-# Add firewall rule for local IP (required to run sqlcmd from developer machine)
-MY_IP=$(curl -s https://api.ipify.org)
-az sql server firewall-rule create --server "$SQL_SERVER" --resource-group $(azd env get-value RESOURCE_GROUP_NAME) \
-  --name "PostProvision-$MY_IP" --start-ip-address "$MY_IP" --end-ip-address "$MY_IP" 2>/dev/null
-
-# Create the managed identity user and grant roles (requires sqlcmd: brew install sqlcmd)
-# Uses ActiveDirectoryAzCli auth (go-sqlcmd). For ODBC sqlcmd, use --access-token instead.
-sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" --authentication-method ActiveDirectoryAzCli \
-  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_ddladmin ADD MEMBER [${FUNC_APP}];" \
-  || echo "⚠️ Managed identity user creation skipped (may require manual setup)"
-
-# Create tables and seed data if they don't exist
-sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" --authentication-method ActiveDirectoryAzCli \
-  -i ./infra/hooks/postprovision-schema.sql \
-  || echo "⚠️ Schema creation skipped"
-```
+Post-provision hook requirements:
+- Add a temporary firewall rule for the developer machine's public IP if running SQL setup locally.
+- Connect to `${SQL_SERVER}.database.windows.net` with Microsoft Entra auth.
+- `CREATE USER [<function-app-name>] FROM EXTERNAL PROVIDER` if missing.
+- Grant `db_datareader`, `db_datawriter`, and `db_ddladmin` to that user.
+- Run `infra/hooks/postprovision-schema.sql` to create tables and seed data.
 
 ### Database Schema Initialization
 
@@ -692,61 +517,15 @@ The iOS app is NOT deployed via azd. To test: replace the `Config.swift` `apiBas
 
 ### Known Deployment Gotchas
 
-1. **Soft-deleted Cognitive Services** — if redeploying after `azd down`, the AI Services resource is soft-deleted for 48 hours and blocks re-creation. Purge it first: `az cognitiveservices account list-deleted` then `az cognitiveservices account purge`
-2. **Azure SQL Entra admin** — the deploying user must be set as Microsoft Entra admin on the SQL server for the post-provision managed identity script to work. The Bicep template should set this.
-3. **Functions cold start** — first request after idle takes 5-10 seconds on consumption plan. The iOS app should show loading state during API calls.
-4. **AI model deployment lag** — model deployment may take 1-2 minutes during provisioning. The `generate-steps` endpoint returns 503 until it's ready.
-5. **Provider registration** — run these once per subscription before first deploy: `az provider register --namespace Microsoft.Web`, `Microsoft.Sql`, `Microsoft.CognitiveServices`, `Microsoft.OperationalInsights`
-6. **SQL provisioning restricted** — some subscriptions have SQL provisioning disabled in certain regions (e.g., `eastus`, `eastus2`). Try `westus3`, `centralus`, or `southcentralus` if you get `ProvisioningDisabled`.
-7. **AI model region availability** — `gpt-5-mini` is not available in all regions. Check availability with `az cognitiveservices model list --location <region>`. Use `gpt-4.1` as a fallback — it is widely available and works well for task decomposition.
-8. **Storage 403 on deploy** — if `azd deploy` fails with a 403 storage error, ensure the Storage Account `networkAcls.defaultAction` is `Allow` and the deploying user has `Storage Blob Data Contributor` role.
-9. **Blob container URI malformed on deploy** — `azd deploy` may fail with `InaccessibleStorageException: Blob Container Uri is malformed` if the Function App's `functionAppConfig.deployment.storage.value` only contains the container name instead of the full URL. This can happen due to eventual consistency after provisioning. Wait 30 seconds and retry `azd deploy`. If it persists, verify the value via `az resource show` and patch it with the full `https://<account>.blob.core.windows.net/deploymentpackage` URI.
-10. **SQL firewall blocks post-provision script** — the Bicep template only allows Azure services (`0.0.0.0`). The post-provision script runs from the developer's machine and needs a firewall rule for the developer's IP. The post-provision script should auto-add one (see the script above), or add it manually: `az sql server firewall-rule create --server <name> --resource-group <rg> --name MyIP --start-ip-address <my-ip> --end-ip-address <my-ip>`.
-11. **Azure SQL DNS failures** — if logs show `getaddrinfo ENOTFOUND <sql-name>`, `AZURE_SQL_SERVER` is only the short name. Use the full FQDN: `<sql-name>.database.windows.net`.
-12. **Oryx TypeScript build fails** — if `azd deploy` fails during remote build, check `.funcignore`. Do not exclude `src/` or `tsconfig.json`.
-13. **Simulator preflight busy** — if Xcode reports `Application failed preflight checks` or `SBMainWorkspace Busy`, terminate/uninstall the app from that simulator, reboot the simulator, then clean build and run again.
+1. **SQL/AI region limits:** If SQL provisioning or `gpt-5-mini` deployment fails, try `westus3`, `centralus`, or `southcentralus`; verify model version with `az cognitiveservices model list`.
+2. **Post-provision SQL access:** The deploying user must be Microsoft Entra admin, and local SQL setup needs a temporary firewall rule for the developer IP.
+3. **Azure SQL DNS failures:** If logs show `getaddrinfo ENOTFOUND <sql-name>`, `AZURE_SQL_SERVER` is only the short name. Use `<sql-name>.database.windows.net`.
+4. **Oryx TypeScript build fails:** Check `.funcignore`; do not exclude `src/` or `tsconfig.json`.
+5. **Storage deploy failures:** For 403 or missing container errors, ensure Storage `networkAcls.defaultAction` is `Allow`, the deploying user has `Storage Blob Data Contributor`, and the `deploymentpackage` container exists.
+6. **Simulator preflight busy:** If Xcode reports `Application failed preflight checks` or `SBMainWorkspace Busy`, terminate/uninstall the app from that simulator, reboot the simulator, then clean build and run again.
 
 ---
 
-## Security Considerations
+## Production Hardening (Out of Scope)
 
-This journey builds a working app without authentication to keep the focus on Azure Functions, AI integration, and iOS development. Before exposing this to real users, consider the following hardening steps:
-
-### API Authentication
-
-All functions use `AuthorizationLevel.Anonymous` — anyone with the URL can call them. For production:
-- Use `AuthorizationLevel.Function` and distribute function keys to the iOS app, or
-- Add Azure AD / Entra ID authentication via Easy Auth on the Function App, or
-- Implement JWT token validation in the function code with an identity provider
-
-### CORS (Cross-Origin Resource Sharing)
-
-The Function App has no CORS policy configured. If you add a web frontend, restrict `allowedOrigins` to your domain. For the iOS app this isn't a browser concern, but it's good practice to lock down anyway via the Function App's CORS settings in Bicep or the Azure portal.
-
-### AI API Key in Key Vault
-
-`AZURE_AI_KEY` is stored as a plaintext app setting. Move it to Azure Key Vault and use a Key Vault reference in the Function App settings:
-
-```
-@Microsoft.KeyVault(SecretUri=https://<vault-name>.vault.azure.net/secrets/AZURE-AI-KEY)
-```
-
-Better yet, use managed identity for AI Services (same pattern as Azure SQL) — grant the Function App's identity the `Cognitive Services User` role and use `DefaultAzureCredential` in code instead of an API key.
-
-### Rate Limiting / Cost Protection
-
-The `/generate-steps` endpoint calls a paid AI model with no throttling. A bad actor (or a bug) could generate thousands of requests and run up costs. Consider:
-- Adding a rate limit per `userId` (e.g., 10 generations per hour)
-- Setting a spending cap on the AI Services resource in the Azure portal
-- Adding Azure API Management in front of the Function App for request throttling
-
-### Input Validation
-
-The API validates title length (1-500 chars) and userId presence, but doesn't sanitize for HTML/script content. If the data is ever rendered in a web browser (not just the iOS app), add output encoding to prevent XSS. The current SQL parameterized queries already prevent SQL injection.
-
-### Network Security
-
-For production, consider tightening the network:
-- **Storage Account**: Change `networkAcls.defaultAction` back to `Deny` after deployment, adding VNet rules for the Function App
-- **Azure SQL**: Remove the `AllowAllWindowsAzureIps` firewall rule and use VNet integration with private endpoints instead
-- **Function App**: Enable VNet integration and restrict inbound traffic to known IP ranges or API Management
+Before exposing this beyond a demo, add API authentication, move `AZURE_AI_KEY` to Key Vault or managed identity, add rate limiting for `/generate-steps`, encode output if data is rendered in a browser, and replace broad storage/SQL firewall rules with private networking.
