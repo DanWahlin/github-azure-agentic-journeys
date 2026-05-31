@@ -12,11 +12,11 @@ Pick your API language. Data models, endpoints, and acceptance criteria are iden
 
 | | Node.js | Python | .NET | Java |
 |---|---------|--------|------|------|
-| **Framework** | Azure Functions v2 model + TypeScript | Azure Functions v2 model + Python | Azure Functions (isolated worker) + C# | Azure Functions + Java |
-| **Azure SQL** | `mssql` + `@types/mssql` (dev) | `pyodbc` | `Microsoft.Data.SqlClient` | `JdbcTemplate` + `mssql-jdbc` |
-| **AI** | `openai` | `openai` | `Azure.AI.OpenAI` | `com.openai:openai-java` |
+| **Framework** | Azure Functions Node.js v4 programming model (`@azure/functions`) + TypeScript | Azure Functions v4 runtime (Python v2 programming model) | Azure Functions isolated worker model + C# | Azure Functions + Java |
+| **Azure SQL** | `mssql` + `@types/mssql` (dev) | `mssql-python` | `Microsoft.Data.SqlClient` | `mssql-jdbc` (`com.microsoft.sqlserver:mssql-jdbc`) |
+| **AI** | `openai` | `openai` | `OpenAI` | `com.openai:openai-java` |
 
-Frontend: Swift/SwiftUI (iOS 17+). Deploy backend with **azd** + **Bicep using Azure Verified Modules (AVM)**.
+Frontend: Swift/SwiftUI (iOS 17+). Deploy backend with **azd** + **Bicep**. Prefer Azure Verified Modules (AVM), but use raw `Microsoft.*` resources when AVM parameter drift blocks deployment.
 
 The iOS app is NOT deployed by azd — only the Azure backend is. The app points at the deployed API URL via a `Config.swift` file.
 
@@ -41,7 +41,7 @@ smart-todo/
 │           ├── Models/
 │           ├── Services/
 │           └── Views/
-├── infra/                      # Bicep with AVM modules
+├── infra/                      # Bicep with AVM modules or raw Microsoft.* resources
 │   ├── main.bicep
 │   ├── main.parameters.json
 │   ├── abbreviations.json
@@ -87,7 +87,9 @@ Functions never import the database client directly — they get a `DataStore` f
 
 **Node.js entry point note:** Set `"main": "dist/functions/*.js"` in `package.json` — this must match where `tsc` emits the compiled function files. Since `tsconfig.json` uses `rootDir: "src"` and `outDir: "dist"`, source files under `src/functions/` compile to `dist/functions/` (the `src/` prefix is stripped). A common mistake is writing `"main": "dist/src/functions/*.js"` which causes Azure Functions Core Tools to find zero functions.
 
-**Azure SQL notes:** Use `[order]` (bracket-quoted) since `order` is a SQL reserved word. For managed identity auth, use `azure-active-directory-default` authentication — no passwords. SSL is required by default. For local development, connect to Azure SQL using a connection string with SQL auth or your Azure AD identity — set `AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`, and optionally `AZURE_SQL_USER`/`AZURE_SQL_PASSWORD` in `local.settings.json`.
+**Node.js deployment note:** For `azd` remote/Oryx build, do not exclude `src/` or `tsconfig.json` in `.funcignore`; Azure needs both to compile TypeScript. Exclude `node_modules/`, `dist/**/*.map`, and `local.settings.json`.
+
+**Azure SQL notes:** Use `[order]` (bracket-quoted) since `order` is a SQL reserved word. For managed identity auth, use `azure-active-directory-default` authentication — no passwords. SSL is required by default. In Azure, set `AZURE_SQL_SERVER` to the full FQDN from `fullyQualifiedDomainName` (for example, `sql-name.database.windows.net`) and do not strip the `.database.windows.net` suffix. For local development, connect to Azure SQL using a connection string with SQL auth or your Azure AD identity — set `AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`, and optionally `AZURE_SQL_USER`/`AZURE_SQL_PASSWORD` in `local.settings.json`.
 
 ### Data Models
 
@@ -435,6 +437,8 @@ class APIClient {
 
 All methods use `URLSession.shared.data(for:)` with `async throws`. On non-2xx responses, decode the `APIError` format and throw a descriptive `LocalizedError`.
 
+**DELETE response:** `DELETE /api/todos/:id` returns `204 No Content`, so the Swift client must not try to decode JSON for that call.
+
 ### Views
 
 #### TodoListView (main screen — `/`)
@@ -491,9 +495,19 @@ All methods use `URLSession.shared.data(for:)` with `async throws`. On non-2xx r
 ```typescript
 import OpenAI from "openai";
 
+function normalizeOpenAIBaseURL(endpoint: string): string {
+  const trimmed = endpoint.replace(/\/+$/, "");
+  return trimmed.endsWith("/openai/v1") ? `${trimmed}/` : `${trimmed}/openai/v1/`;
+}
+
 const client = new OpenAI({
-  baseURL: process.env.AZURE_AI_ENDPOINT,
+  baseURL: normalizeOpenAIBaseURL(process.env.AZURE_AI_ENDPOINT!),
   apiKey: process.env.AZURE_AI_KEY,
+});
+
+const completion = await client.chat.completions.create({
+  model: process.env.AZURE_AI_DEPLOYMENT!,
+  messages,
 });
 ```
 
@@ -542,11 +556,11 @@ Respond with ONLY a valid JSON array. No markdown, no code fences, no explanatio
 
 | Variable | Local Dev | Production |
 |----------|-----------|------------|
-| AZURE_AI_ENDPOINT | From Azure Portal (include `/openai/v1/` path) | Set by Bicep output |
+| AZURE_AI_ENDPOINT | From Azure Portal (with or without `/openai/v1/`) | Set by Bicep output |
 | AZURE_AI_DEPLOYMENT | `gpt-5-mini` | Set by Bicep output |
-| AZURE_AI_KEY | API key from portal | Set by Bicep output (or managed identity) |
+| AZURE_AI_KEY | API key from portal | Set by Bicep output |
 
-Local dev and production both use API key auth via the `openai` package. The endpoint URL should include the `/openai/v1/` suffix (e.g., `https://<resource>.openai.azure.com/openai/v1/`).
+Local dev and production both use API key auth via the plain `openai` package. Normalize the endpoint to include `/openai/v1/` before creating the client; Bicep may output the raw resource endpoint without that suffix.
 
 ---
 
@@ -568,7 +582,9 @@ The Azure Skills plugin for Copilot CLI provides MCP tools and plugin skills for
 | `azure-validate` (skill) | Validate generated infrastructure before deployment |
 | `azure-deploy` (skill) | Execute the deployment with azd |
 
-### Azure Resources (AVM Modules)
+### Azure Resources
+
+Prefer AVM modules for consistency. If an AVM module blocks deployment because of parameter drift, unsupported passthrough, or schema mismatch, switch that single resource to a raw `Microsoft.*` Bicep resource and document why.
 
 | Resource | AVM Module | Purpose |
 |----------|-----------|---------|
@@ -612,20 +628,19 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 
 ### Bicep Requirements
 
-- Use AVM modules for ALL resources — no raw resource definitions
+- Prefer AVM modules, but allow raw `Microsoft.*` resources when AVM blocks deployment
 - System-assigned managed identity on the Function App
-- Role assignment: `Cognitive Services User` (`a97b65f3-24c7-4388-baec-2e87135dc908`) for Function App identity → AI Services
+- AI access: default path uses `AZURE_AI_KEY` with the plain `openai` SDK. Add `Cognitive Services User` only if you later switch to managed identity for AI.
 - Role assignment: `Storage Blob Data Owner` (`b7e6dc6d-f1e8-4753-8033-0f276bb0955b`) for Function App identity → Storage Account (required for Flex Consumption deployment)
 - Role assignment: `Storage Blob Data Contributor` (`ba92f5b4-2d11-453d-a403-e96b0029c9fe`) for the deploying user → Storage Account (required for `azd deploy` to upload the zip package)
-- Azure SQL: set deploying user AND Function App managed identity as Azure AD admins, firewall rule allowing Azure services (`0.0.0.0`)
-- **Azure SQL: Function App identity must be an AD admin** — without this, the Function App gets "Login failed for user '<token-identified principal>'" when using Entra auth. Add the Function App's `principalId` to the SQL Server `administrators` block, or run `az sql server ad-admin create` post-provisioning.
+- Azure SQL: set the deploying user as Microsoft Entra admin, add a firewall rule allowing Azure services (`0.0.0.0`), then create a database user for the Function App identity in post-provision
 - Azure SQL Database: set `maxSizeBytes: 2147483648` (2 GB) when using Basic tier (default 32 GB exceeds the limit)
 - **Azure SQL Database: set `zoneRedundant: false`** — Basic tier does not support zone redundancy. AVM module may default to true, causing "ProvisioningDisabled: Provisioning of zone redundant database/pool is not supported."
 - Microsoft Foundry: use `br/public:avm/ptn/ai-ml/ai-foundry` with `baseName` (max 12 chars), `aiModelDeployments` array for gpt-5-mini, `aiFoundryConfiguration.disableLocalAuth: false`, and system-assigned managed identity
 - **AI model version is region-specific** — use `az cognitiveservices model list --location <region> --query "[?model.name=='gpt-5-mini']"` to find the correct version before generating Bicep. For example, `westus` requires `2025-08-07` (not `2025-02-27`).
 - Outputs in SCREAMING_SNAKE_CASE: `API_URL`, `SQL_SERVER_NAME`, `SQL_DATABASE_NAME`, `FUNCTION_APP_NAME`, `AZURE_AI_ENDPOINT`, `AZURE_AI_DEPLOYMENT`, `RESOURCE_GROUP_NAME`
 - `azd-service-name: 'api'` tag on the Function App
-- Function App settings: `AZURE_AI_ENDPOINT`, `AZURE_AI_DEPLOYMENT`, `AZURE_AI_KEY`, `AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`
+- Function App settings: `AZURE_AI_ENDPOINT`, `AZURE_AI_DEPLOYMENT`, `AZURE_AI_KEY`, `AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`. `AZURE_SQL_SERVER` must be the SQL FQDN, not just the short server name.
 - **Do NOT include `FUNCTIONS_WORKER_RUNTIME` in app settings** — Flex Consumption sets this via `functionAppConfig.runtime`, and having it in app settings causes a deployment error
 - **Set `siteConfig.alwaysOn` to `false`** — the AVM module defaults to `true`, which is invalid for Flex Consumption
 - **Set Storage Account `networkAcls.defaultAction` to `Allow`** — the AVM module defaults to `Deny`, which blocks `azd deploy` zip uploads
@@ -658,10 +673,10 @@ az sql server firewall-rule create --server "$SQL_SERVER" --resource-group $(azd
 # Create the managed identity user and grant roles (requires sqlcmd: brew install sqlcmd)
 # Uses ActiveDirectoryAzCli auth (go-sqlcmd). For ODBC sqlcmd, use --access-token instead.
 sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" --authentication-method ActiveDirectoryAzCli \
-  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') BEGIN CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; END" \
+  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_ddladmin ADD MEMBER [${FUNC_APP}];" \
   || echo "⚠️ Managed identity user creation skipped (may require manual setup)"
 
-# Create tables if they don't exist (schema file created in next section)
+# Create tables and seed data if they don't exist
 sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" --authentication-method ActiveDirectoryAzCli \
   -i ./infra/hooks/postprovision-schema.sql \
   || echo "⚠️ Schema creation skipped"
@@ -669,7 +684,7 @@ sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" --authentication-met
 
 ### Database Schema Initialization
 
-Create `infra/hooks/postprovision-schema.sql` with the CREATE TABLE statements from the Data Models section. Run it as part of the post-provision hook after the managed identity setup.
+Create `infra/hooks/postprovision-schema.sql` with the CREATE TABLE statements and seed rows from the Data Models and Seed Data sections. Run it as part of the post-provision hook after the managed identity setup so the deployed API and iOS app return data immediately.
 
 ### Mobile Distribution
 
@@ -678,7 +693,7 @@ The iOS app is NOT deployed via azd. To test: replace the `Config.swift` `apiBas
 ### Known Deployment Gotchas
 
 1. **Soft-deleted Cognitive Services** — if redeploying after `azd down`, the AI Services resource is soft-deleted for 48 hours and blocks re-creation. Purge it first: `az cognitiveservices account list-deleted` then `az cognitiveservices account purge`
-2. **Azure SQL AD admin** — the deploying user must be set as Azure AD admin on the SQL server for the post-provision managed identity script to work. The Bicep template should set this.
+2. **Azure SQL Entra admin** — the deploying user must be set as Microsoft Entra admin on the SQL server for the post-provision managed identity script to work. The Bicep template should set this.
 3. **Functions cold start** — first request after idle takes 5-10 seconds on consumption plan. The iOS app should show loading state during API calls.
 4. **AI model deployment lag** — model deployment may take 1-2 minutes during provisioning. The `generate-steps` endpoint returns 503 until it's ready.
 5. **Provider registration** — run these once per subscription before first deploy: `az provider register --namespace Microsoft.Web`, `Microsoft.Sql`, `Microsoft.CognitiveServices`, `Microsoft.OperationalInsights`
@@ -687,6 +702,9 @@ The iOS app is NOT deployed via azd. To test: replace the `Config.swift` `apiBas
 8. **Storage 403 on deploy** — if `azd deploy` fails with a 403 storage error, ensure the Storage Account `networkAcls.defaultAction` is `Allow` and the deploying user has `Storage Blob Data Contributor` role.
 9. **Blob container URI malformed on deploy** — `azd deploy` may fail with `InaccessibleStorageException: Blob Container Uri is malformed` if the Function App's `functionAppConfig.deployment.storage.value` only contains the container name instead of the full URL. This can happen due to eventual consistency after provisioning. Wait 30 seconds and retry `azd deploy`. If it persists, verify the value via `az resource show` and patch it with the full `https://<account>.blob.core.windows.net/deploymentpackage` URI.
 10. **SQL firewall blocks post-provision script** — the Bicep template only allows Azure services (`0.0.0.0`). The post-provision script runs from the developer's machine and needs a firewall rule for the developer's IP. The post-provision script should auto-add one (see the script above), or add it manually: `az sql server firewall-rule create --server <name> --resource-group <rg> --name MyIP --start-ip-address <my-ip> --end-ip-address <my-ip>`.
+11. **Azure SQL DNS failures** — if logs show `getaddrinfo ENOTFOUND <sql-name>`, `AZURE_SQL_SERVER` is only the short name. Use the full FQDN: `<sql-name>.database.windows.net`.
+12. **Oryx TypeScript build fails** — if `azd deploy` fails during remote build, check `.funcignore`. Do not exclude `src/` or `tsconfig.json`.
+13. **Simulator preflight busy** — if Xcode reports `Application failed preflight checks` or `SBMainWorkspace Busy`, terminate/uninstall the app from that simulator, reboot the simulator, then clean build and run again.
 
 ---
 

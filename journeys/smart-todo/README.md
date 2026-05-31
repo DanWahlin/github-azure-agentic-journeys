@@ -44,7 +44,7 @@ graph TB
         LA["Log Analytics Workspace"]
 
         subgraph Functions["Azure Flex Functions"]
-            API["API<br/>(Your Language · Functions v2)"]
+            API["API<br/>(Your Language · Azure Functions)"]
         end
 
         SQL["Azure SQL Database<br/>(Todos + Action Steps)"]
@@ -58,7 +58,7 @@ graph TB
 
     APP -->|HTTPS| API
     API -->|Managed Identity| SQL
-    API -->|Managed Identity| GPT
+    API -->|OpenAI-compatible API| GPT
     Functions -->|diagnostics| AI
     AI -->|logs| LA
 
@@ -188,7 +188,7 @@ Leave the AI values empty for now. You'll fill them in during Step 4 when you ad
 Start with the data models and repository pattern, not the full API. This lets you inspect what Copilot CLI produces before building on top of it.
 
 ```
-> Read the PLAN.md file in this directory. Create an Azure Functions v2 
+> Read the PLAN.md file in this directory. Create an Azure Functions
   project in my chosen language in a src/api/ subdirectory. Initialize 
   with host.json, local.settings.json, and language-appropriate config.
   Then create:
@@ -210,6 +210,7 @@ Open the Azure SQL implementation. Look for:
 - Does `delete` cascade to action steps?
 - Is the `order` column quoted with brackets (`[order]`)? It's a reserved word in SQL.
 - Does it use managed identity auth for Azure SQL?
+- In Azure, does it keep `AZURE_SQL_SERVER` as the full `<server>.database.windows.net` FQDN?
 
 If anything's off, tell Copilot CLI:
 
@@ -295,6 +296,7 @@ cd src/api
 ```
 
 > **⚠️ Node.js note:** If Functions fails to find any functions, check that `"main"` in `package.json` is `"dist/functions/*.js"` (not `"dist/src/functions/*.js"`). Since `tsconfig.json` sets `rootDir: "src"`, the `src/` prefix is stripped from the output path.
+> For `azd` remote builds, do not exclude `src/` or `tsconfig.json` in `.funcignore`; Azure needs them to compile TypeScript.
 
 ```bash
 # Does the server start and respond?
@@ -369,6 +371,7 @@ Open `APIClient.swift`. Look for:
 - Does it use `async throws` functions with `URLSession.shared.data(for:)`?
 - Does it decode the API error format `{ error: { code, message } }` into descriptive errors?
 - Is the base URL pulled from `Config.swift` (not hardcoded)?
+- Does `deleteTodo` handle `204 No Content` without trying to decode JSON?
 
 Open `TodoDetailView.swift`. Look for:
 - Is there a "Generate Steps" button when `stepsGenerated == false`?
@@ -411,6 +414,8 @@ If the app can't reach the API, check that:
 - `Config.swift` has `http://localhost:7071` for the `DEBUG` build
 - App Transport Security allows local HTTP (should be automatic in the Simulator)
 
+If the Simulator says `Application failed preflight checks` or `SBMainWorkspace Busy`, uninstall the app from that simulator, reboot the simulator, then clean build and run again.
+
 ---
 
 ### Phase 3: Deploy to Azure (~45 min)
@@ -424,8 +429,9 @@ If the app can't reach the API, check that:
 ##### Step 1: Generate infrastructure
 
 ```
-> Read the Phase 4 (Deploy) section in PLAN.md. Create Bicep infrastructure 
-  in an infra/ directory. Use Azure Verified Modules (AVM) for all resources:
+> Read the Phase 4 (Deploy) section in PLAN.md. Create Bicep infrastructure
+  in an infra/ directory. Prefer Azure Verified Modules (AVM), but use raw
+  Microsoft.* Bicep for any resource where AVM parameter drift blocks deployment:
   - Azure Flex Functions with br/public:avm/res/web/site (kind: functionapp,linux)
   - App Service Plan with br/public:avm/res/web/serverfarm (Flex Consumption SKU: FC1)
   - Azure SQL Server with br/public:avm/res/sql/server
@@ -434,8 +440,8 @@ If the app can't reach the API, check that:
   - Monitoring with br/public:avm/ptn/azd/monitoring
   - Storage Account with br/public:avm/res/storage/storage-account
   - System-assigned managed identity on the Function App
-  - Role assignment: Cognitive Services User on Microsoft Foundry
   - Azure SQL firewall: allow Azure services
+  - Function app settings for AZURE_AI_ENDPOINT, AZURE_AI_DEPLOYMENT, and AZURE_AI_KEY
   - Outputs in SCREAMING_SNAKE_CASE: API_URL, SQL_SERVER_NAME, etc.
   - azd-service-name: 'api' tag on the Function App
   Also create an azure.yaml with a single 'api' service using host: function
@@ -445,12 +451,12 @@ If the app can't reach the API, check that:
 **🔍 Before deploying, review these critical details:**
 
 1. Open `infra/main.bicep`. Does the Function App have `tags: { 'azd-service-name': 'api' }`? Without this, `azd deploy` can't find the app.
-2. Are ALL resources from AVM modules (not raw resource definitions)?
-3. Is there a role assignment giving the Function App's managed identity `Cognitive Services User` on the Microsoft Foundry resource?
-4. Does the SQL server have a firewall rule allowing Azure services (`0.0.0.0` start/end IP)?
+2. Are resources AVM where practical, with raw `Microsoft.*` only where AVM blocks deployment?
+3. Does the SQL server have a firewall rule allowing Azure services (`0.0.0.0` start/end IP)?
+4. Does `AZURE_SQL_SERVER` use the full SQL FQDN output, not just the short server name?
 5. Are outputs in SCREAMING_SNAKE_CASE? (`API_URL`, not `apiUrl`)
 
-**💡 What you're learning:** Managed identity means the Function App authenticates to Azure SQL and Microsoft Foundry without API keys or connection strings. The Bicep template creates the identity and role assignments declaratively, with no portal clicks required. This is how production Azure apps handle service-to-service auth.
+**💡 What you're learning:** Managed identity lets the Function App authenticate to Azure SQL without passwords. The AI call uses the plain `openai` SDK with an OpenAI-compatible `/openai/v1/` base URL and an app setting for `AZURE_AI_KEY`.
 
 ##### Step 2: Deploy
 
@@ -473,9 +479,9 @@ azd up
 > ⏳ **While you wait:** Azure is provisioning your Function App, SQL Database, and Microsoft Foundry. Here's how to use the time:
 >
 > 1. Watch your resources appear in real-time. Open the [Azure Portal](https://portal.azure.com) → search for your resource group, or run `az resource list --resource-group rg-<env-name> --output table` in a separate terminal.
-> 2. Re-read your `infra/main.bicep`. Can you trace how the Function App gets access to Microsoft Foundry? (Hint: look for the managed identity and role assignment.)
+> 2. Re-read your `infra/main.bicep`. Can you trace how SQL access, AI settings, and deployment outputs flow into the Function App?
 > 3. Preview what's next: open `PLAN.md` and read the Phase 3 section (iOS app). What SwiftUI components will you need?
-> 4. Ask the agent: *"/btw Explain how managed identity works in this deployment. Why don't we need API keys?"*
+> 4. Ask the agent: *"/btw Explain which parts of this deployment use managed identity and which parts use app settings."*
 
 Deployment may take several minutes. If it fails, ask Copilot CLI to help diagnose:
 
@@ -487,23 +493,22 @@ Deployment may take several minutes. If it fails, ask Copilot CLI to help diagno
 
 The Bicep template creates the identity, but Azure SQL requires a SQL command to grant access. Install `sqlcmd` if needed (`brew install sqlcmd` on macOS), then run:
 
-This command creates a database user for the Function App's managed identity and grants it read/write permissions. Bicep can create Azure-level role assignments, but SQL Server has its own user system that requires a separate SQL command. You need to be an Azure AD admin on the SQL server for this to work. The Bicep template sets the deploying user as the Azure AD admin, so this should work if you ran `azd up` from the same account.
+This command creates a database user for the Function App's managed identity and grants it read/write permissions. Bicep can create Azure-level role assignments, but SQL Server has its own user system that requires a separate SQL command. You need to be a Microsoft Entra admin on the SQL server for this to work. The Bicep template should set the deploying user as the Entra admin, so this should work if you ran `azd up` from the same account.
 
-> ⚠️ **You must be the Azure AD admin on the SQL server.** If this command fails with a permissions error, check that your Azure account is set as the server's Azure AD admin in the Azure Portal under SQL Server > Microsoft Entra admin.
+> ⚠️ **You must be the Microsoft Entra admin on the SQL server.** If this command fails with a permissions error, check that your Azure account is set as the server's Entra admin in the Azure Portal under SQL Server > Microsoft Entra admin.
 
 ```bash
 SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)
 SQL_DB=$(azd env get-value SQL_DATABASE_NAME)
 FUNC_APP=$(azd env get-value FUNCTION_APP_NAME)
 
-# Get an access token for Azure SQL (you must be Azure AD admin on the SQL server)
-ACCESS_TOKEN=$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)
-
 # Create the managed identity user and grant roles
 sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" \
-  --authentication-method=ActiveDirectoryAccessToken --access-token "$ACCESS_TOKEN" \
-  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') BEGIN CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; END"
+  --authentication-method ActiveDirectoryAzCli \
+  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_ddladmin ADD MEMBER [${FUNC_APP}];"
 ```
+
+Also run your schema/seed SQL in the post-provision hook so the deployed API has the seed todos before the iOS app connects.
 
 ##### Step 4: Verify the live deployment
 
@@ -552,7 +557,7 @@ Create a GitHub issue and assign it to GitHub Copilot:
   - Create Bicep infrastructure using AVM modules for Azure Flex Functions, 
     Azure SQL, Microsoft Foundry (gpt-5-mini), and monitoring
   - Create azure.yaml with a single 'api' service (host: function)
-  - Use managed identity for SQL and AI auth (no connection strings)
+  - Use managed identity for SQL and the plain openai SDK with AZURE_AI_KEY for AI
   - Follow the Phase 4 spec in PLAN.md
   Assign the issue to Copilot.
 ```
@@ -628,16 +633,17 @@ Functions and Microsoft Foundry scale to zero when idle, so you pay almost nothi
 **Fix:**
 
 ```bash
-# Run the managed identity setup (you must be Azure AD admin on the SQL server)
+# Run the managed identity setup (you must be Microsoft Entra admin on the SQL server)
 SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)
 SQL_DB=$(azd env get-value SQL_DATABASE_NAME)
 FUNC_APP=$(azd env get-value FUNCTION_APP_NAME)
-ACCESS_TOKEN=$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)
 
 sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" \
-  --authentication-method=ActiveDirectoryAccessToken --access-token "$ACCESS_TOKEN" \
-  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') BEGIN CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; END"
+  --authentication-method ActiveDirectoryAzCli \
+  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}];"
 ```
+
+If logs show `getaddrinfo ENOTFOUND <sql-name>`, set `AZURE_SQL_SERVER` to the full FQDN: `<sql-name>.database.windows.net`.
 
 ### AI step generation returns empty or malformed results
 
@@ -654,6 +660,8 @@ az functionapp config appsettings list --name $(azd env get-value FUNCTION_APP_N
   --resource-group $(azd env get-value RESOURCE_GROUP_NAME) \
   --query "[?name=='AZURE_AI_ENDPOINT' || name=='AZURE_AI_DEPLOYMENT']"
 ```
+
+When using the plain `openai` SDK, normalize the endpoint to include `/openai/v1/` before creating the client.
 
 ### Soft-deleted Cognitive Services blocks redeployment
 
@@ -677,6 +685,12 @@ az provider register --namespace Microsoft.CognitiveServices
 az provider register --namespace Microsoft.OperationalInsights
 ```
 
+### `azd deploy` fails during Oryx TypeScript build
+
+**Cause:** `.funcignore` excluded files Azure needs for remote build.
+
+**Fix:** Do not exclude `src/` or `tsconfig.json`. Exclude `node_modules/`, `dist/**/*.map`, and `local.settings.json`.
+
 > **Post-Deployment Issues:** The following issues relate to *using* the app after deployment, not the deployment itself.
 
 ### iOS app can't reach the API
@@ -690,6 +704,12 @@ azd env get-value API_URL
 ```
 
 Make sure the URL uses `https://` and includes no trailing slash.
+
+### iOS Simulator says application failed preflight checks
+
+**Cause:** Simulator or installed app state is stuck.
+
+**Fix:** Uninstall SmartTodo from the simulator, reboot the simulator, then run **Product > Clean Build Folder** and launch again.
 
 ### First API request after idle is slow (5-10 seconds)
 
