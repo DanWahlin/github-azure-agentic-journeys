@@ -28,6 +28,9 @@ In this agentic journey, you'll build AIMarket, a lightweight marketplace app wi
 > - [GitHub CLI](https://cli.github.com/) (`gh`): needed for repo creation and issue management in Phases 2-3
 > - Your language runtime: Node.js LTS, Python 3.10+, .NET 8+, or Java 17+
 
+> [!NOTE]
+> Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+
 ---
 
 ## Architecture

@@ -30,6 +30,9 @@ You'll build SmartTodo: an iPhone app where you type a todo like "Prepare Confer
 
 > ⚠️ **macOS required for Phase 2:** The SwiftUI iOS app requires Xcode, which only runs on macOS. If you're on Windows or Linux, you can complete Phase 1 (API) and Phase 3 (Deploy) and test the API with curl instead of the iOS app.
 
+> [!NOTE]
+> Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+
 ---
 
 ## Architecture

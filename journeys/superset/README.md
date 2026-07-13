@@ -25,6 +25,9 @@
 > **Additional prerequisites for this journey:**
 > - [`kubectl`](https://kubernetes.io/docs/tasks/tools/): needed for AKS cluster management
 
+> [!NOTE]
+> Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+
 ---
 
 ## Architecture

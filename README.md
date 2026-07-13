@@ -35,10 +35,8 @@ After completing these journeys, you'll know how to:
 
 Before starting, ensure you have:
 
-- **GitHub account** with GitHub Copilot access ([Free](https://github.com/features/copilot/plans), [Pro](https://github.com/features/copilot/plans), or [Enterprise](https://github.com/features/copilot/plans))
-- **GitHub Copilot**:
-  - [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started) for terminal workflows
-  - [VS Code + GitHub Copilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot) for editor workflows
+- **Agentic coding tool**: [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started), the [GitHub Copilot app](https://github.com/features/ai/github-app), [VS Code + GitHub Copilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot), or another tool that supports agents and skills
+- **GitHub account with GitHub Copilot access** ([Free](https://github.com/features/copilot/plans), [Pro](https://github.com/features/copilot/plans), or [Enterprise](https://github.com/features/copilot/plans)) if using GitHub Copilot
 - **Azure subscription** - [Create account](https://azure.microsoft.com/pricing/purchase-options/azure-account)
 - **Azure CLI** (`az`) - [Install](https://docs.microsoft.com/cli/azure/install-azure-cli)
 - **Azure Developer CLI** (`azd`) - [Install](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
@@ -60,20 +58,22 @@ Use whichever tool fits your workflow:
 | Tool | Where it runs | What it does |
 |---------|---------------|----------|
 | [**GitHub Copilot CLI**](https://docs.github.com/copilot/how-tos/copilot-cli/cli-getting-started) | Your terminal | Terminal-native AI coding assistant |
+| [**GitHub Copilot app**](https://github.com/features/ai/github-app) | Your desktop | Agent-native workspace for parallel coding tasks |
 | [**GitHub Copilot**](https://docs.github.com/copilot) | VS Code, Visual Studio, JetBrains | Agent mode, chat, inline suggestions |
 | [**GitHub Copilot cloud agent**](https://docs.github.com/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks) | GitHub | Assign issues to agents, get PRs back |
 
-The journeys in this repo use GitHub Copilot CLI by default. However, you can use any AI coding assistant you prefer (Claude Code, Codex, and others) as long as it supports standard AI agents and skills. The agentic journeys include prompts and plans that can be used to build and deploy apps with any of the tools.
+> [!NOTE]
+> The journeys show GitHub Copilot CLI commands by default. You can also use the GitHub Copilot app or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
 
 ## Agentic journeys
 
 | # | Agentic journey | Highlights |
 |:-:|----------|-------------------|
-| 01 | [AIMarket](./journeys/aimarket/README.md) | Full-stack app from spec + AI search + shopping assistant deployed to Azure|
-| 02 | [n8n - Workflow Automation](./journeys/n8n/README.md) | Container Apps + PostgreSQL deployed to Azure |
-| 03 | [Grafana - Metrics and Visualization](./journeys/grafana/README.md) | Container Apps deployed to Azure |
-| 04 | [Apache Superset - BI Platform](./journeys/superset/README.md) | Azure Kubernetes Service (AKS) + PostgreSQL deployed to Azure |
-| 05 | [SmartTodo - AI Task Breakdown](./journeys/smart-todo/README.md) | Swift iOS + Azure Flex Functions + Azure SQL + AI Foundry |
+| 1 | [AIMarket](./journeys/aimarket/README.md) | Full-stack app from spec + AI search + shopping assistant deployed to Azure|
+| 2 | [n8n - Workflow Automation](./journeys/n8n/README.md) | Container Apps + PostgreSQL deployed to Azure |
+| 3 | [Grafana - Metrics and Visualization](./journeys/grafana/README.md) | Container Apps deployed to Azure |
+| 4 | [Apache Superset - BI Platform](./journeys/superset/README.md) | Azure Kubernetes Service (AKS) + PostgreSQL deployed to Azure |
+| 5 | [SmartTodo - AI Task Breakdown](./journeys/smart-todo/README.md) | Swift iOS + Azure Flex Functions + Azure SQL + AI Foundry |
 
 ## How the agentic journeys work
 
