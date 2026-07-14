@@ -2,6 +2,8 @@
 
 > ✨ **No external database, no complex probes, just Grafana on Container Apps.**
 
+**Curriculum:** Journey **#3** · Learning path **Stage 0 (start here)** · Next: [n8n](../n8n/README.md)
+
 <p align="center">
   <img src="./images/grafana-observability.webp" alt="Grafana: Observability on Azure" width="800" />
 </p>
@@ -16,14 +18,22 @@ In this agentic journey, you'll deploy [Grafana OSS](https://grafana.com/oss/gra
 - Use `/api/health` for reliable health probes
 - Handle scale-to-zero cold starts gracefully
 
-> ⏱️ **Estimated Time**: ~15 minutes
+> ⏱️ **Estimated Time**: ~15–20 minutes first run
 >
-> 💰 **Estimated Cost**: ~$10-20/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
+> 💰 **Estimated Cost**: ~$10–20/month **if left running** (see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and GitHub Copilot. See [prerequisites](../../README.md#prerequisites) for installation links.
 
 > [!NOTE]
 > Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+
+### Done when
+
+- [ ] `$GRAFANA_URL/api/health` returns JSON with `"database":"ok"`
+- [ ] Browser login works with admin credentials from the deployment
+- [ ] `azd down --force --purge` completed
+
+Smoke script: `../../scripts/verify-grafana.sh`
 
 ---
 
@@ -61,9 +71,9 @@ graph TB
 
 ## Deploy with the Agent
 
-You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) in GitHub Copilot CLI to generate and deploy the entire infrastructure through conversation.
+You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) with GitHub Copilot to generate and deploy the entire infrastructure through conversation.
 
-> **💡 Tip: Track issues as you go.** When giving Copilot CLI a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives Copilot CLI a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
+> **💡 Tip: Track issues as you go.** When giving GitHub Copilot a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives GitHub Copilot a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
 
 ### Step 1: Setup
 
@@ -73,17 +83,19 @@ Make sure you're in the repo root first:
 cd github-azure-agentic-journeys
 ```
 
-Then start GitHub Copilot CLI, a terminal-based AI assistant that can read, write, and run code in your project:
+Then open GitHub Copilot in your preferred surface (CLI, app, or IDE). Examples below use [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
 
 ```bash
 copilot
 ```
 
-> **Don't have `copilot`?** Install it first. See [prerequisites](../../README.md#prerequisites) for the installation link.
+> **Using another surface?** Paste the same prompts into the GitHub Copilot app or VS Code agent chat. See [prerequisites](../../README.md#prerequisites) for tool options.
+>
+> **Don't have `copilot`?** Install it only if you want the CLI path, or use the app / VS Code instead.
 
-Plugins extend what Copilot CLI can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
+Plugins extend what GitHub Copilot can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
 
-> **Note:** Lines starting with `>` in the code blocks below show what to type in the Copilot CLI session. Don't include the `>` character itself. It represents the Copilot CLI prompt.
+> **Note (Copilot CLI):** Lines starting with `>` show what to type in a CLI session. Don't include the `>` character itself. In the app or VS Code, send the prompt without the `>` prefix.
 
 ```
 > /plugin marketplace add microsoft/azure-skills
@@ -93,7 +105,7 @@ Plugins extend what Copilot CLI can do. The Azure Skills plugin adds deployment 
 > /plugin install azure@azure-skills
 ```
 
-> **Already installed?** The plugin persists across sessions. If you've done a previous journey, skip the install commands.
+> **Already installed?** If you completed the root [Quick Start](../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
 > For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 Now select the deployment agent. Agents are specialized personas that know how to handle specific tasks:
@@ -110,10 +122,12 @@ Select **`oss-to-azure-deployer`** from the list. You're now in an interactive s
   <img src="./images/azure-deployment.webp" alt="Deploy Grafana to Azure" width="800" />
 </p>
 
-Tell the agent what you want in a single prompt:
+Tell the agent what you want in a single prompt (OSS shared recipe: location + secrets + resolve issues):
 
 ```
-> Deploy Grafana to Azure using Bicep and azd. Set the location to westus, generate a secure admin password, and resolve any issues that come up.
+> Deploy Grafana to Azure using Bicep and azd. Set the location to westus,
+  generate a secure admin password, use /api/health for probes, resolve any
+  issues that come up, and log problems to issues.md.
 ```
 
 The agent handles the entire deployment:
@@ -343,9 +357,11 @@ Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
 ## What's Next
 
-In [Agentic Journey 03: Apache Superset](../superset/README.md), you'll deploy a full BI platform on Azure Kubernetes Service. You'll see why some apps need Kubernetes instead of Container Apps, and how the agent handles init containers, shared volumes, and psycopg2 installation.
+**Stage 0 complete.** Continue to **stage 1:** [n8n](../n8n/README.md) (Container Apps + PostgreSQL, probes, post-provision hooks).
 
-> 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
+Optional later: [Superset](../superset/README.md) (AKS, stage 2) · Flagship full-stack: [AIMarket](../aimarket/README.md) (stage 3).
+
+> 📚 **Learning path & overview:** [Back to root README](../../README.md#recommended-learning-path)
 
 ---
 

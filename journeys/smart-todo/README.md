@@ -2,36 +2,61 @@
 
 > ✨ **Type a fuzzy goal, get a step-by-step action plan, powered by Azure Functions, Azure SQL, and Microsoft Foundry.**
 
+**Curriculum:** Journey **#5** · Learning path **Stage 4** · Best after [AIMarket](../aimarket/README.md) or the OSS warm-up ([path](../../README.md#recommended-learning-path)).
+
 <p align="center">
   <img src="./images/smart-todo-hero.webp" alt="SmartTodo — AI-Powered Task Breakdown" width="800" />
 </p>
 
-You'll build SmartTodo: an iPhone app where you type a todo like "Prepare Conference talk" and AI breaks it into concrete steps you can check off. The backend runs on Azure Functions Flex Consumption, Azure SQL stores the data, and gpt-5-mini on Microsoft Foundry handles the thinking. Pick your language (Node.js, Python, .NET, or Java), hand Copilot CLI a spec, and it scaffolds the API, generates SwiftUI screens, and deploys the backend to Azure.
+You'll build SmartTodo: an iPhone app where you type a todo like "Prepare Conference talk" and AI breaks it into concrete steps you can check off. The backend runs on Azure Functions Flex Consumption, Azure SQL stores the data, and gpt-5-mini on Microsoft Foundry handles the thinking. Pick your language (Node.js, Python, .NET, or Java), hand GitHub Copilot a spec, and it scaffolds the API, generates SwiftUI screens, and deploys the backend to Azure.
 
 ## Learning Objectives
 
-- Use a spec document as shared context for Copilot CLI to scaffold a serverless API and iOS app together
+- Use a spec document as shared context for GitHub Copilot to scaffold a serverless API and iOS app together
 - Build an Azure Functions API in your language of choice with the repository pattern
 - Connect Azure Functions to Azure SQL using managed identity, with no passwords in code
 - Call gpt-5-mini via Microsoft Foundry to decompose vague goals into actionable steps
 - Structure a SwiftUI app that talks to a cloud API with async/await networking
 - Deploy the backend to Azure Functions Flex Consumption with `azd` and point the iOS app at the live URL
 
-> ⏱️ **Estimated Time**: ~2.5 hours (includes building, testing, and deploying all 3 phases)
+> ⏱️ **Estimated Time**: **3–5 hours first run** (about 2.5 hours if Functions + SQL are familiar). Includes build, test, deploy, and post-provision SQL steps.
 >
-> 💰 **Estimated Cost**: ~$10-30/month (Functions Flex Consumption + SQL Basic + AI pay-per-token; see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
+> 💰 **Estimated Cost**: ~$10–30/month **if left running** (Functions Flex + SQL Basic + AI pay-per-token; see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
 >
 > 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
 >
 > **Additional prerequisites for this journey:**
-> - Your language runtime: [Node.js LTS](https://nodejs.org/), [Python 3.10+](https://python.org/), [.NET 8+](https://dotnet.microsoft.com/), or [Java 17+](https://learn.microsoft.com/java/openjdk/download)
+> - Language runtime: [Node.js LTS](https://nodejs.org/) by default (or Python 3.10+ / .NET 8+ / Java 17+ — see PLAN.md)
 > - [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local): local Functions development
-> - [Xcode](https://developer.apple.com/xcode/): iOS simulator installed (macOS only)
+> - [Docker](https://docs.docker.com/get-docker/) (recommended): local SQL Server for Phase 1
+> - [sqlcmd](https://learn.microsoft.com/sql/tools/sqlcmd/sqlcmd-utility) (for post-provision managed identity): `brew install sqlcmd` on macOS
+> - [Xcode](https://developer.apple.com/xcode/): iOS simulator (**macOS only**, Phase 2)
 
-> ⚠️ **macOS required for Phase 2:** The SwiftUI iOS app requires Xcode, which only runs on macOS. If you're on Windows or Linux, you can complete Phase 1 (API) and Phase 3 (Deploy) and test the API with curl instead of the iOS app.
+> ⚠️ **Platform gate:** Full journey (including Phase 2 iOS) requires **macOS + Xcode**. On Windows or Linux, complete **Phase 1 (API) + Phase 3 (Deploy)** and verify with curl — that still counts as finishing the Azure path.
 
 > [!NOTE]
 > Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+
+### Done when
+
+- [ ] Local API lists seed todos for `userId=user-1`
+- [ ] Create todo + `generate-steps` returns 3–7 steps (with AI credentials)
+- [ ] Completing all steps marks the todo `completed` (if tested)
+- [ ] Deployed `API_URL` responds; AI generate works in Azure
+- [ ] (macOS) Simulator talks to local or Azure API
+- [ ] `azd down --force --purge` completed
+
+Smoke script after deploy: `../../scripts/verify-smart-todo.sh`
+
+### README phases vs PLAN.md
+
+| This README | PLAN.md section | What you build |
+|-------------|-----------------|----------------|
+| Phase 1 | Phase 1 API + Phase 3 AI Features | Functions API, SQL, AI generate-steps |
+| Phase 2 | Phase 2 iOS Client | SwiftUI app |
+| Phase 3 | Phase 4 Deploy | Bicep + `azd` + post-provision SQL |
+
+When prompting, say “Read PLAN.md Phase …” using the **PLAN** column so the agent opens the right section.
 
 ---
 
@@ -88,7 +113,7 @@ graph TB
 
 ## The Spec
 
-SmartTodo is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey folder. It defines the data models, API contracts, AI prompt design, and seed data. You don't need to read the whole thing. Copilot CLI reads it for you and generates code that matches.
+SmartTodo is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey folder. It defines the data models, API contracts, AI prompt design, and seed data. You don't need to read the whole thing. GitHub Copilot reads it for you and generates code that matches.
 
 **Core data model (the parts you'll build):**
 
@@ -112,15 +137,15 @@ SmartTodo is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey f
 
 ## The Journey
 
-SmartTodo is built in three phases. Phase 1 builds the API with Azure SQL, Phase 2 adds the SwiftUI app, and Phase 3 deploys the backend to Azure. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
+SmartTodo is built in three learner phases (see mapping above). Phase 1 builds the API + AI with Azure SQL, Phase 2 adds the SwiftUI app (macOS), and Phase 3 deploys the backend to Azure. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
 
-**How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally. Ask Copilot CLI for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
+**How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally. Ask GitHub Copilot for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
 
-> **💡 Tip: Track issues as you go.** When giving Copilot CLI a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives Copilot CLI a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
+> **💡 Tip: Track issues as you go.** When giving GitHub Copilot a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives GitHub Copilot a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
 
 > **Note on the iOS app:** The SwiftUI app runs on your Mac (Simulator) or iPhone. It is NOT deployed by `azd`. Only the Azure backend is. The app points at the deployed API URL via a `Config.swift` file.
 
-### Phase 1: Build the API (~45 min)
+### Phase 1: Build the API (~60–90 min first time)
 
 <p align="center">
   <img src="./images/phase1-api.webp" alt="Phase 1: Building the API" width="800" />
@@ -132,27 +157,29 @@ SmartTodo is built in three phases. Phase 1 builds the API with Azure SQL, Phase
 >
 > Phase 3 creates the production Azure SQL instance automatically, so if you don't want to worry about it locally, you can skip local setup.
 
-You'll build the API in stages, not all at once. Each step teaches a different aspect of working with Copilot CLI.
+You'll build the API in stages, not all at once. Each step teaches a different aspect of working with GitHub Copilot.
 
 #### Step 1: Set up the project
 
-Create a project directory inside the repo so Copilot CLI can access the skills and agent definitions in `.github/`:
+Create a project directory inside the repo so GitHub Copilot can access the skills and agent definitions in `.github/`:
 
 ```bash
 cd github-azure-agentic-journeys/journeys/smart-todo
 ```
 
-Start GitHub Copilot CLI, a terminal-based AI assistant that can read, write, and run code in your project:
+Open GitHub Copilot in your preferred surface (CLI, app, or IDE). Examples below use [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
 
 ```bash
 copilot
 ```
 
-> **Don't have `copilot`?** Install it first. See [prerequisites](../../README.md#prerequisites) for the installation link.
+> **Using another surface?** Paste the same prompts into the GitHub Copilot app or VS Code agent chat. See [prerequisites](../../README.md#prerequisites) for tool options.
+>
+> **Don't have `copilot`?** Install it only if you want the CLI path, or use the app / VS Code instead.
 
-Plugins extend what Copilot CLI can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
+Plugins extend what GitHub Copilot can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
 
-> **Note:** Lines starting with `>` in the code blocks below show what to type in the Copilot CLI session. Don't include the `>` character itself. It represents the Copilot CLI prompt.
+> **Note (Copilot CLI):** Lines starting with `>` show what to type in a CLI session. Don't include the `>` character itself. In the app or VS Code, send the prompt without the `>` prefix.
 
 ```
 > /plugin marketplace add microsoft/azure-skills
@@ -162,10 +189,31 @@ Plugins extend what Copilot CLI can do. The Azure Skills plugin adds deployment 
 > /plugin install azure@azure-skills
 ```
 
-> **Already installed?** The plugin persists across sessions. If you've done a previous journey, skip the install commands.
+> **Already installed?** If you completed the root [Quick Start](../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
 > For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
-Your `local.settings.json` should look like this (fill in your values):
+#### Step 2: Generate the data models and data layer
+
+Start with the data models and repository pattern, not the full API. This lets you inspect the generated code before building on top of it. **Generate the project first** — then align `local.settings.json` with the template below.
+
+> **Default stack:** Node.js + TypeScript + Azure Functions v4. Prefer another language? Swap it in the prompt and use PLAN.md’s Choose Your Stack table. Todo `status` values are `pending` | `in_progress` | `completed`.
+
+```
+> Read the PLAN.md file in this directory. Create an Azure Functions
+  Node.js TypeScript project (v4 programming model) in a src/api/ subdirectory
+  (or my chosen stack if I say otherwise). Initialize 
+  with host.json, local.settings.json, and language-appropriate config.
+  Then create:
+  1. Data models for Todo and ActionStep from the Phase 1 spec
+     (status values: pending | in_progress | completed)
+  2. Repository interfaces (TodoRepository, ActionStepRepository) 
+  3. Azure SQL implementation using the appropriate SQL driver for my language
+  4. A factory that returns the Azure SQL DataStore
+  5. Seed data from the PLAN.md tables with exact IDs
+  Log issues to issues.md.
+```
+
+After generation, `local.settings.json` should look like this (fill in your values):
 
 ```json
 {
@@ -186,22 +234,6 @@ Your `local.settings.json` should look like this (fill in your values):
 
 Leave the AI values empty for now. You'll fill them in during Step 4 when you add AI-powered step generation.
 
-#### Step 2: Generate the data models and data layer
-
-Start with the data models and repository pattern, not the full API. This lets you inspect what Copilot CLI produces before building on top of it.
-
-```
-> Read the PLAN.md file in this directory. Create an Azure Functions
-  project in my chosen language in a src/api/ subdirectory. Initialize 
-  with host.json, local.settings.json, and language-appropriate config.
-  Then create:
-  1. Data models for Todo and ActionStep from the Phase 1 spec
-  2. Repository interfaces (TodoRepository, ActionStepRepository) 
-  3. Azure SQL implementation using the appropriate SQL driver for my language
-  4. A factory that returns the Azure SQL DataStore
-  5. Seed data from the PLAN.md tables with exact IDs
-```
-
 **🔍 Inspect what was generated:**
 
 Open the repository interfaces file. Look for:
@@ -215,7 +247,7 @@ Open the Azure SQL implementation. Look for:
 - Does it use managed identity auth for Azure SQL?
 - In Azure, does it keep `AZURE_SQL_SERVER` as the full `<server>.database.windows.net` FQDN?
 
-If anything's off, tell Copilot CLI:
+If anything's off, tell GitHub Copilot:
 
 ```
 > The Azure SQL implementation isn't quoting the "order" column name. 
@@ -285,7 +317,7 @@ Now wire up the real AI call to replace the stub.
 
 #### Step 5: Test the API yourself
 
-Don't ask Copilot CLI to test. Run these yourself and understand what each one verifies.
+Don't ask GitHub Copilot to test. Run these yourself and understand what each one verifies.
 
 Start the Functions dev server, then in a new terminal:
 
@@ -304,7 +336,7 @@ cd src/api
 ```bash
 # Does the server start and respond?
 curl http://localhost:7071/api/todos?userId=user-1
-# Expected: JSON array of seed todos, e.g. [{"id":"todo-1","title":"...","status":"not_started",...}, ...]
+# Expected: JSON array of seed todos, e.g. [{"id":"todo-1","title":"...","status":"pending",...}, ...]
 
 # Create a new todo
 curl -X POST http://localhost:7071/api/todos \
@@ -335,7 +367,7 @@ curl http://localhost:7071/api/todos?userId=user-1  # todo-3 should be gone
 # Expected: JSON array without todo-3
 ```
 
-If any test fails, describe the failure to Copilot CLI and let it fix it:
+If any test fails, describe the failure to GitHub Copilot and let it fix it:
 
 ```
 > The DELETE endpoint returns 200 instead of 204. Fix it to return 
@@ -346,13 +378,13 @@ If any test fails, describe the failure to Copilot CLI and let it fix it:
 
 ---
 
-### Phase 2: Build the iOS App (~45 min)
+### Phase 2: Build the iOS App (~45–60 min, macOS only)
 
 <p align="center">
   <img src="./images/phase2-ios.webp" alt="Phase 2: SwiftUI App" width="800" />
 </p>
 
-> **New to Swift?** SwiftUI uses `Codable` for JSON serialization (similar to TypeScript interfaces), `async/await` for network calls (same concept as JavaScript/Python), and `#if DEBUG` for compile-time feature flags. The `.xcodeproj` file is Xcode's project format. Copilot CLI generates the Swift source files, but you'll open the project in Xcode to build and run it.
+> **New to Swift?** SwiftUI uses `Codable` for JSON serialization (similar to TypeScript interfaces), `async/await` for network calls (same concept as JavaScript/Python), and `#if DEBUG` for compile-time feature flags. The `.xcodeproj` file is Xcode's project format. GitHub Copilot generates the Swift source files, but you'll open the project in Xcode to build and run it.
 
 #### Step 1: Generate the SwiftUI project
 
@@ -421,13 +453,15 @@ If the Simulator says `Application failed preflight checks` or `SBMainWorkspace 
 
 ---
 
-### Phase 3: Deploy to Azure (~45 min)
+### Phase 3: Deploy to Azure (~45–75 min first time)
 
 <p align="center">
   <img src="./images/phase3-deploy.webp" alt="Phase 3: Deploy to Azure" width="800" />
 </p>
 
-#### Option A: Deploy with Copilot CLI
+> PLAN.md labels this **Phase 4: Deploy**. Use that section name in prompts.
+
+#### Option A: Deploy interactively with GitHub Copilot
 
 ##### Step 1: Generate infrastructure
 
@@ -438,17 +472,19 @@ If the Simulator says `Application failed preflight checks` or `SBMainWorkspace 
   - Azure Flex Functions with br/public:avm/res/web/site (kind: functionapp,linux)
   - App Service Plan with br/public:avm/res/web/serverfarm (Flex Consumption SKU: FC1)
   - Azure SQL Server with br/public:avm/res/sql/server
-  - Azure SQL Database as a child resource
+  - Azure SQL Database as a child resource (Basic, zoneRedundant: false, maxSizeBytes 2GB)
   - Microsoft Foundry with br/public:avm/ptn/ai-ml/ai-foundry (gpt-5-mini deployment)
   - Monitoring with br/public:avm/ptn/azd/monitoring
   - Storage Account with br/public:avm/res/storage/storage-account
   - System-assigned managed identity on the Function App
-  - Azure SQL firewall: allow Azure services
-  - Function app settings for AZURE_AI_ENDPOINT, AZURE_AI_DEPLOYMENT, and AZURE_AI_KEY
+  - Azure SQL: Entra admin = deploying user; firewall allow Azure services
+  - Function app settings for AZURE_AI_ENDPOINT, AZURE_AI_DEPLOYMENT, AZURE_AI_KEY,
+    AZURE_SQL_SERVER (full FQDN), AZURE_SQL_DATABASE
   - Outputs in SCREAMING_SNAKE_CASE: API_URL, SQL_SERVER_NAME, etc.
   - azd-service-name: 'api' tag on the Function App
+  - postprovision hook: schema seed + managed identity SQL user (see PLAN.md)
   Also create an azure.yaml with a single 'api' service using host: function
-  and language set to match my chosen stack.
+  and language ts (or my chosen stack). Log issues to issues.md.
 ```
 
 **🔍 Before deploying, review these critical details:**
@@ -486,32 +522,56 @@ azd up
 > 3. Preview what's next: open `PLAN.md` and read the Phase 3 section (iOS app). What SwiftUI components will you need?
 > 4. Ask the agent: *"/btw Explain which parts of this deployment use managed identity and which parts use app settings."*
 
-Deployment may take several minutes. If it fails, ask Copilot CLI to help diagnose:
+Deployment may take several minutes. If it fails, ask GitHub Copilot to help diagnose:
 
 ```
 > azd up failed with this error: [paste the error]. What's wrong?
 ```
 
-##### Step 3: Set up Azure SQL managed identity access
+##### Step 3: Post-provision checklist (SQL managed identity + schema)
 
-The Bicep template creates the identity, but Azure SQL requires a SQL command to grant access. Install `sqlcmd` if needed (`brew install sqlcmd` on macOS), then run:
+Bicep creates the Function App identity, but **Azure SQL needs a separate SQL step** for the database user. Prefer an automated `infra/hooks/postprovision.sh` from PLAN.md. If you run it manually, do this **in order**:
 
-This command creates a database user for the Function App's managed identity and grants it read/write permissions. Bicep can create Azure-level role assignments, but SQL Server has its own user system that requires a separate SQL command. You need to be a Microsoft Entra admin on the SQL server for this to work. The Bicep template should set the deploying user as the Entra admin, so this should work if you ran `azd up` from the same account.
-
-> ⚠️ **You must be the Microsoft Entra admin on the SQL server.** If this command fails with a permissions error, check that your Azure account is set as the server's Entra admin in the Azure Portal under SQL Server > Microsoft Entra admin.
+1. Install `sqlcmd` if needed: `brew install sqlcmd` (macOS)
+2. Confirm you are **Microsoft Entra admin** on the SQL server (Bicep should set the deploying user)
+3. Allow **your public IP** on the SQL firewall (Allow Azure Services alone is not enough for local `sqlcmd`)
+4. Create the managed identity user + roles
+5. Apply schema + seed SQL
 
 ```bash
+# 3) Temporary firewall rule for your machine (remove in step 6)
+MY_IP=$(curl -s https://api.ipify.org)
 SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)
+RG=$(azd env get-value RESOURCE_GROUP_NAME)
+# Strip FQDN suffix if present — az sql server expects the short server name
+SQL_SERVER_SHORT=${SQL_SERVER%.database.windows.net}
+az sql server firewall-rule create \
+  --resource-group "$RG" --server "$SQL_SERVER_SHORT" \
+  --name DevClientIP --start-ip-address "$MY_IP" --end-ip-address "$MY_IP"
+
 SQL_DB=$(azd env get-value SQL_DATABASE_NAME)
 FUNC_APP=$(azd env get-value FUNCTION_APP_NAME)
+SQL_FQDN="${SQL_SERVER_SHORT}.database.windows.net"
 
-# Create the managed identity user and grant roles
-sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" \
+# 4) Managed identity user + roles
+sqlcmd -S "$SQL_FQDN" -d "$SQL_DB" \
   --authentication-method ActiveDirectoryAzCli \
   -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_ddladmin ADD MEMBER [${FUNC_APP}];"
+
+# 5) Schema + seed (if postprovision-schema.sql exists)
+if [ -f infra/hooks/postprovision-schema.sql ]; then
+  sqlcmd -S "$SQL_FQDN" -d "$SQL_DB" \
+    --authentication-method ActiveDirectoryAzCli \
+    -i infra/hooks/postprovision-schema.sql
+fi
+
+# 6) Remove temporary client firewall rule (Azure services rule stays)
+az sql server firewall-rule delete \
+  --resource-group "$RG" --server "$SQL_SERVER_SHORT" \
+  --name DevClientIP
 ```
 
-Also run your schema/seed SQL in the post-provision hook so the deployed API has the seed todos before the iOS app connects.
+> ⚠️ If `sqlcmd` fails with a permissions or firewall error, fix steps 2–3 first—do not re-run `azd up` until this checklist is green. Always delete `DevClientIP` when finished so your public IP is not left open on the SQL server.
 
 ##### Step 4: Verify the live deployment
 
@@ -597,11 +657,11 @@ Here's where agentic AI shows up in this journey:
 
 | Layer | Use Case | What It Demonstrates |
 |-------|----------|---------------------|
-| **Code generation** | Copilot CLI scaffolds Functions, data layer, and SwiftUI app from a spec | Break work into pieces, inspect each one, iterate on gaps |
+| **Code generation** | GitHub Copilot scaffolds Functions, data layer, and SwiftUI app from a spec | Break work into pieces, inspect each one, iterate on gaps |
 | **Code review** | You review generated code for business logic correctness | AI gets CRUD right but misses cross-entity rules like auto-completion |
 | **Task decomposition** | gpt-5-mini breaks vague goals into actionable steps | LLMs excel at structured output when prompts are explicit about format |
-| **Infrastructure** | Copilot CLI generates Bicep with AVM modules and managed identity | Review deployment config carefully. Missing role assignments break silently |
-| **Debugging** | Ask Copilot CLI to diagnose deployment or runtime errors | Describe errors, let AI suggest fixes, verify yourself |
+| **Infrastructure** | GitHub Copilot generates Bicep with AVM modules and managed identity | Review deployment config carefully. Missing role assignments break silently |
+| **Debugging** | Ask GitHub Copilot to diagnose deployment or runtime errors | Describe errors, let AI suggest fixes, verify yourself |
 | **Delegation** | GitHub Copilot cloud agent creates the deployment PR from an issue | Write well-scoped issues with acceptance criteria, review the PR |
 
 </details>
@@ -640,8 +700,10 @@ Functions and Microsoft Foundry scale to zero when idle, so you pay almost nothi
 SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)
 SQL_DB=$(azd env get-value SQL_DATABASE_NAME)
 FUNC_APP=$(azd env get-value FUNCTION_APP_NAME)
+SQL_SERVER_SHORT=${SQL_SERVER%.database.windows.net}
+SQL_FQDN="${SQL_SERVER_SHORT}.database.windows.net"
 
-sqlcmd -S "${SQL_SERVER}.database.windows.net" -d "$SQL_DB" \
+sqlcmd -S "$SQL_FQDN" -d "$SQL_DB" \
   --authentication-method ActiveDirectoryAzCli \
   -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}];"
 ```
@@ -770,33 +832,37 @@ Teardown takes 2-3 minutes. This deletes all Azure resources including the SQL d
 
 ## Assignment
 
-1. **Add due dates**: Ask Copilot CLI to *"Add a dueDate field to todos and have the AI suggest deadlines for each action step based on the todo's due date."* Create a todo with a due date, generate steps, and observe whether the AI respects the timeline. Ask Copilot CLI why some steps have unrealistic deadlines and how to fix the prompt.
+1. **Add due dates**: Ask GitHub Copilot to *"Add a dueDate field to todos and have the AI suggest deadlines for each action step based on the todo's due date."* Create a todo with a due date, generate steps, and observe whether the AI respects the timeline. Ask GitHub Copilot why some steps have unrealistic deadlines and how to fix the prompt.
 
-2. **Add a "Regenerate" button**: The UI already shows "Regenerate Steps" when steps exist. Test it: generate steps, then regenerate. Are the new steps different? Ask Copilot CLI to explain why the results vary and how to make them more deterministic (hint: temperature).
+2. **Add a "Regenerate" button**: The UI already shows "Regenerate Steps" when steps exist. Test it: generate steps, then regenerate. Are the new steps different? Ask GitHub Copilot to explain why the results vary and how to make them more deterministic (hint: temperature).
 
-3. **Try a different model**: Ask Copilot CLI to *"Switch from gpt-5-mini to gpt-4.1 in the Foundry deployment."* Generate steps for the same todo with each model. Compare quality, specificity, and latency. Which is better for this use case?
+3. **Try a different model**: Ask GitHub Copilot to *"Switch from gpt-5-mini to gpt-4.1 in the Foundry deployment."* Generate steps for the same todo with each model. Compare quality, specificity, and latency. Which is better for this use case?
 
-4. **Harden security**: The deployed app has no authentication, no rate limiting, and the AI key is in plaintext app settings. Ask Copilot CLI to help with any of these:
+4. **Harden security**: The deployed app has no authentication, no rate limiting, and the AI key is in plaintext app settings. Ask GitHub Copilot to help with any of these:
    - *"Add Azure Key Vault and move AZURE_AI_KEY to a Key Vault secret reference."*
    - *"Switch the AI integration from API key auth to managed identity using DefaultAzureCredential."*
    - *"Add rate limiting to the generate-steps endpoint, max 10 calls per userId per hour."*
    - *"Change the function auth level from Anonymous to Function and configure the iOS app to send the function key."*
    
-   See the [Security Considerations](./PLAN.md#security-considerations) section in PLAN.md for the full list of recommendations.
+   See [Production Hardening (Out of Scope)](./PLAN.md#production-hardening-out-of-scope) in PLAN.md for the full list of recommendations.
 
 ---
 
 ## What's Next
 
-Explore the [AIMarket journey](../aimarket/README.md) to build a full-stack marketplace with AI-powered semantic search, a React storefront, and a shopping assistant.
+**Path stage 4 complete.** You've finished the recommended curriculum.
 
-> 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
+- Revisit the flagship: [AIMarket](../aimarket/README.md) if you skipped stage 3  
+- Optional AKS deep dive: [Superset](../superset/README.md)  
+- Deploy another OSS app with `@oss-to-azure-deployer`
+
+> 📚 **Learning path & overview:** [Back to root README](../../README.md#recommended-learning-path)
 
 ---
 
 ## Resources
 
-- [SmartTodo Spec](./PLAN.md): The plan document used by Copilot CLI to scaffold the app
+- [SmartTodo Spec](./PLAN.md): The plan document used by GitHub Copilot to scaffold the app
 - [Azure Functions Flex Consumption plan](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan)
 - [Azure Functions developer guide](https://learn.microsoft.com/azure/azure-functions/functions-reference)
 - [Azure SQL managed identity auth](https://learn.microsoft.com/azure/azure-sql/database/authentication-aad-configure)

@@ -10,12 +10,14 @@ You are the orchestrator for deploying open-source applications to Azure. You co
 
 ## Required Plugin
 
-The Azure plugin must be installed. It provides 21 skills including the core deployment pipeline:
+The Azure Skills plugin must be installed. It provides MCP tools and the core deployment pipeline (`azure-prepare` → `azure-validate` → `azure-deploy`):
 
 ```
-/plugin marketplace add microsoft/github-copilot-for-azure
-/plugin install azure@github-copilot-for-azure
+/plugin marketplace add microsoft/azure-skills
+/plugin install azure@azure-skills
 ```
+
+Use these exact commands. Do not substitute other marketplace names.
 
 ## Skill Pipeline (MANDATORY ORDER)
 
@@ -140,36 +142,40 @@ az provider register --namespace Microsoft.ContainerService  # AKS only
 ```
 
 ### Health Probes
-- **n8n**: `initialDelaySeconds: 60`, `failureThreshold: 30` (slow startup)
-- **Grafana**: `initialDelaySeconds: 10`, standard timing
-- **Superset**: Custom timing for psycopg2 image build
+- **n8n**: Probe `/healthz`. Startup window ~5 min (AVM: `failureThreshold: 10`, `periodSeconds: 30`). Liveness `initialDelaySeconds: 60`.
+- **Grafana**: Probe `/api/health`, standard timing (fast start ~15–30s)
+- **Superset**: Custom timing for migrations + psycopg2 init container
 
 ### Scale-to-Zero
-Container Apps default to min replicas 0. After deployment, the app may take 60-90 seconds to respond on first request (cold start + image pull). Set `minReplicas: 1` if immediate availability is needed.
+Container Apps default to min replicas 0. After deployment, the app may take 60-90 seconds to respond on first request (cold start + image pull). Set `minReplicas: 1` for CI/dev verification, then scale down after validation.
+
+### Shared OSS Deploy Recipe
+When the learner gives a short request, expand it to include: location, generated secure secrets, app-specific health probe path, `minReplicas: 1` for verification when useful, “resolve any issues,” and log problems to `issues.md`.
 
 ## Deployment Matrix
 
-| App | Compute | Database | Deploy Time | Infra Dir |
-|-----|---------|----------|-------------|-----------|
-| n8n | Container Apps | PostgreSQL Flexible Server | ~7 min | `infra/` |
-| Grafana | Container Apps | None (SQLite) | ~2 min | `infra/` |
-| Superset | AKS | PostgreSQL Flexible Server | ~15 min | `infra/` |
+| App | Compute | Database | Deploy Time | Infra Dir (generated) |
+|-----|---------|----------|-------------|------------------------|
+| Grafana | Container Apps | None (SQLite) | ~2–5 min | `infra-grafana/` |
+| n8n | Container Apps | PostgreSQL Flexible Server | ~7–15 min | `infra-n8n/` |
+| Superset | AKS | PostgreSQL Flexible Server | ~15–25 min | `infra-superset/` |
 
 ## Project Structure
 
 ```
-oss-to-azure/
+github-azure-agentic-journeys/
 ├── .github/
 │   ├── agents/
 │   │   └── oss-to-azure-deployer.agent.md  (this file)
-│   ├── skills/
-│   │   ├── n8n-azure/          (app config, env vars, probes, troubleshooting)
-│   │   ├── grafana-azure/      (app config, env vars, probes, troubleshooting)
-│   │   └── superset-azure/     (app config, env vars, probes, K8s manifests, psycopg2)
-│   └── copilot-instructions.md
-├── n8n/README.md
-├── grafana/README.md
-├── superset/README.md
+│   └── skills/
+│       ├── n8n-azure/
+│       ├── grafana-azure/
+│       ├── superset-azure/
+│       └── container-apps-deployment/
+├── journeys/
+│   ├── n8n/README.md
+│   ├── grafana/README.md
+│   └── superset/README.md
 └── README.md
 ```
 

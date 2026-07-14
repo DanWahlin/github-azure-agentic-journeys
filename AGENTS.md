@@ -2,6 +2,22 @@
 
 This repository contains agentic journeys that build and deploy applications to Azure using GitHub Copilot agents, skills, and Azure Developer CLI (azd).
 
+## Learner path (curriculum)
+
+Recommended order (not table order): **Grafana (0) → n8n (1) → Superset optional (2) → AIMarket flagship (3) → SmartTodo (4)**.  
+AIMarket remains journey **#1** (flagship story). Details: root `README.md` → Quick Start + Recommended learning path.
+
+**Plugin (canonical — use everywhere):**
+
+```
+/plugin marketplace add microsoft/azure-skills
+/plugin install azure@azure-skills
+```
+
+Do not use alternate marketplace names.
+
+**Smoke scripts** (after `azd up`): `scripts/verify-grafana.sh`, `verify-n8n.sh`, `verify-superset.sh`, `verify-aimarket.sh`, `verify-smart-todo.sh`.
+
 ## Prerequisites
 
 Install the **Azure Skills plugin** for access to Azure-specific MCP and skills tools (Bicep schemas, deployment planning, architecture diagrams, log analysis):
@@ -84,14 +100,22 @@ The Azure MCP plugin provides these tools for use throughout the deployment life
 ## Commands
 
 ```bash
-# Deploy infrastructure
+# Deploy infrastructure (always set subscription first)
+azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
 azd up
 
-# Tear down all resources
-azd down --purge
+# Tear down all resources (prefer purge for AI soft-delete)
+azd down --force --purge
 
 # View deployment outputs
 azd env get-value <OUTPUT_NAME>
+
+# Smoke-check a journey (active azd env must match that app)
+# Works from repo root OR a journey directory:
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+"$REPO_ROOT/scripts/verify-grafana.sh"      # also: verify-n8n, verify-superset,
+                                            # verify-aimarket, verify-smart-todo
+# Or from journeys/<app>:  ../../scripts/verify-<app>.sh
 
 # View container logs
 az containerapp logs show --name $(azd env get-value CONTAINER_APP_NAME) \
@@ -259,7 +283,12 @@ journeys/
     └── journey-test-harness/   # Test suite: run all journeys, deploy, screenshot, teardown
         └── SKILL.md
 scripts/
-└── setup-journey-tests.sh       # Configure GitHub secrets/variables for CI
+├── setup-journey-tests.sh       # Configure GitHub secrets/variables for CI
+├── verify-grafana.sh            # Post-deploy smoke checks
+├── verify-n8n.sh
+├── verify-superset.sh
+├── verify-aimarket.sh
+└── verify-smart-todo.sh
 AGENTS.md                         # This file
 README.md
 ```

@@ -8,18 +8,31 @@ description: |
 
 # Journey Template Skill
 
-Generate a complete agentic journey from a user's app idea. A journey is a hands-on learning experience where developers use Copilot CLI to build and deploy an app to Azure.
+Generate a complete agentic journey from a user's app idea. A journey is a hands-on learning experience where developers use GitHub Copilot (CLI, app, or IDE) to build and deploy an app to Azure.
+
+## Curriculum packaging (required)
+
+**Every journey README must include:**
+- Curriculum line: journey #, stage, previous/next links
+- Honest first-run time + cost **if left running** + same-day teardown
+- **Done when** checklist + link to `scripts/verify-<app>.sh` when deployable
+- Full-stack: **one-line default stack** at the first generate prompt (not a defaults table); put stack details in PLAN.md
+- Plugin commands: only `microsoft/azure-skills` / `azure@azure-skills`
+- What's Next aligned to the path (not renumbered leftovers)
+- OSS: shared deploy recipe (location, secrets, probes, resolve issues, issues.md)
+
+Update root `README.md` learning path + journey table when adding a journey.
 
 ## Journey Types
 
 | Dimension | Full-Stack (e.g. AIMarket) | OSS Deployment (e.g. n8n, Grafana, Superset) |
 |-----------|---------------------------|----------------------------------------------|
-| **What the learner does** | Builds an app from scratch with Copilot CLI | Deploys an existing OSS app via `@oss-to-azure-deployer` agent |
+| **What the learner does** | Builds an app from scratch with GitHub Copilot | Deploys an existing OSS app via `@oss-to-azure-deployer` agent |
 | **Files generated** | README.md + PLAN.md | README.md + app-specific skill in `.github/skills/` |
 | **README structure** | "The Journey" with 3-5 phases (adapt to app complexity) | "Deploy with the Agent" with 3 steps (Setup → Deploy → Verify) |
-| **Time** | 2-3 hours | 15-30 minutes |
+| **Time** | 3–5 hours first run (say 2–3 only if re-run) | 15–45 minutes first run |
 | **Images** | 4-6 (one per phase boundary) | 2 (hero + deployment) |
-| **Unique sections** | "The Spec", "How Agentic AI is Used" | "Configuration Reference", "Key Learnings" |
+| **Unique sections** | "The Spec", "How Agentic AI is Used", one-line default stack at first prompt | "Configuration Reference", "Key Learnings", skip rules if expensive |
 | **Compute target** | Container Apps, App Service, Functions, Static Web Apps, AKS | Container Apps, AKS, App Service |
 
 ## Output Structure
@@ -141,7 +154,8 @@ Then install the plugin:
 > /plugin install azure@azure-skills
 ```
 
-> **Already installed?** The plugin persists across sessions. If you've done a previous journey, skip the install commands.
+> **Already installed?** If you completed the root [Quick Start](../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
+> **Canonical only:** `microsoft/azure-skills` — never document alternate marketplace names.
 
 <For OSS journeys, select the agent:>
 
@@ -267,10 +281,10 @@ azd down --force --purge
 | `Key Learnings` | `How Agentic AI is Used` — table of agentic use cases |
 
 Full-stack journeys also add:
-- **"The Spec"** section after Architecture — links to PLAN.md with a note: *"This is a spec for AI agents. You don't need to read it — Copilot CLI will."*
+- **"The Spec"** section after Architecture — links to PLAN.md with a note: *"This is a spec for AI agents. You don't need to read it — GitHub Copilot will."*
 - **Phase-level images** — one image at each phase boundary (e.g., spec-to-code, storefront, AI features, deployment)
 - **Teaching markers** within each phase (🔍 Inspect, 💡 What you're learning, 🧪 Test it yourself)
-- **Two deployment options** in final phase: Option A (Copilot CLI) and Option B (GitHub Copilot cloud agent)
+- **Two deployment options** in final phase: Option A (GitHub Copilot) and Option B (GitHub Copilot cloud agent)
 
 For mobile frontends (iOS/Android), note in the README:
 - Backend is deployed to Azure with `azd up`; mobile app runs locally or via TestFlight / Play Store internal testing
@@ -308,14 +322,14 @@ Use consistently throughout all journeys:
 
 ## PLAN.md Template (Full-Stack Journeys Only)
 
-The PLAN.md is a spec document that Copilot CLI reads to generate code. It is NOT tutorial content. Add a note at the top: "This is a spec for AI agents. You don't need to read it — Copilot CLI will." Reference `journeys/aimarket/PLAN.md` for the complete example.
+The PLAN.md is a spec document that GitHub Copilot reads to generate code. It is NOT tutorial content. Add a note at the top: "This is a spec for AI agents. You don't need to read it — GitHub Copilot will." Reference `journeys/aimarket/PLAN.md` for the complete example.
 
 ### Required Sections
 
 ```markdown
 # <App Name>: <Subtitle> — Spec
 
-<One-sentence description>. This document is the spec — Copilot CLI reads it to generate the implementation.
+<One-sentence description>. This document is the spec — GitHub Copilot reads it to generate the implementation.
 
 **Out of scope:** <What this app does NOT do>
 
@@ -368,7 +382,7 @@ Key rules for PLAN.md:
 - **Seed data must be complete** — exact IDs, names, descriptions, prices, image URLs
 - **Error format** — specify the exact error response schema the API should return
 - **Deployment gotchas** — document every real failure encountered during testing with the fix
-- **Model references** — use gpt-5-mini as primary model, gpt-4o as fallback
+- **Model references** — use gpt-5-mini as primary model, gpt-4.1 as fallback
 - **Data access** — if the app supports multiple database backends, reference the `data-access-abstraction` skill for the repository pattern
 
 ---
@@ -484,17 +498,14 @@ For other languages (.NET, Java, Go, etc.), follow the same multi-stage pattern:
 ### Full Deployment Flow
 
 ```
-1. azd up                          → provisions infra + deploys services
-2. Verify backend with curl
-3. If frontend needs backend URL at build time:
-   a. Get the backend URL: API_URL=$(azd env get-value API_URL)
-   b. Get the registry: ACR=$(azd env get-value AZURE_CONTAINER_REGISTRY_ENDPOINT)
-   c. Rebuild frontend image with the URL as a build arg
-   d. Push to ACR and update the container app
-4. Verify all services
+1. Generate azure.yaml with hooks.postdeploy when SPA needs API URL at build time
+2. azd env set AZURE_SUBSCRIPTION_ID + azd up
+3. postdeploy hook rebuilds frontend (VITE_API_URL) automatically — do not make first success manual
+4. Run scripts/verify-<app>.sh
+5. azd down --force --purge when lab is done
 ```
 
-Step 3 is only needed when the frontend bakes in a backend URL at build time (e.g., Vite's `VITE_API_URL`, Angular's `environment.ts`). API-only apps or apps that configure the URL at runtime skip this step.
+If the frontend bakes in a backend URL at build time (e.g., Vite `VITE_API_URL`), **always** generate `infra/hooks/postdeploy.sh` from the `container-apps-deployment` skill. Manual rebuild is fallback only. API-only apps skip postdeploy.
 
 **Apple Silicon (M1/M2/M3):** Always add `--platform linux/amd64` to `docker build`.
 
@@ -652,7 +663,7 @@ az cognitiveservices account purge --name <name> --resource-group <rg> --locatio
 
 ## Teaching Markers (Full-Stack Journeys)
 
-Place these after each Copilot CLI generation step:
+Place these after each GitHub Copilot generation step:
 
 **🔍 Inspect** — immediately after generation, tell the learner exactly what to check:
 ```markdown
@@ -666,7 +677,7 @@ Open the order creation route. Look for:
 **💡 What you're learning** — explain the meta-skill:
 ```markdown
 **💡 What you're learning:** Complex business logic is where AI generation needs the most
-human review. Copilot CLI gets CRUD right but often misses multi-step validation.
+human review. GitHub Copilot gets CRUD right but often misses multi-step validation.
 ```
 
 **🧪 Try it yourself** — manual verification with curl:
@@ -686,13 +697,13 @@ curl -X POST http://localhost:3000/api/orders ...
 - Good: "Want Y on Azure without writing Bicep? Tell an agent what you want and it deploys it in 20 minutes."
 
 ### Time Estimates
-- Be honest. If it takes 2 hours with debugging, say 2 hours
-- OSS deployments: 15-30 minutes
-- Full-stack builds: 2-3 hours
+- Be honest about **first run** (include fix loops)
+- OSS deployments: 15–45 minutes first run
+- Full-stack builds: 3–5 hours first run
 
 ### Cost Callouts
-- Always show cost in the prereqs box
-- For expensive journeys ($100+/month), add a bold warning
+- Always show cost in the prereqs box as **if left running**, plus same-day teardown
+- For expensive journeys ($100+/month or AKS ~$200), bold skip/budget guidance
 - Use human-readable SKU names (not "PerGB2018")
 
 ### Tone
@@ -702,9 +713,10 @@ curl -X POST http://localhost:3000/api/orders ...
 - Use "you" not "the learner" or "the developer"
 
 ### Copilot Naming
-- Terminal tool: "Copilot CLI"
-- In GitHub (issues/PRs): "GitHub Copilot cloud agent"
-- Never standalone "Copilot" without qualifier
+- Narrative / learner instructions: **"GitHub Copilot"** (works for CLI, app, or IDE)
+- Terminal product only when showing `copilot` or CLI-only notes: **"GitHub Copilot CLI"** or **"Copilot CLI"**
+- In GitHub (issues/PRs): **"GitHub Copilot cloud agent"**
+- Never bare **"Copilot"** without qualifier
 
 ### Images
 - Hero image at top, deployment architecture image before deploy step
@@ -717,18 +729,17 @@ curl -X POST http://localhost:3000/api/orders ...
 
 After creating a new journey, update these files:
 
-1. **Root `README.md`** — add the journey to the journey listing table:
-   ```markdown
-   | NN | [<App Name>](journeys/<app-name>/README.md) | Highlights |
-   ```
+1. **Root `README.md`** — learning path stages + journey table (stage column, time, cost)
 
-2. **`AGENTS.md`** — update the project structure tree and add any new skills to the skills table
+2. **`AGENTS.md`** — project structure, skills table, smoke script list
 
-3. **Root prerequisites** — only tools common to ALL journeys (Azure CLI, azd, Copilot CLI, Git). Language runtimes (Node.js, Python, .NET SDK, Java JDK) and other tools (Docker, kubectl) go in the journey's "Additional prerequisites" section.
+3. **Root prerequisites** — only tools common to ALL journeys (Azure CLI, azd, GitHub Copilot, Git). Language runtimes and Docker/kubectl go in the journey's additional prerequisites.
 
-4. **Journey numbering** — journeys are numbered sequentially (01, 02, 03...). New journeys get the next number.
+4. **Journey numbering + stage** — sequential journey # for marketing; path stage 0–N for curriculum; What's Next follows stages
 
-5. **Images** — generate with the `technical-image-generator` skill using the established palette:
+5. **`scripts/verify-<app>.sh`** — post-deploy smoke checks
+
+6. **Images** — generate with the `technical-image-generator` skill using the established palette:
    - White background, soft light blue and gray accents
    - Titles in dark navy (#1e3a5f) Helvetica Bold 42pt
    - Optimize: 1200px max width, JPEG quality 80, progressive, <100KB each
@@ -742,22 +753,26 @@ Before considering a journey complete:
 ### Content & Quality
 
 - [ ] Opening hook passes the "does a developer care yet?" test
-- [ ] Time estimate is honest (tested by actually doing it)
-- [ ] Cost in prereqs box with main cost driver called out
-- [ ] No standalone "Copilot" — always "Copilot CLI" or "GitHub Copilot cloud agent"
+- [ ] Time estimate is honest first-run (tested)
+- [ ] Cost "if left running" + same-day teardown called out
+- [ ] Curriculum line: journey #, stage, prev/next
+- [ ] Done when checklist + verify script where applicable
+- [ ] Full-stack: one-line default stack at first generate prompt (details live in PLAN.md)
+- [ ] No bare "Copilot" — use "GitHub Copilot" in narrative; "GitHub Copilot CLI" / "cloud agent" only when product-specific
 - [ ] No AI-generated filler words or summary paragraphs
 - [ ] All JSON examples are valid (check closing brackets!)
 - [ ] SKU names are human-readable in cost tables (not "PerGB2018")
-- [ ] gpt-5-mini is primary model (fallback to gpt-4o)
+- [ ] gpt-5-mini is primary model (fallback to gpt-4.1)
 - [ ] Images optimized (1200px, JPEG, <100KB)
 
 ### Structure & Sections
 
 - [ ] Architecture diagram shows all Azure resources
-- [ ] Plugin setup section with exact marketplace/install commands
+- [ ] Plugin setup: only `microsoft/azure-skills` / `azure@azure-skills`
 - [ ] Troubleshooting covers real errors from actual deployments (Symptom/Cause/Fix format)
 - [ ] Assignment guides discovery (do → observe → ask agent → fix)
 - [ ] Cleanup section with `azd down --force --purge`
+- [ ] What's Next follows learning path stages
 - [ ] OSS journeys: Configuration Reference section (env vars, container resources, health probes)
 - [ ] OSS journeys: Key Learnings (4-5 max) don't repeat troubleshooting content
 - [ ] Full-stack journeys: "The Spec" section linking to PLAN.md
@@ -769,7 +784,7 @@ Before considering a journey complete:
 - [ ] `azd-service-name` tags on all container apps in Bicep
 - [ ] Pre-deployment provider registration commands included
 - [ ] `AZURE_SUBSCRIPTION_ID` set explicitly before `azd up`
-- [ ] VITE_API_URL rebuild workaround documented (if React frontend)
+- [ ] VITE_API_URL handled via **postdeploy hook** (if React frontend) — not manual-only first success
 - [ ] Soft-deleted Cognitive Services warning (if using AI services)
 - [ ] Platform flag `--platform linux/amd64` documented (if Docker builds)
 - [ ] Wrapper module pattern used for resources needing `listKeys()` (if subscription-scoped)

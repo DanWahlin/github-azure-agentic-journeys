@@ -2,9 +2,13 @@
 
 > ✨ **When Container Apps isn't enough, you need Kubernetes. The agent knows when and why.**
 
+**Curriculum:** Journey **#4** · Learning path **Stage 2 (optional / advanced)** · After [n8n](../n8n/README.md) · Skip if budget or quota is tight
+
 <p align="center">
   <img src="./images/superset-data-exploration.webp" alt="Apache Superset: BI on Azure" width="800" />
 </p>
+
+> ⚠️ **Skip this journey unless you specifically want AKS concepts.** It costs **~$200+/month if left running** (node VMs + load balancer), needs **vCPU quota**, and takes longer than Grafana/n8n. For the flagship full-stack path, go to [AIMarket](../aimarket/README.md) after n8n instead.
 
 [Apache Superset](https://superset.apache.org/) needs init containers (containers that run before the main app starts, used for setup tasks like database migrations), shared volumes, and custom config mounting, all patterns that are natural in Kubernetes. The agent knows this and generates AKS infrastructure. You'll deploy a full BI platform and learn when Kubernetes is the right choice.
 
@@ -16,17 +20,28 @@
 - Use `azure_deploy_plan` with `target=AKS` for Kubernetes deployment planning
 - Debug AKS-specific issues: init container failures, CrashLoopBackOff (a Kubernetes state where a container keeps crashing and restarting), SQLite fallback
 
-> ⏱️ **Estimated Time**: ~30 minutes
+> ⏱️ **Estimated Time**: ~30–45 minutes first run (AKS create is slow)
 >
-> 💰 **Estimated Cost**: ~$200-215/month (AKS nodes are the main cost, see [Cost Breakdown](#cost-breakdown)). Clean up with `azd down` when done!**
+> 💰 **Estimated Cost**: ~$200–215/month **if left running** (AKS nodes are the main cost; see [Cost Breakdown](#cost-breakdown)). **Tear down immediately with `azd down --force --purge`.**
 >
 > 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
 >
 > **Additional prerequisites for this journey:**
 > - [`kubectl`](https://kubernetes.io/docs/tasks/tools/): needed for AKS cluster management
+> - Subscription quota: at least **4 vCPUs** in the target region for the default node pool
 
 > [!NOTE]
 > Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+
+### Done when
+
+- [ ] `kubectl get pods -n superset` shows Ready 1/1
+- [ ] Init logs show `PostgresqlImpl` (not SQLite)
+- [ ] `$SUPERSET_URL/health` returns HTTP 200
+- [ ] Browser login works
+- [ ] `azd down --force --purge` completed
+
+Smoke script: `../../scripts/verify-superset.sh`
 
 ---
 
@@ -91,9 +106,9 @@ These patterns are natural in Kubernetes but complex or unavailable in Container
 
 ## Deploy with the Agent
 
-You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) in GitHub Copilot CLI to generate and deploy the entire infrastructure through conversation.
+You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) with GitHub Copilot to generate and deploy the entire infrastructure through conversation.
 
-> **💡 Tip: Track issues as you go.** When giving Copilot CLI a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives Copilot CLI a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
+> **💡 Tip: Track issues as you go.** When giving GitHub Copilot a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives GitHub Copilot a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
 
 ### Step 1: Setup
 
@@ -103,17 +118,19 @@ Make sure you're in the repo root first:
 cd github-azure-agentic-journeys
 ```
 
-Then start GitHub Copilot CLI, a terminal-based AI assistant that can read, write, and run code in your project:
+Then open GitHub Copilot in your preferred surface (CLI, app, or IDE). Examples below use [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
 
 ```bash
 copilot
 ```
 
-> **Don't have `copilot`?** Install it first. See [prerequisites](../../README.md#prerequisites) for the installation link.
+> **Using another surface?** Paste the same prompts into the GitHub Copilot app or VS Code agent chat. See [prerequisites](../../README.md#prerequisites) for tool options.
+>
+> **Don't have `copilot`?** Install it only if you want the CLI path, or use the app / VS Code instead.
 
-Plugins extend what Copilot CLI can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
+Plugins extend what GitHub Copilot can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
 
-> **Note:** Lines starting with `>` in the code blocks below show what to type in the Copilot CLI session. Don't include the `>` character itself. It represents the Copilot CLI prompt.
+> **Note (Copilot CLI):** Lines starting with `>` show what to type in a CLI session. Don't include the `>` character itself. In the app or VS Code, send the prompt without the `>` prefix.
 
 ```
 > /plugin marketplace add microsoft/azure-skills
@@ -123,7 +140,7 @@ Plugins extend what Copilot CLI can do. The Azure Skills plugin adds deployment 
 > /plugin install azure@azure-skills
 ```
 
-> **Already installed?** The plugin persists across sessions. If you've done a previous journey, skip the install commands.
+> **Already installed?** If you completed the root [Quick Start](../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
 > For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 Now select the deployment agent. Agents are specialized personas that know how to handle specific tasks:
@@ -140,10 +157,12 @@ Select **`oss-to-azure-deployer`** from the list. You're now in an interactive s
   <img src="./images/azure-deployment.webp" alt="Deploy Superset to Azure" width="800" />
 </p>
 
-Tell the agent what you want in a single prompt:
+Tell the agent what you want in a single prompt (OSS shared recipe: location + secrets + resolve issues):
 
 ```
-> Deploy Apache Superset to Azure using Bicep and azd. Set the location to westus, generate secure passwords for all credentials, and resolve any issues that come up.
+> Deploy Apache Superset to Azure using Bicep and azd. Set the location to westus,
+  generate secure passwords for all credentials, use AKS (not Container Apps),
+  resolve any issues that come up, and log problems to issues.md.
 ```
 
 The agent handles the entire deployment:
@@ -158,7 +177,7 @@ The agent handles the entire deployment:
 > ⏳ **While you wait:** This deployment can take awhile. AKS cluster creation alone takes several minutes. Put the time to good use:
 >
 > 1. Watch your resources appear in real-time. Open the [Azure Portal](https://portal.azure.com) → search for your resource group, or run `az resource list --resource-group rg-<env-name> --output table` in a separate terminal.
-> 2. Read the [init container pattern](#psycopg2-installation-critical) above. Why can't you just `pip install psycopg2-binary` in the main container? (Hint: read-only filesystem.)
+> 2. Read the [init container pattern](#psycopg2-installation-critical) below. Why can't you just `pip install psycopg2-binary` in the main container? (Hint: read-only filesystem.)
 > 3. **Cost comparison:** This AKS deployment costs ~$200/month vs. ~$25 for n8n and ~$10 for Grafana. Open the [Cost Breakdown](#cost-breakdown) and think about when AKS is worth the premium. Always use the right tool for the right job.
 > 4. Explore the [Superset demo gallery](https://superset.apache.org/gallery) to see what kinds of dashboards you can build after deployment.
 
@@ -443,19 +462,18 @@ Teardown takes 5-10 minutes (AKS + PostgreSQL deletion is slow).
 ## Assignment
 
 1. Verify that Superset is using PostgreSQL, not SQLite. Ask the agent: *"Is my Superset deployment using PostgreSQL?"*
-2. Compare the three deployments: Grafana (~$10-20, 2 min), n8n (~$25-35, 7 min), Superset (~$200-215, 15-20 min). When would you choose each?
+2. Compare the three deployments: Grafana (~$10-20/month, ~2 minutes to provision), n8n (~$25-35/month, ~7 minutes to provision), and Superset (~$200-215/month, ~15-20 minutes to provision). These provisioning times are only part of the longer guided journey estimates shown at the top of each README. When would you choose each?
 3. Clean up with `azd down --force --purge`
 
 ---
 
 ## What's Next
 
-You've completed the OSS deployment journeys. Here's where to go from here:
+**Optional stage 2 complete.** Continue to the flagship **stage 3:** [AIMarket](../aimarket/README.md) (spec → full-stack → Foundry → Azure), then **stage 4:** [SmartTodo](../smart-todo/README.md).
 
-- **Ask the agent**: Start a session with `@oss-to-azure-deployer` and ask *"How would I deploy Gitea to Azure?"*
-- **Contribute**: Found a bug or want to add an app? [Open an issue](https://github.com/DanWahlin/github-azure-agentic-journeys/issues)
+Or keep going with OSS: ask `@oss-to-azure-deployer` *"How would I deploy Gitea to Azure?"*
 
-> 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
+> 📚 **Learning path & overview:** [Back to root README](../../README.md#recommended-learning-path)
 
 ---
 

@@ -1,6 +1,6 @@
 # SmartTodo: AI-Powered Task Breakdown — Spec
 
-A todo app where vague goals become actionable plans. Type "Prepare Conference talk" and AI returns concrete steps you can check off. This document is the spec — Copilot CLI reads it to generate the implementation.
+A todo app where vague goals become actionable plans. Type "Prepare Conference talk" and AI returns concrete steps you can check off. This document is the spec — GitHub Copilot reads it to generate the implementation.
 
 **Out of scope:** No user authentication (anonymous for now), no push notifications, no collaboration/sharing, no offline sync, no recurring todos, no image attachments.
 
@@ -10,13 +10,15 @@ A todo app where vague goals become actionable plans. Type "Prepare Conference t
 
 Pick your API language. Data models, endpoints, and acceptance criteria are identical across stacks. Azure Functions Flex Consumption is the hosting plan for all languages.
 
+**Happy path (recommended for first run):** Node.js + TypeScript + Azure Functions v4, region `westus`, model `gpt-5-mini` (fallback `gpt-4.1`). Todo status enum: **`pending` | `in_progress` | `completed`** only (never `not_started`).
+
 | | Node.js | Python | .NET | Java |
 |---|---------|--------|------|------|
 | **Framework** | Azure Functions Node.js v4 programming model (`@azure/functions`) + TypeScript | Azure Functions v4 runtime (Python v2 programming model) | Azure Functions isolated worker model + C# | Azure Functions + Java |
 | **Azure SQL** | `mssql` + `@types/mssql` (dev) | `mssql-python` | `Microsoft.Data.SqlClient` | `mssql-jdbc` (`com.microsoft.sqlserver:mssql-jdbc`) |
 | **AI** | `openai` | `openai` | `OpenAI` | `com.openai:openai-java` |
 
-Frontend: Swift/SwiftUI (iOS 17+). Deploy backend with **azd** + **Bicep**. Prefer Azure Verified Modules (AVM), but use raw `Microsoft.*` resources when AVM parameter drift blocks deployment.
+Frontend: Swift/SwiftUI (iOS 17+). **macOS + Xcode required for the iOS client.** Deploy backend with **azd** + **Bicep**. Prefer Azure Verified Modules (AVM), but use raw `Microsoft.*` resources when AVM parameter drift blocks deployment.
 
 The iOS app is NOT deployed by azd — only the Azure backend is. The app points at the deployed API URL via a `Config.swift` file.
 
@@ -498,14 +500,18 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 
 ### Post-Provision: Managed Identity SQL Access
 
-Azure SQL requires a post-provision SQL step to add the Function App's managed identity as a database user. `az sql db execute` does not exist; use `sqlcmd` or a small language-specific script.
+Azure SQL requires a post-provision SQL step to add the Function App's managed identity as a database user. `az sql db execute` does not exist; use `sqlcmd` with `--authentication-method ActiveDirectoryAzCli` (go-sqlcmd / `brew install sqlcmd`).
 
-Post-provision hook requirements:
-- Add a temporary firewall rule for the developer machine's public IP if running SQL setup locally.
-- Connect to `${SQL_SERVER}.database.windows.net` with Microsoft Entra auth.
-- `CREATE USER [<function-app-name>] FROM EXTERNAL PROVIDER` if missing.
-- Grant `db_datareader`, `db_datawriter`, and `db_ddladmin` to that user.
-- Run `infra/hooks/postprovision-schema.sql` to create tables and seed data.
+**Order of operations (required):**
+1. Deploying user is Microsoft Entra admin on the SQL server (set in Bicep).
+2. Temporary firewall rule for the developer machine public IP (Allow Azure Services alone is not enough for local `sqlcmd`).
+3. Connect to full FQDN `${SQL_SERVER}.database.windows.net` with Entra auth.
+4. `CREATE USER [<function-app-name>] FROM EXTERNAL PROVIDER` if missing.
+5. Grant `db_datareader`, `db_datawriter`, and `db_ddladmin` to that user.
+6. Run `infra/hooks/postprovision-schema.sql` to create tables and seed data.
+7. **Delete the temporary client firewall rule** after SQL setup succeeds (do not leave the developer public IP open).
+
+Smoke check after deploy (from repo root or journey dir): see `scripts/verify-smart-todo.sh`
 
 ### Database Schema Initialization
 

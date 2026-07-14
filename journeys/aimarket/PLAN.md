@@ -1,6 +1,6 @@
 # AIMarket: AI-Powered Marketplace — Spec
 
-Marketplace API + React storefront with AI-powered semantic search and a shopping assistant. This document is the spec — Copilot reads it to generate the implementation.
+Marketplace API + React storefront with AI-powered semantic search and a shopping assistant. This document is the spec — GitHub Copilot reads it to generate the implementation.
 
 **Out of scope:** No auth, no payments, no image upload, no email, no admin dashboard, no rate limiting, no WebSockets.
 
@@ -9,6 +9,8 @@ Marketplace API + React storefront with AI-powered semantic search and a shoppin
 ## Choose Your Stack
 
 Pick your API language. Data models, endpoints, and acceptance criteria are identical across stacks.
+
+**Happy path (recommended for first run):** Node.js + TypeScript + Express, region `westus`, model `gpt-5-mini` (fallback `gpt-4.1`). Stay in `journeys/aimarket` for the whole journey.
 
 | | Node.js | Python | .NET | Java |
 |---|---------|--------|------|------|
@@ -431,7 +433,9 @@ export async function sendChatMessage(messages: ChatMessage[]): Promise<string>
 
 ## Phase 3: AI Features
 
-Add semantic search and a shopping assistant. Requires Azure AI Search and Microsoft Foundry.
+Add semantic search and a shopping assistant.
+
+**Local vs deploy:** Implement endpoints with graceful fallbacks (SQLite LIKE for search; chat returns 503 without credentials) so Phase 3 works without long-lived standalone AI resources. **Phase 4 provisions Azure AI Search + Microsoft Foundry** and wires env vars into Container Apps. Optional: use temporary local credentials to test AI before deploy—do not create a second permanent Search/Foundry pair if Phase 4 will provision them.
 
 ### AI Feature 1: Semantic Product Search
 
@@ -579,7 +583,7 @@ Deploy the full stack to Azure Container Apps using Bicep with AVM modules and a
 
 ### Azure Skills Plugin
 
-The Azure Skills plugin for Copilot CLI provides MCP tools and plugin skills for infrastructure generation and deployment. Install it with `/plugin install azure@azure-skills` if not already installed.
+The Azure Skills plugin for GitHub Copilot provides MCP tools and plugin skills for infrastructure generation and deployment. Install it with `/plugin install azure@azure-skills` (Copilot CLI) or the equivalent plugin install flow in your surface if not already installed.
 
 | Tool / Skill | When to Use |
 |------|-------------|
@@ -628,7 +632,8 @@ Use **Azure Verified Modules (AVM)** from `br/public:avm/...` for ALL resources.
 
 ### Deployment
 
-1. `azd up` provisions infra and deploys both services
-2. **Post-deploy:** Rebuild frontend with `VITE_API_URL` pointing to the API's FQDN (including `/api` path), push to ACR, update container app. This is needed because `azd deploy` doesn't pass Docker build args.
-3. **Apple Silicon (M1/M2/M3):** Add `--platform linux/amd64` to `docker build` — Azure Container Apps runs Linux AMD64 containers
+1. `azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"` then `azd up` provisions infra and deploys both services
+2. **Required postdeploy hook:** Always generate `infra/hooks/postdeploy.sh` and wire `hooks.postdeploy` in `azure.yaml` (see [`container-apps-deployment` skill](../../.github/skills/container-apps-deployment/SKILL.md)). The script rebuilds the web image with `VITE_API_URL=${API_URL}/api`, uses `--platform linux/amd64`, pushes to ACR, and updates the web Container App. First-time success must not require a manual rebuild.
+3. **Apple Silicon (M1/M2/M3/M4):** `--platform linux/amd64` is mandatory on ARM hosts
 4. Set `DATA_PROVIDER=cosmos` or `DATA_PROVIDER=postgres` to switch from SQLite to a cloud database
+5. Smoke check: `../../scripts/verify-aimarket.sh`

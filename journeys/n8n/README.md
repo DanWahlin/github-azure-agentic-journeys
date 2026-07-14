@@ -2,28 +2,39 @@
 
 > ✨ **Deploy a self-hosted workflow automation platform to Azure by having a conversation with an AI agent.**
 
+**Curriculum:** Journey **#2** · Learning path **Stage 1** · After [Grafana](../grafana/README.md) · Next: optional [Superset](../superset/README.md) or flagship [AIMarket](../aimarket/README.md)
+
 <p align="center">
   <img src="./images/n8n-workflow-automation.webp" alt="n8n: Workflow Automation on Azure" width="800" />
 </p>
 
-Want workflow automation on Azure but don't want to write Bicep (Azure's infrastructure-as-code language)? Tell an AI agent what you want, and it generates the infrastructure, configures health probes, and deploys it. You'll have [n8n](https://n8n.io), an open-source workflow automation tool (like Zapier, but self-hosted), running on Container Apps with PostgreSQL in about 20 minutes.
+Want workflow automation on Azure but don't want to write Bicep (Azure's infrastructure-as-code language)? Tell an AI agent what you want, and it generates the infrastructure, configures health probes, and deploys it. You'll have [n8n](https://n8n.io), an open-source workflow automation tool (like Zapier, but self-hosted), running on Container Apps with PostgreSQL in about 20–30 minutes.
 
 ## Learning Objectives
 
-- Use `@oss-to-azure-deployer` in GitHub Copilot CLI to generate Azure infrastructure through conversation
+- Use the `oss-to-azure-deployer` agent with GitHub Copilot to generate Azure infrastructure through conversation
 - Understand how the agent loads app-specific and generic skills to build Bicep templates
 - Deploy n8n to Azure Container Apps with PostgreSQL using `azd up`
 - Configure health probes for slow-starting containers
 - Troubleshoot common deployment issues using Azure MCP (Model Context Protocol) tools and container logs
 
-> ⏱️ **Estimated Time**: ~20 minutes
+> ⏱️ **Estimated Time**: ~20–30 minutes first run (Postgres provision dominates)
 >
-> 💰 **Estimated Cost**: ~$25-35/month (see [Cost Breakdown](#cost-breakdown)). Remember to clean up with `azd down` when done!
+> 💰 **Estimated Cost**: ~$25–35/month **if left running** (see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and GitHub Copilot CLI. See [prerequisites](../../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and GitHub Copilot. See [prerequisites](../../README.md#prerequisites) for installation links.
 
 > [!NOTE]
 > Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+
+### Done when
+
+- [ ] `$N8N_URL/healthz` returns HTTP 200
+- [ ] UI loads (HTTP 200); title contains n8n
+- [ ] `WEBHOOK_URL` set on the container (agent or post-provision hook)
+- [ ] `azd down --force --purge` completed
+
+Smoke script: `../../scripts/verify-n8n.sh`
 
 ---
 
@@ -62,9 +73,9 @@ graph TB
 
 ## Deploy with the Agent
 
-You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) in GitHub Copilot CLI to generate and deploy the entire infrastructure through conversation.
+You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) with GitHub Copilot to generate and deploy the entire infrastructure through conversation.
 
-> **💡 Tip: Track issues as you go.** When giving Copilot CLI a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives Copilot CLI a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
+> **💡 Tip: Track issues as you go.** When giving GitHub Copilot a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives GitHub Copilot a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
 
 ### Step 1: Setup
 
@@ -74,17 +85,19 @@ Make sure you're in the repo root first:
 cd github-azure-agentic-journeys
 ```
 
-Then start GitHub Copilot CLI, a terminal-based AI assistant that can read, write, and run code in your project:
+Then open GitHub Copilot in your preferred surface (CLI, app, or IDE). Examples below use [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
 
 ```bash
 copilot
 ```
 
-> **Don't have `copilot`?** Install it first. See [prerequisites](../../README.md#prerequisites) for the installation link.
+> **Using another surface?** Paste the same prompts into the GitHub Copilot app or VS Code agent chat. See [prerequisites](../../README.md#prerequisites) for tool options.
+>
+> **Don't have `copilot`?** Install it only if you want the CLI path, or use the app / VS Code instead.
 
-Plugins extend what Copilot CLI can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
+Plugins extend what GitHub Copilot can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
 
-> **Note:** Lines starting with `>` in the code blocks below show what to type in the Copilot CLI session. Don't include the `>` character itself. It represents the Copilot CLI prompt.
+> **Note (Copilot CLI):** Lines starting with `>` show what to type in a CLI session. Don't include the `>` character itself. In the app or VS Code, send the prompt without the `>` prefix.
 
 ```
 > /plugin marketplace add microsoft/azure-skills
@@ -94,7 +107,7 @@ Plugins extend what Copilot CLI can do. The Azure Skills plugin adds deployment 
 > /plugin install azure@azure-skills
 ```
 
-> **Already installed?** The plugin persists across sessions. If you've done a previous journey, skip the install commands.
+> **Already installed?** If you completed the root [Quick Start](../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
 > For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 Now select the deployment agent. Agents are specialized personas that know how to handle specific tasks:
@@ -111,10 +124,14 @@ Select **`oss-to-azure-deployer`** from the list. You're now in an interactive s
   <img src="./images/azure-deployment.webp" alt="Deploy n8n to Azure" width="800" />
 </p>
 
-Tell the agent what you want in a single prompt:
+Tell the agent what you want in a single prompt (OSS shared recipe: location + secrets + probes + resolve issues):
 
 ```
-> Deploy n8n to Azure using Bicep and azd. Set the location to westus, generate secure passwords for all credentials, set the Container App minReplicas to 1 for this CI/dev deployment, use n8n's /healthz endpoint for startup/readiness/liveness probes, and resolve any issues that come up.
+> Deploy n8n to Azure using Bicep and azd. Set the location to westus,
+  generate secure passwords for all credentials, set the Container App
+  minReplicas to 1 for this CI/dev deployment, use n8n's /healthz endpoint
+  for startup/readiness/liveness probes, resolve any issues that come up,
+  and log problems to issues.md.
 ```
 
 The deployment takes several minutes. You'll see the agent generating Bicep files, registering Azure providers, and running `azd up`. It may prompt you to confirm your Azure subscription.
@@ -124,7 +141,7 @@ The deployment takes several minutes. You'll see the agent generating Bicep file
 > 1. Watch your resources appear in real-time. Open the [Azure Portal](https://portal.azure.com) → search for your resource group (`rg-<env-name>`), or run `az resource list --resource-group rg-<env-name> --output table` in a separate terminal.
 > 2. Look at the [architecture diagram](#architecture) above. Match each box to a resource appearing in the portal.
 > 3. Ask the agent: *"What's happening right now? Walk me through the deployment step by step."*
-> 4. **Quiz yourself:** Why does n8n need a startup probe with a `failureThreshold` of 30? (Hint: check [Health Probes](#health-probes) below.)
+> 4. **Quiz yourself:** Why does n8n need an approximately five-minute startup window (`failureThreshold: 10` with `periodSeconds: 30`)? (Hint: check [Health Probes](#health-probes) below.)
 > 5. Browse the [n8n workflow templates](https://n8n.io/workflows/) and pick one you want to try after deployment.
 
 The agent handles the entire deployment:
@@ -358,9 +375,13 @@ Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently delet
 
 ## What's Next
 
-In [Agentic Journey 02: Grafana](../grafana/README.md), you'll deploy a metrics and visualization platform, the simplest deployment in the project (~2 minutes, no external database). You'll see how the same agent adapts when the app has different requirements.
+**Stage 1 complete.** Choose one:
 
-> 📚 **See all agentic journeys:** [Back to overview](../../README.md#agentic-journeys)
+- **Optional stage 2 (AKS / higher cost):** [Superset](../superset/README.md)  
+- **Flagship stage 3 (recommended next):** [AIMarket](../aimarket/README.md) — build from a PLAN.md spec with Foundry  
+- Revisit warm-up: [Grafana](../grafana/README.md)
+
+> 📚 **Learning path & overview:** [Back to root README](../../README.md#recommended-learning-path)
 
 ---
 

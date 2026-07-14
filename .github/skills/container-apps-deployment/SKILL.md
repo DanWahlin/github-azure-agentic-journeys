@@ -80,35 +80,80 @@ When deploying a React/Vite frontend and API as **separate Container Apps**, the
 
 **Root Cause:** `VITE_API_URL` defaults to `/api` (the Vite dev proxy). In production, nginx has no `/api` route — it serves the SPA for all paths.
 
-### Solution: Post-deploy Hook
+### Solution: Post-deploy Hook (required for happy path)
 
-Add a `postdeploy` hook that rebuilds the frontend with the real API URL:
+**Do not leave this as a manual learner step on first success.** When generating AIMarket (or any Vite SPA + separate API Container Apps) infrastructure, always create `infra/hooks/postdeploy.sh` and wire it in `azure.yaml` so `azd up` / `azd deploy` finishes with a working frontend.
+
+```yaml
+# azure.yaml
+hooks:
+  postdeploy:
+    shell: sh
+    run: infra/hooks/postdeploy.sh
+```
 
 ```bash
 #!/bin/sh
+# infra/hooks/postdeploy.sh — rebuild SPA with API URL after deploy
 set -e
-echo "=== Post-deploy: Rebuilding frontend with API URL ==="
+
+# azd may run hooks with cwd = the hook's directory (infra/hooks/), not the project root.
+# Always resolve the app root (parent of infra/) so client/ and azure.yaml paths work.
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+APP_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
+cd "$APP_ROOT"
+
+echo "=== Post-deploy: Rebuilding frontend with API URL (cwd=$APP_ROOT) ==="
 
 API_URL=$(azd env get-value API_URL)
+# Strip trailing slash if present
+API_URL=${API_URL%/}
 ACR_SERVER=$(azd env get-value AZURE_CONTAINER_REGISTRY_ENDPOINT)
 ACR_NAME=$(echo "$ACR_SERVER" | cut -d. -f1)
 RG=$(azd env get-value RESOURCE_GROUP_NAME)
+# Prefer azd service tag 'web'; fall back to common names
+WEB_APP=$(az containerapp list --resource-group "$RG" \
+  --query "[?tags.\"azd-service-name\"=='web'].name" -o tsv)
+if [ -z "$WEB_APP" ]; then
+  WEB_APP=$(az containerapp list --resource-group "$RG" \
+    --query "[?contains(name, 'web')].name | [0]" -o tsv)
+fi
+
+if [ ! -d "$APP_ROOT/client" ]; then
+  echo "ERROR: client/ not found under $APP_ROOT — postdeploy cwd is wrong"
+  exit 1
+fi
+
+IMAGE_TAG="${ACR_SERVER}/aimarket-web:$(date +%Y%m%d%H%M%S)"
 
 az acr login --name "$ACR_NAME"
 
-# Rebuild with the real API URL baked in
+# Always target linux/amd64 (required on Apple Silicon; harmless on Intel)
 docker build --platform linux/amd64 \
   --build-arg VITE_API_URL="${API_URL}/api" \
-  -t "${ACR_SERVER}/myapp/web:fixed" client/
+  -t "$IMAGE_TAG" "$APP_ROOT/client"
 
-docker push "${ACR_SERVER}/myapp/web:fixed"
+docker push "$IMAGE_TAG"
 
-# Update the container app to use the new image
-WEB_APP=$(az containerapp list --resource-group "$RG" \
-  --query "[?tags.\"azd-service-name\"=='web'].name" -o tsv)
 az containerapp update --name "$WEB_APP" --resource-group "$RG" \
-  --image "${ACR_SERVER}/myapp/web:fixed"
+  --image "$IMAGE_TAG"
+
+echo "Frontend updated with VITE_API_URL=${API_URL}/api"
 ```
+
+Make the script executable when generating: `chmod +x infra/hooks/postdeploy.sh`.
+
+When wiring `azure.yaml`, prefer an explicit project-root working directory if your azd version supports it:
+
+```yaml
+hooks:
+  postdeploy:
+    shell: sh
+    run: infra/hooks/postdeploy.sh
+    # Some azd versions: cwd defaults to the service project; the script still cds to APP_ROOT.
+```
+
+**After first green deploy**, optionally explain *why* the hook exists (build-time env vars vs runtime URL). Do not make the learner discover a blank product grid first.
 
 ### Frontend Dockerfile Requirements
 
