@@ -46,7 +46,7 @@ You'll build SmartTodo: an iPhone app where you type a todo like "Prepare Confer
 - [ ] (macOS) Simulator talks to local or Azure API
 - [ ] `azd down --force --purge` completed
 
-Smoke script after deploy: `../../scripts/verify-smart-todo.sh`
+
 
 ### README phases vs PLAN.md
 

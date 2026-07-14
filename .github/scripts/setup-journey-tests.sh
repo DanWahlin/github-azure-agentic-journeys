@@ -6,7 +6,7 @@
 # journey-e2e-test agentic workflow. Uses the GitHub CLI (gh).
 #
 # Usage:
-#   ./scripts/setup-journey-tests.sh
+#   ./.github/scripts/setup-journey-tests.sh
 #
 # Prerequisites:
 #   - gh CLI authenticated (gh auth login)

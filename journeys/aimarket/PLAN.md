@@ -636,4 +636,3 @@ Use **Azure Verified Modules (AVM)** from `br/public:avm/...` for ALL resources.
 2. **Required postdeploy hook:** Always generate `infra/hooks/postdeploy.sh` and wire `hooks.postdeploy` in `azure.yaml` (see [`container-apps-deployment` skill](../../.github/skills/container-apps-deployment/SKILL.md)). The script rebuilds the web image with `VITE_API_URL=${API_URL}/api`, uses `--platform linux/amd64`, pushes to ACR, and updates the web Container App. First-time success must not require a manual rebuild.
 3. **Apple Silicon (M1/M2/M3/M4):** `--platform linux/amd64` is mandatory on ARM hosts
 4. Set `DATA_PROVIDER=cosmos` or `DATA_PROVIDER=postgres` to switch from SQLite to a cloud database
-5. Smoke check: `../../scripts/verify-aimarket.sh`

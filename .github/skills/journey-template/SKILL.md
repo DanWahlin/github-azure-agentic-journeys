@@ -15,7 +15,7 @@ Generate a complete agentic journey from a user's app idea. A journey is a hands
 **Every journey README must include:**
 - Curriculum line: journey #, stage, previous/next links
 - Honest first-run time + cost **if left running** + same-day teardown
-- **Done when** checklist + link to `scripts/verify-<app>.sh` when deployable
+- **Done when** checklist with concrete manual verification steps
 - Full-stack: **one-line default stack** at the first generate prompt (not a defaults table); put stack details in PLAN.md
 - Plugin commands: only `microsoft/azure-skills` / `azure@azure-skills`
 - What's Next aligned to the path (not renumbered leftovers)
@@ -501,7 +501,7 @@ For other languages (.NET, Java, Go, etc.), follow the same multi-stage pattern:
 1. Generate azure.yaml with hooks.postdeploy when SPA needs API URL at build time
 2. azd env set AZURE_SUBSCRIPTION_ID + azd up
 3. postdeploy hook rebuilds frontend (VITE_API_URL) automatically — do not make first success manual
-4. Run scripts/verify-<app>.sh
+4. Verify the deployed health endpoint and core user flow
 5. azd down --force --purge when lab is done
 ```
 
@@ -731,15 +731,13 @@ After creating a new journey, update these files:
 
 1. **Root `README.md`** — learning path stages + journey table (stage column, time, cost)
 
-2. **`AGENTS.md`** — project structure, skills table, smoke script list
+2. **`AGENTS.md`** — project structure and skills table
 
 3. **Root prerequisites** — only tools common to ALL journeys (Azure CLI, azd, GitHub Copilot, Git). Language runtimes and Docker/kubectl go in the journey's additional prerequisites.
 
 4. **Journey numbering + stage** — sequential journey # for marketing; path stage 0–N for curriculum; What's Next follows stages
 
-5. **`scripts/verify-<app>.sh`** — post-deploy smoke checks
-
-6. **Images** — generate with the `technical-image-generator` skill using the established palette:
+5. **Images** — generate with the `technical-image-generator` skill using the established palette:
    - White background, soft light blue and gray accents
    - Titles in dark navy (#1e3a5f) Helvetica Bold 42pt
    - Optimize: 1200px max width, JPEG quality 80, progressive, <100KB each

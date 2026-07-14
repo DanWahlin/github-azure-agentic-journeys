@@ -41,8 +41,6 @@
 - [ ] Browser login works
 - [ ] `azd down --force --purge` completed
 
-Smoke script: `../../scripts/verify-superset.sh`
-
 ---
 
 ## Architecture

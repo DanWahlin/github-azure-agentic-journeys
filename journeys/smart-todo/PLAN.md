@@ -511,8 +511,6 @@ Azure SQL requires a post-provision SQL step to add the Function App's managed i
 6. Run `infra/hooks/postprovision-schema.sql` to create tables and seed data.
 7. **Delete the temporary client firewall rule** after SQL setup succeeds (do not leave the developer public IP open).
 
-Smoke check after deploy (from repo root or journey dir): see `scripts/verify-smart-todo.sh`
-
 ### Database Schema Initialization
 
 Create `infra/hooks/postprovision-schema.sql` with the CREATE TABLE statements and seed rows from the Data Models and Seed Data sections. Run it as part of the post-provision hook after the managed identity setup so the deployed API and iOS app return data immediately.

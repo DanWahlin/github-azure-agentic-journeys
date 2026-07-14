@@ -34,8 +34,6 @@ Want workflow automation on Azure but don't want to write Bicep (Azure's infrast
 - [ ] `WEBHOOK_URL` set on the container (agent or post-provision hook)
 - [ ] `azd down --force --purge` completed
 
-Smoke script: `../../scripts/verify-n8n.sh`
-
 ---
 
 ## Architecture

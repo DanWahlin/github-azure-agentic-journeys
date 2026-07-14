@@ -33,8 +33,6 @@ In this agentic journey, you'll deploy [Grafana OSS](https://grafana.com/oss/gra
 - [ ] Browser login works with admin credentials from the deployment
 - [ ] `azd down --force --purge` completed
 
-Smoke script: `../../scripts/verify-grafana.sh`
-
 ---
 
 ## Architecture

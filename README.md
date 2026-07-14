@@ -118,34 +118,19 @@ Leaving AI Search, AKS, or SQL running is what drives most of the monthly cost.
 
 ---
 
-## Recommended learning path
+## Agentic journeys
 
-Canonical stages are **0–4** (curriculum order). Journey **#** in the table below is the marketing/list number (AIMarket stays #1 as flagship).
-
-```text
-Stage 0          Stage 1           Stage 2 (optional)     Stage 3 ★              Stage 4
-Grafana    →     n8n         →     Superset          →    AIMarket (flagship) →  SmartTodo
-```
-
-| Stage | Journey | Role | When to skip |
-|:-----:|---------|------|--------------|
-| **0** | [Grafana](./journeys/grafana/README.md) | Warm-up: agent deploy, cheapest/fastest | — |
-| **1** | [n8n](./journeys/n8n/README.md) | Real OSS: PostgreSQL, probes, post-provision hooks | — |
-| **2** | [Superset](./journeys/superset/README.md) | Optional: why AKS vs Container Apps | **Skip** if budget, quota, or time is tight |
-| **3** ★ | [AIMarket](./journeys/aimarket/README.md) | **Flagship:** idea → PLAN → app → Foundry → Azure | — |
-| **4** | [SmartTodo](./journeys/smart-todo/README.md) | Serverless Functions + Azure SQL + iOS + Foundry | Skip iOS phase if not on macOS |
-
-### Budget vs full AI tracks
-
-| Track | Journeys | Approx. cost if left running |
-|-------|----------|------------------------------|
-| **Budget / warm-up** | Grafana → n8n → (SmartTodo API + deploy) | ~$35–65/mo |
-| **Full AI** | + AIMarket (AI Search + Foundry) | + ~$100–115/mo while running |
-| **AKS deep dive** | + Superset | + ~$200/mo while running |
+| # | Agentic journey | Highlights | Approx. cost if left running |
+|:-:|------------------|------------|------------------------------|
+| 1 | [AIMarket](./journeys/aimarket/README.md) | Full-stack app from spec + AI search + shopping assistant deployed to Azure | ~$100–115/month |
+| 2 | [n8n - Workflow Automation](./journeys/n8n/README.md) | Container Apps + PostgreSQL deployed to Azure | ~$25–35/month |
+| 3 | [Grafana - Metrics and Visualization](./journeys/grafana/README.md) | Container Apps deployed to Azure | ~$10–20/month |
+| 4 | [Apache Superset - BI Platform](./journeys/superset/README.md) | Azure Kubernetes Service (AKS) + PostgreSQL deployed to Azure | ~$200–215/month |
+| 5 | [SmartTodo - AI Task Breakdown](./journeys/smart-todo/README.md) | Swift iOS + Azure Flex Functions + Azure SQL + AI Foundry | ~$10–30/month |
 
 > **Tip:** Complete a journey and run `azd down --force --purge` the same day. Cost estimates are “if left on for a month,” not what you pay for a single lab session.
 
-### What each stage teaches
+### What each journey teaches
 
 | Pipeline slice | Grafana | n8n | Superset | AIMarket | SmartTodo |
 |----------------|:-------:|:---:|:--------:|:--------:|:---------:|
@@ -160,16 +145,6 @@ Grafana    →     n8n         →     Superset          →    AIMarket (flagsh
 
 ---
 
-## Agentic journeys
-
-| # | Agentic journey | Highlights |
-|:-:|----------|-------------------|
-| 1 | [AIMarket](./journeys/aimarket/README.md) | Full-stack app from spec + AI search + shopping assistant deployed to Azure|
-| 2 | [n8n - Workflow Automation](./journeys/n8n/README.md) | Container Apps + PostgreSQL deployed to Azure |
-| 3 | [Grafana - Metrics and Visualization](./journeys/grafana/README.md) | Container Apps deployed to Azure |
-| 4 | [Apache Superset - BI Platform](./journeys/superset/README.md) | Azure Kubernetes Service (AKS) + PostgreSQL deployed to Azure |
-| 5 | [SmartTodo - AI Task Breakdown](./journeys/smart-todo/README.md) | Swift iOS + Azure Flex Functions + Azure SQL + AI Foundry |
-
 ## How the agentic journeys work
 
 Each agentic journey follows the same structure:
@@ -179,20 +154,9 @@ Each agentic journey follows the same structure:
 3. **Agentic AI** — generate code and/or deployment infrastructure
 4. **Verify + cleanup** — prove it works, then tear down
 
-### OSS shared deploy recipe
-
-For Grafana, n8n, and Superset, the conversation pattern is the same:
-
-1. From **repo root**, run `copilot` and install `azure@azure-skills` (once)
-2. `/agent` → select **`oss-to-azure-deployer`**
-3. One deploy prompt including: **location**, **secure passwords**, **resolve issues**, and app-specific health/replica notes
-4. Ask the agent to **verify** (health endpoint + logs)
-5. `azd down --force --purge` when done
-
 ## Getting help
 
 - App-specific issues: check the troubleshooting section in each agentic journey
-- Smoke checks: `scripts/verify-*.sh` after a deploy
 - Ask GitHub Copilot
 - Found a bug? [Open an issue](https://github.com/DanWahlin/github-azure-agentic-journeys/issues)
 - Want to contribute? PRs welcome.

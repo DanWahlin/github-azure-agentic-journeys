@@ -16,8 +16,6 @@ AIMarket remains journey **#1** (flagship story). Details: root `README.md` → 
 
 Do not use alternate marketplace names.
 
-**Smoke scripts** (after `azd up`): `scripts/verify-grafana.sh`, `verify-n8n.sh`, `verify-superset.sh`, `verify-aimarket.sh`, `verify-smart-todo.sh`.
-
 ## Prerequisites
 
 Install the **Azure Skills plugin** for access to Azure-specific MCP and skills tools (Bicep schemas, deployment planning, architecture diagrams, log analysis):
@@ -109,13 +107,6 @@ azd down --force --purge
 
 # View deployment outputs
 azd env get-value <OUTPUT_NAME>
-
-# Smoke-check a journey (active azd env must match that app)
-# Works from repo root OR a journey directory:
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-"$REPO_ROOT/scripts/verify-grafana.sh"      # also: verify-n8n, verify-superset,
-                                            # verify-aimarket, verify-smart-todo
-# Or from journeys/<app>:  ../../scripts/verify-<app>.sh
 
 # View container logs
 az containerapp logs show --name $(azd env get-value CONTAINER_APP_NAME) \
@@ -282,13 +273,6 @@ journeys/
         └── SKILL.md
     └── journey-test-harness/   # Test suite: run all journeys, deploy, screenshot, teardown
         └── SKILL.md
-scripts/
-├── setup-journey-tests.sh       # Configure GitHub secrets/variables for CI
-├── verify-grafana.sh            # Post-deploy smoke checks
-├── verify-n8n.sh
-├── verify-superset.sh
-├── verify-aimarket.sh
-└── verify-smart-todo.sh
 AGENTS.md                         # This file
 README.md
 ```

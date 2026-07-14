@@ -45,8 +45,6 @@ You can check these off before cleanup:
 - [ ] Deployed API + web URLs work; products load in production browser
 - [ ] `azd down --force --purge` completed (or scheduled immediately)
 
-Smoke script after deploy: `../../scripts/verify-aimarket.sh`
-
 ---
 
 ## Architecture
