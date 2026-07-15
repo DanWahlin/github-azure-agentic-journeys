@@ -51,7 +51,7 @@ This skill is NOT needed for AKS deployments (Superset).
 
 Generate ALL infrastructure from scratch. Never reuse existing infra code.
 
-**Outputs:** `azure.yaml`, `infra/main.bicep`, `infra/main.parameters.json`, `infra/hooks/postprovision.sh`
+**Outputs:** `azure.yaml`, `infra-<app>/main.bicep`, `infra-<app>/main.parameters.json`, `infra-<app>/hooks/postprovision.sh` (use the app-specific directory from the Deployment Matrix below, e.g. `infra-grafana/`)
 
 **References to read:**
 - `azure-prepare/references/recipes/azd/azure-yaml.md` — azure.yaml structure
@@ -75,7 +75,7 @@ Without this, azd and Azure MCP tools fail silently.
 Validate generated infrastructure before deploying:
 
 ```bash
-az bicep build --file infra/main.bicep
+az bicep build --file infra-<app>/main.bicep
 azd provision --preview --no-prompt
 ```
 
@@ -93,7 +93,7 @@ azd up --no-prompt
 
 If `azd up` fails, fall back to direct deployment:
 ```bash
-az deployment group create --resource-group <rg> --template-file infra/main.bicep --parameters ...
+az deployment group create --resource-group <rg> --template-file infra-<app>/main.bicep --parameters ...
 ```
 
 **References to read:**

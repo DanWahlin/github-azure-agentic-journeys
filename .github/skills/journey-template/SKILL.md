@@ -13,7 +13,7 @@ Generate a complete agentic journey from a user's app idea. A journey is a hands
 ## Curriculum packaging (required)
 
 **Every journey README must include:**
-- Curriculum line: journey #, stage, previous/next links
+- No learning-path or stage numbering — journeys are self-contained; link related journeys in What's Next
 - Honest first-run time + cost **if left running** + same-day teardown
 - **Done when** checklist with concrete manual verification steps
 - Full-stack: **one-line default stack** at the first generate prompt (not a defaults table); put stack details in PLAN.md
@@ -729,13 +729,13 @@ curl -X POST http://localhost:3000/api/orders ...
 
 After creating a new journey, update these files:
 
-1. **Root `README.md`** — learning path stages + journey table (stage column, time, cost)
+1. **Root `README.md`** — Agentic journeys table (what you'll do, cost — no time column; time estimates live in the journey README header only)
 
 2. **`AGENTS.md`** — project structure and skills table
 
 3. **Root prerequisites** — only tools common to ALL journeys (Azure CLI, azd, GitHub Copilot, Git). Language runtimes and Docker/kubectl go in the journey's additional prerequisites.
 
-4. **Journey numbering + stage** — sequential journey # for marketing; path stage 0–N for curriculum; What's Next follows stages
+4. **No journey numbering** — journeys are self-contained with no prescribed order. Do not add "Journey N of M", stage numbers, or path-completion language anywhere.
 
 5. **Images** — generate with the `technical-image-generator` skill using the established palette:
    - White background, soft light blue and gray accents
@@ -753,7 +753,7 @@ Before considering a journey complete:
 - [ ] Opening hook passes the "does a developer care yet?" test
 - [ ] Time estimate is honest first-run (tested)
 - [ ] Cost "if left running" + same-day teardown called out
-- [ ] Curriculum line: journey #, stage, prev/next
+- [ ] No path/stage numbering anywhere in the README
 - [ ] Done when checklist + verify script where applicable
 - [ ] Full-stack: one-line default stack at first generate prompt (details live in PLAN.md)
 - [ ] No bare "Copilot" — use "GitHub Copilot" in narrative; "GitHub Copilot CLI" / "cloud agent" only when product-specific
@@ -770,7 +770,7 @@ Before considering a journey complete:
 - [ ] Troubleshooting covers real errors from actual deployments (Symptom/Cause/Fix format)
 - [ ] Assignment guides discovery (do → observe → ask agent → fix)
 - [ ] Cleanup section with `azd down --force --purge`
-- [ ] What's Next follows learning path stages
+- [ ] What's Next lists related journeys as plain links (no path/completion language)
 - [ ] OSS journeys: Configuration Reference section (env vars, container resources, health probes)
 - [ ] OSS journeys: Key Learnings (4-5 max) don't repeat troubleshooting content
 - [ ] Full-stack journeys: "The Spec" section linking to PLAN.md

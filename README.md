@@ -3,7 +3,7 @@
 [![Azure](https://img.shields.io/badge/Microsoft-Azure-0078D4?logo=microsoftazure&logoColor=white)](https://azure.microsoft.com)&ensp;
 [![GitHub Copilot](https://img.shields.io/badge/GitHub-Copilot-000?style=flat-square&logo=github)](https://github.com/features/copilot)
 
-🎯 [What You'll Learn](#what-youll-learn) &ensp; ✅ [Prerequisites](#prerequisites) &ensp; 🚀 [Quick Start](#quick-start) &ensp; 🗺️ [Learning Path](#recommended-learning-path) &ensp; 📚 [Journeys](#agentic-journeys)
+🎯 [What You'll Learn](#what-youll-learn) &ensp; ✅ [Prerequisites](#prerequisites) &ensp; 🚀 [Quick Start](#quick-start) &ensp; 📚 [Journeys](#agentic-journeys) &ensp; 🧭 [What Each Journey Teaches](#what-each-journey-teaches)
 
 # GitHub and Azure Agentic Journeys (Prototype)
 
@@ -71,7 +71,7 @@ Use whichever tool fits your workflow:
 
 ## Quick Start
 
-Get set up once, then follow the [recommended learning path](#recommended-learning-path).
+Get set up once, then pick a [journey](#agentic-journeys).
 
 ### 1. Clone and enter the repo
 
@@ -120,17 +120,19 @@ Leaving AI Search, AKS, or SQL running is what drives most of the monthly cost.
 
 ## Agentic journeys
 
-| # | Agentic journey | Highlights | Approx. cost if left running |
-|:-:|------------------|------------|------------------------------|
-| 1 | [AIMarket](./journeys/aimarket/README.md) | Full-stack app from spec + AI search + shopping assistant deployed to Azure | ~$100–115/month |
-| 2 | [n8n - Workflow Automation](./journeys/n8n/README.md) | Container Apps + PostgreSQL deployed to Azure | ~$25–35/month |
-| 3 | [Grafana - Metrics and Visualization](./journeys/grafana/README.md) | Container Apps deployed to Azure | ~$10–20/month |
-| 4 | [Apache Superset - BI Platform](./journeys/superset/README.md) | Azure Kubernetes Service (AKS) + PostgreSQL deployed to Azure | ~$200–215/month |
-| 5 | [SmartTodo - AI Task Breakdown](./journeys/smart-todo/README.md) | Swift iOS + Azure Flex Functions + Azure SQL + AI Foundry | ~$10–30/month |
+Each journey is self-contained — jump into whichever one fits what you want to learn:
+
+| Journey | What you'll do | Cost if left running |
+|---------|----------------|----------------------|
+| [Grafana](./journeys/grafana/README.md) | Deploy an OSS observability app to Container Apps — one container, no database. | ~$10–20/month |
+| [n8n](./journeys/n8n/README.md) | Deploy workflow automation with PostgreSQL, health probes, and post-provision hooks. | ~$25–35/month |
+| [Apache Superset](./journeys/superset/README.md) | Deploy a BI platform to AKS: init containers, ConfigMaps, Kubernetes debugging. | ~$200–215/month |
+| [AIMarket](./journeys/aimarket/README.md) | Build a full-stack marketplace from a spec: API + React + AI Search + Foundry chat. | ~$100–115/month |
+| [SmartTodo](./journeys/smart-todo/README.md) | Build an AI todo app: Azure Functions, Azure SQL with managed identity, SwiftUI client. | ~$10–30/month |
 
 > **Tip:** Complete a journey and run `azd down --force --purge` the same day. Cost estimates are “if left on for a month,” not what you pay for a single lab session.
 
-### What each journey teaches
+## What each journey teaches
 
 | Pipeline slice | Grafana | n8n | Superset | AIMarket | SmartTodo |
 |----------------|:-------:|:---:|:--------:|:--------:|:---------:|

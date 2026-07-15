@@ -2,13 +2,11 @@
 
 > ✨ **When Container Apps isn't enough, you need Kubernetes. The agent knows when and why.**
 
-**Curriculum:** Journey **#4** · Learning path **Stage 2 (optional / advanced)** · After [n8n](../n8n/README.md) · Skip if budget or quota is tight
-
 <p align="center">
   <img src="./images/superset-data-exploration.webp" alt="Apache Superset: BI on Azure" width="800" />
 </p>
 
-> ⚠️ **Skip this journey unless you specifically want AKS concepts.** It costs **~$200+/month if left running** (node VMs + load balancer), needs **vCPU quota**, and takes longer than Grafana/n8n. For the flagship full-stack path, go to [AIMarket](../aimarket/README.md) after n8n instead.
+> ⚠️ **Skip this journey unless you specifically want AKS concepts.** It costs **~$200+/month if left running** (node VMs + load balancer), needs **vCPU quota**, and takes longer than Grafana/n8n. If you want a full-stack build instead, see [AIMarket](../aimarket/README.md).
 
 [Apache Superset](https://superset.apache.org/) needs init containers (containers that run before the main app starts, used for setup tasks like database migrations), shared volumes, and custom config mounting, all patterns that are natural in Kubernetes. The agent knows this and generates AKS infrastructure. You'll deploy a full BI platform and learn when Kubernetes is the right choice.
 
@@ -116,30 +114,18 @@ Make sure you're in the repo root first:
 cd github-azure-agentic-journeys
 ```
 
-Then open GitHub Copilot in your preferred surface (CLI, app, or IDE). Examples below use [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+Then start GitHub Copilot. Examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started); the app and VS Code agent chat work the same — type the prompts without the leading `>`:
 
 ```bash
 copilot
 ```
 
-> **Using another surface?** Paste the same prompts into the GitHub Copilot app or VS Code agent chat. See [prerequisites](../../README.md#prerequisites) for tool options.
->
-> **Don't have `copilot`?** Install it only if you want the CLI path, or use the app / VS Code instead.
-
-Plugins extend what GitHub Copilot can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
-
-> **Note (Copilot CLI):** Lines starting with `>` show what to type in a CLI session. Don't include the `>` character itself. In the app or VS Code, send the prompt without the `>` prefix.
+If you haven't installed the Azure Skills plugin yet, do it now — it's a one-time setup that adds deployment tools, Bicep schema lookups, and infrastructure generation (details in the root [Quick Start](../../README.md#quick-start)):
 
 ```
 > /plugin marketplace add microsoft/azure-skills
-```
-
-```
 > /plugin install azure@azure-skills
 ```
-
-> **Already installed?** If you completed the root [Quick Start](../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
-> For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 Now select the deployment agent. Agents are specialized personas that know how to handle specific tasks:
 
@@ -165,7 +151,7 @@ Tell the agent what you want in a single prompt (OSS shared recipe: location + s
 
 The agent handles the entire deployment:
 
-1. Loads the right skills (`superset-azure`, `azure-aks-deployment`, `azure-bicep-generation`, `azd-deployment`)
+1. Loads the `superset-azure` skill, then follows the Azure plugin pipeline: `azure-prepare` → `azure-validate` → `azure-deploy`
 2. Recommends AKS over Container Apps because it knows Superset needs init containers, shared volumes, and ConfigMap mounting
 3. Generates Bicep (Azure's infrastructure-as-code language) + Kubernetes infrastructure in `infra-superset/`
 4. Updates `azure.yaml`, registers Azure providers, sets environment variables
@@ -354,7 +340,18 @@ Health endpoint: `GET /health` → `{"status": "OK"}` (HTTP 200)
 | Load Balancer | Standard | ~$20 |
 | **Total** | | **~$200-215/month** |
 
-⚠️ **Superset on AKS is significantly more expensive** than the Container Apps deployments (n8n ~$25-35, Grafana ~$10-20). Consider Container Apps if AKS features aren't required. Each Standard_D2s_v3 node costs ~$70/month ($0.096/hr × 730 hrs).
+⚠️ **Superset on AKS is significantly more expensive** than the Container Apps deployments (n8n ~$25-35, Grafana ~$10-20). Consider Container Apps if AKS features aren't required. Each Standard_D2s_v3 node costs ~$70/month ($0.096/hr × 730 hrs). For a lab run, a single-node pool is enough for Superset — add *"use a single-node system pool"* to your deployment prompt to cut the node cost in half.
+
+> 💡 **Pausing instead of deleting:** Want to come back tomorrow without paying for idle nodes? Stop the cluster — compute billing stops while it's stopped (you keep paying only for disks and the load balancer IP):
+>
+> ```bash
+> RG=$(azd env get-value RESOURCE_GROUP_NAME)
+> AKS=$(az aks list --resource-group "$RG" --query "[0].name" -o tsv)
+> az aks stop --name "$AKS" --resource-group "$RG"    # pause
+> az aks start --name "$AKS" --resource-group "$RG"   # resume
+> ```
+>
+> This is a useful AKS operations skill in its own right. For multi-day breaks, still prefer a full `azd down --force --purge`.
 
 ---
 
@@ -467,11 +464,14 @@ Teardown takes 5-10 minutes (AKS + PostgreSQL deletion is slow).
 
 ## What's Next
 
-**Optional stage 2 complete.** Continue to the flagship **stage 3:** [AIMarket](../aimarket/README.md) (spec → full-stack → Foundry → Azure), then **stage 4:** [SmartTodo](../smart-todo/README.md).
+Explore the other journeys:
+
+- [AIMarket](../aimarket/README.md) — full-stack build from a spec: API + React + Foundry + Azure
+- [SmartTodo](../smart-todo/README.md) — Azure Functions, Azure SQL, SwiftUI client
 
 Or keep going with OSS: ask `@oss-to-azure-deployer` *"How would I deploy Gitea to Azure?"*
 
-> 📚 **Learning path & overview:** [Back to root README](../../README.md#recommended-learning-path)
+> 📚 **All journeys:** [Back to root README](../../README.md#agentic-journeys)
 
 ---
 

@@ -57,7 +57,7 @@ The API must follow the **repository pattern** (interfaces/contracts → impleme
 
 ## Phase 1: API
 
-Build the API with Azure SQL Database. You'll need an Azure SQL instance provisioned (Phase 4 creates this, or use an existing one during development).
+Build the API with Azure SQL Database. You'll need an Azure SQL instance provisioned (Phase 3 creates this, or use an existing one during development).
 
 ### Data Access Layer
 
@@ -201,7 +201,7 @@ No request body. Calls the AI service to generate action steps from the todo's t
 **Behavior:**
 1. Fetch the todo by ID — 404 if not found
 2. If `stepsGenerated` is already `true`, delete existing steps first (regenerate)
-3. Call gpt-5-mini with the todo title using the system prompt from Phase 3
+3. Call gpt-5-mini with the todo title using the system prompt from the AI Task Decomposition section below
 4. Parse the AI response as a JSON array
 5. Validate each item has `title` (string, non-empty) and `description` (string, non-empty)
 6. Assign sequential `order` values starting at 1
@@ -272,6 +272,65 @@ Seed action steps for `todo-2` and `todo-3` so the app can show generated/comple
 | step-3-3 | todo-3 | Pack gear and supplies | 3 | true |
 
 Use short actionable descriptions for each seed step.
+
+### AI Task Decomposition
+
+**Endpoint:** `POST /api/todos/:id/generate-steps`
+
+**AI SDK:** Use the plain OpenAI-compatible SDK for the chosen language (`openai`, `OpenAI`, or `com.openai:openai-java`) with a normalized `/openai/v1/` base URL.
+
+**Client setup:** Normalize `AZURE_AI_ENDPOINT` so it ends with `/openai/v1/`, pass `AZURE_AI_KEY` as the API key, and pass `AZURE_AI_DEPLOYMENT` as the model/deployment name when calling chat completions.
+
+**System prompt:**
+
+```
+You are a productivity assistant that breaks down goals into actionable steps.
+
+Given a todo item, generate 3-7 concrete, actionable steps to accomplish it.
+Each step should be specific enough that someone could start working on it immediately.
+
+Rules:
+- Each step title must be under 200 characters
+- Each step description must be 1-3 sentences with specific, actionable detail
+- Include quantities, time estimates, or specific tools where relevant
+- Steps must be in logical order (what to do first, second, etc.)
+- Be practical and realistic, not generic or motivational
+
+Respond with ONLY a valid JSON array. No markdown, no code fences, no explanation:
+[
+  {
+    "title": "Short action title",
+    "description": "Specific actionable description with details."
+  }
+]
+```
+
+**User prompt:** The todo's `title` field, verbatim.
+
+**Model config:**
+- Model: `gpt-5-mini` (fallback: `gpt-4.1` — check regional availability with `az cognitiveservices model list --location <region>`)
+- Temperature: leave at the model default — gpt-5 family models reject custom temperature values. Set `0.7` only if using the gpt-4.1 fallback.
+- Max tokens: `1500`
+
+**Response parsing:**
+1. Get the raw text response from the model
+2. Strip markdown code fences if present (` ```json\n...\n``` ` → `[...]`)
+3. Parse as JSON array
+4. Validate: array of objects, each with non-empty `title` (string) and `description` (string)
+5. If validation fails, retry once with a stricter follow-up: "Your previous response was not valid JSON. Return ONLY a JSON array."
+6. If retry fails, throw `AI_SERVICE_ERROR`
+7. Assign sequential `order` values (1, 2, 3...)
+8. Generate UUID v4 for each step's `id`
+
+**Environment Variables:**
+
+| Variable | Local Dev | Production |
+|----------|-----------|------------|
+| AZURE_AI_ENDPOINT | From Azure Portal (with or without `/openai/v1/`) | Set by Bicep output |
+| AZURE_AI_DEPLOYMENT | `gpt-5-mini` | Set by Bicep output |
+| AZURE_AI_KEY | API key from portal | Set by Bicep output |
+
+Local dev and production both use API key auth via the plain `openai` package. Normalize the endpoint to include `/openai/v1/` before creating the client; Bicep may output the raw resource endpoint without that suffix.
 
 ---
 
@@ -370,70 +429,7 @@ All methods use `URLSession.shared.data(for:)` with `async throws`. On non-2xx r
 
 ---
 
-## Phase 3: AI Features
-
-### Task Decomposition
-
-**Endpoint:** `POST /api/todos/:id/generate-steps`
-
-**AI SDK:** Use the plain OpenAI-compatible SDK for the chosen language (`openai`, `OpenAI`, or `com.openai:openai-java`) with a normalized `/openai/v1/` base URL.
-
-**Client setup:** Normalize `AZURE_AI_ENDPOINT` so it ends with `/openai/v1/`, pass `AZURE_AI_KEY` as the API key, and pass `AZURE_AI_DEPLOYMENT` as the model/deployment name when calling chat completions.
-
-**System prompt:**
-
-```
-You are a productivity assistant that breaks down goals into actionable steps.
-
-Given a todo item, generate 3-7 concrete, actionable steps to accomplish it.
-Each step should be specific enough that someone could start working on it immediately.
-
-Rules:
-- Each step title must be under 200 characters
-- Each step description must be 1-3 sentences with specific, actionable detail
-- Include quantities, time estimates, or specific tools where relevant
-- Steps must be in logical order (what to do first, second, etc.)
-- Be practical and realistic, not generic or motivational
-
-Respond with ONLY a valid JSON array. No markdown, no code fences, no explanation:
-[
-  {
-    "title": "Short action title",
-    "description": "Specific actionable description with details."
-  }
-]
-```
-
-**User prompt:** The todo's `title` field, verbatim.
-
-**Model config:**
-- Model: `gpt-5-mini` (fallback: `gpt-4.1` — check regional availability with `az cognitiveservices model list --location <region>`)
-- Temperature: `0.7`
-- Max tokens: `1500`
-
-**Response parsing:**
-1. Get the raw text response from the model
-2. Strip markdown code fences if present (` ```json\n...\n``` ` → `[...]`)
-3. Parse as JSON array
-4. Validate: array of objects, each with non-empty `title` (string) and `description` (string)
-5. If validation fails, retry once with a stricter follow-up: "Your previous response was not valid JSON. Return ONLY a JSON array."
-6. If retry fails, throw `AI_SERVICE_ERROR`
-7. Assign sequential `order` values (1, 2, 3...)
-8. Generate UUID v4 for each step's `id`
-
-**Environment Variables:**
-
-| Variable | Local Dev | Production |
-|----------|-----------|------------|
-| AZURE_AI_ENDPOINT | From Azure Portal (with or without `/openai/v1/`) | Set by Bicep output |
-| AZURE_AI_DEPLOYMENT | `gpt-5-mini` | Set by Bicep output |
-| AZURE_AI_KEY | API key from portal | Set by Bicep output |
-
-Local dev and production both use API key auth via the plain `openai` package. Normalize the endpoint to include `/openai/v1/` before creating the client; Bicep may output the raw resource endpoint without that suffix.
-
----
-
-## Phase 4: Deploy to Azure
+## Phase 3: Deploy to Azure
 
 Deploy the API to Azure Functions **Flex Consumption** plan — a serverless, scale-to-zero hosting plan with per-function scaling, virtual network support, and configurable instance memory sizes. See [Flex Consumption plan docs](https://learn.microsoft.com/en-us/azure/azure-functions/flex-consumption-plan) for details.
 
@@ -500,20 +496,20 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 
 ### Post-Provision: Managed Identity SQL Access
 
-Azure SQL requires a post-provision SQL step to add the Function App's managed identity as a database user. `az sql db execute` does not exist; use `sqlcmd` with `--authentication-method ActiveDirectoryAzCli` (go-sqlcmd / `brew install sqlcmd`).
+Azure SQL requires a post-provision SQL step to add the Function App's managed identity as a database user. **A working hook is committed in this journey folder** — `infra/hooks/postprovision.sh` and `infra/hooks/postprovision-schema.sql`. Reuse them as-is (wire `hooks.postprovision` in `azure.yaml`); do not regenerate them. The hook requires `sqlcmd` (go-sqlcmd / `brew install sqlcmd`) — `az sql db execute` does not exist.
 
-**Order of operations (required):**
-1. Deploying user is Microsoft Entra admin on the SQL server (set in Bicep).
-2. Temporary firewall rule for the developer machine public IP (Allow Azure Services alone is not enough for local `sqlcmd`).
-3. Connect to full FQDN `${SQL_SERVER}.database.windows.net` with Entra auth.
+What the hook does, in order:
+1. Assumes the deploying user is Microsoft Entra admin on the SQL server (set in Bicep).
+2. Adds a temporary firewall rule for the developer machine public IP (Allow Azure Services alone is not enough for local `sqlcmd`).
+3. Connects to the full FQDN `${SQL_SERVER}.database.windows.net` with Entra auth.
 4. `CREATE USER [<function-app-name>] FROM EXTERNAL PROVIDER` if missing.
-5. Grant `db_datareader`, `db_datawriter`, and `db_ddladmin` to that user.
-6. Run `infra/hooks/postprovision-schema.sql` to create tables and seed data.
-7. **Delete the temporary client firewall rule** after SQL setup succeeds (do not leave the developer public IP open).
+5. Grants `db_datareader`, `db_datawriter`, and `db_ddladmin` to that user.
+6. Runs `infra/hooks/postprovision-schema.sql` to create tables and seed data (idempotent).
+7. **Deletes the temporary client firewall rule** when done (do not leave the developer public IP open).
 
 ### Database Schema Initialization
 
-Create `infra/hooks/postprovision-schema.sql` with the CREATE TABLE statements and seed rows from the Data Models and Seed Data sections. Run it as part of the post-provision hook after the managed identity setup so the deployed API and iOS app return data immediately.
+`infra/hooks/postprovision-schema.sql` (committed) contains the CREATE TABLE statements and seed rows from the Data Models and Seed Data sections. The post-provision hook runs it after the managed identity setup so the deployed API and iOS app return data immediately.
 
 ### Mobile Distribution
 

@@ -2,8 +2,6 @@
 
 > ✨ **Deploy a self-hosted workflow automation platform to Azure by having a conversation with an AI agent.**
 
-**Curriculum:** Journey **#2** · Learning path **Stage 1** · After [Grafana](../grafana/README.md) · Next: optional [Superset](../superset/README.md) or flagship [AIMarket](../aimarket/README.md)
-
 <p align="center">
   <img src="./images/n8n-workflow-automation.webp" alt="n8n: Workflow Automation on Azure" width="800" />
 </p>
@@ -83,30 +81,18 @@ Make sure you're in the repo root first:
 cd github-azure-agentic-journeys
 ```
 
-Then open GitHub Copilot in your preferred surface (CLI, app, or IDE). Examples below use [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+Then start GitHub Copilot. Examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started); the app and VS Code agent chat work the same — type the prompts without the leading `>`:
 
 ```bash
 copilot
 ```
 
-> **Using another surface?** Paste the same prompts into the GitHub Copilot app or VS Code agent chat. See [prerequisites](../../README.md#prerequisites) for tool options.
->
-> **Don't have `copilot`?** Install it only if you want the CLI path, or use the app / VS Code instead.
-
-Plugins extend what GitHub Copilot can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
-
-> **Note (Copilot CLI):** Lines starting with `>` show what to type in a CLI session. Don't include the `>` character itself. In the app or VS Code, send the prompt without the `>` prefix.
+If you haven't installed the Azure Skills plugin yet, do it now — it's a one-time setup that adds deployment tools, Bicep schema lookups, and infrastructure generation (details in the root [Quick Start](../../README.md#quick-start)):
 
 ```
 > /plugin marketplace add microsoft/azure-skills
-```
-
-```
 > /plugin install azure@azure-skills
 ```
-
-> **Already installed?** If you completed the root [Quick Start](../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
-> For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 Now select the deployment agent. Agents are specialized personas that know how to handle specific tasks:
 
@@ -127,9 +113,9 @@ Tell the agent what you want in a single prompt (OSS shared recipe: location + s
 ```
 > Deploy n8n to Azure using Bicep and azd. Set the location to westus,
   generate secure passwords for all credentials, set the Container App
-  minReplicas to 1 for this CI/dev deployment, use n8n's /healthz endpoint
-  for startup/readiness/liveness probes, resolve any issues that come up,
-  and log problems to issues.md.
+  minReplicas to 1 so I can verify it right away without a cold start,
+  use n8n's /healthz endpoint for startup/readiness/liveness probes,
+  resolve any issues that come up, and log problems to issues.md.
 ```
 
 The deployment takes several minutes. You'll see the agent generating Bicep files, registering Azure providers, and running `azd up`. It may prompt you to confirm your Azure subscription.
@@ -139,12 +125,12 @@ The deployment takes several minutes. You'll see the agent generating Bicep file
 > 1. Watch your resources appear in real-time. Open the [Azure Portal](https://portal.azure.com) → search for your resource group (`rg-<env-name>`), or run `az resource list --resource-group rg-<env-name> --output table` in a separate terminal.
 > 2. Look at the [architecture diagram](#architecture) above. Match each box to a resource appearing in the portal.
 > 3. Ask the agent: *"What's happening right now? Walk me through the deployment step by step."*
-> 4. **Quiz yourself:** Why does n8n need an approximately five-minute startup window (`failureThreshold: 10` with `periodSeconds: 30`)? (Hint: check [Health Probes](#health-probes) below.)
+> 4. **Quiz yourself:** Why does n8n need an approximately five-minute startup window (`failureThreshold: 10` with `periodSeconds: 30`)? (Hint: expand the collapsed **Configuration Reference** section below and check the Health Probes table.)
 > 5. Browse the [n8n workflow templates](https://n8n.io/workflows/) and pick one you want to try after deployment.
 
 The agent handles the entire deployment:
 
-1. Loads the right skills (`n8n-azure`, `azure-container-apps`, `azure-bicep-generation`, `azd-deployment`)
+1. Loads the `n8n-azure` and `container-apps-deployment` skills, then follows the Azure plugin pipeline: `azure-prepare` → `azure-validate` → `azure-deploy`
 2. Uses Azure MCP tools to look up Bicep schemas and best practices
 3. Generates modular Bicep infrastructure in `infra-n8n/`
 4. Updates `azure.yaml`, registers Azure providers, sets environment variables
@@ -233,7 +219,7 @@ The deployment automatically configures these n8n environment variables:
 | Image | `docker.io/n8nio/n8n:latest` |
 | CPU | 1.0 core |
 | Memory | 2 GiB |
-| Min Replicas | 1 for CI/dev verification; 0 after validation if you want scale-to-zero |
+| Min Replicas | 1 while verifying the deployment; 0 afterward if you want scale-to-zero |
 | Max Replicas | 3 |
 | Scale Rule | HTTP requests (10 concurrent per replica) |
 
@@ -285,7 +271,7 @@ Scale-to-zero keeps costs low during idle periods. For production with `minRepli
 
 **Cause:** n8n needs 60+ seconds to start, and default health probes kill it too early.
 
-**Fix:** Ensure health probes target `/healthz`, use `initialDelaySeconds: 60` on liveness, and use a five-minute startup window. With the AVM Container App module, that means `failureThreshold: 10` with `periodSeconds: 30`. For CI/dev verification, keep `minReplicas: 1` until the health check passes.
+**Fix:** Ensure health probes target `/healthz`, use `initialDelaySeconds: 60` on liveness, and use a five-minute startup window. With the AVM Container App module, that means `failureThreshold: 10` with `periodSeconds: 30`. Keep `minReplicas: 1` until the health check passes.
 
 Ask the agent to diagnose:
 
@@ -373,13 +359,13 @@ Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently delet
 
 ## What's Next
 
-**Stage 1 complete.** Choose one:
+Explore the other journeys:
 
-- **Optional stage 2 (AKS / higher cost):** [Superset](../superset/README.md)  
-- **Flagship stage 3 (recommended next):** [AIMarket](../aimarket/README.md) — build from a PLAN.md spec with Foundry  
-- Revisit warm-up: [Grafana](../grafana/README.md)
+- [AIMarket](../aimarket/README.md) — full-stack build from a PLAN.md spec with Foundry
+- [Superset](../superset/README.md) — AKS, init containers (higher cost)
+- [Grafana](../grafana/README.md) — the simplest Container Apps deploy
 
-> 📚 **Learning path & overview:** [Back to root README](../../README.md#recommended-learning-path)
+> 📚 **All journeys:** [Back to root README](../../README.md#agentic-journeys)
 
 ---
 

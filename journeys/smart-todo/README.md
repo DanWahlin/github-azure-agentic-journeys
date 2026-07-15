@@ -2,8 +2,6 @@
 
 > ✨ **Type a fuzzy goal, get a step-by-step action plan, powered by Azure Functions, Azure SQL, and Microsoft Foundry.**
 
-**Curriculum:** Journey **#5** · Learning path **Stage 4** · Best after [AIMarket](../aimarket/README.md) or the OSS warm-up ([path](../../README.md#recommended-learning-path)).
-
 <p align="center">
   <img src="./images/smart-todo-hero.webp" alt="SmartTodo — AI-Powered Task Breakdown" width="800" />
 </p>
@@ -45,18 +43,6 @@ You'll build SmartTodo: an iPhone app where you type a todo like "Prepare Confer
 - [ ] Deployed `API_URL` responds; AI generate works in Azure
 - [ ] (macOS) Simulator talks to local or Azure API
 - [ ] `azd down --force --purge` completed
-
-
-
-### README phases vs PLAN.md
-
-| This README | PLAN.md section | What you build |
-|-------------|-----------------|----------------|
-| Phase 1 | Phase 1 API + Phase 3 AI Features | Functions API, SQL, AI generate-steps |
-| Phase 2 | Phase 2 iOS Client | SwiftUI app |
-| Phase 3 | Phase 4 Deploy | Bicep + `azd` + post-provision SQL |
-
-When prompting, say “Read PLAN.md Phase …” using the **PLAN** column so the agent opens the right section.
 
 ---
 
@@ -137,7 +123,7 @@ SmartTodo is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey f
 
 ## The Journey
 
-SmartTodo is built in three learner phases (see mapping above). Phase 1 builds the API + AI with Azure SQL, Phase 2 adds the SwiftUI app (macOS), and Phase 3 deploys the backend to Azure. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
+SmartTodo is built in three phases, and this README's phases match PLAN.md's phases one-to-one. Phase 1 builds the API + AI with Azure SQL, Phase 2 adds the SwiftUI app (macOS), and Phase 3 deploys the backend to Azure. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
 
 **How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally. Ask GitHub Copilot for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
 
@@ -167,30 +153,18 @@ Create a project directory inside the repo so GitHub Copilot can access the skil
 cd github-azure-agentic-journeys/journeys/smart-todo
 ```
 
-Open GitHub Copilot in your preferred surface (CLI, app, or IDE). Examples below use [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+Start GitHub Copilot. Examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started); the app and VS Code agent chat work the same — type the prompts without the leading `>`:
 
 ```bash
 copilot
 ```
 
-> **Using another surface?** Paste the same prompts into the GitHub Copilot app or VS Code agent chat. See [prerequisites](../../README.md#prerequisites) for tool options.
->
-> **Don't have `copilot`?** Install it only if you want the CLI path, or use the app / VS Code instead.
-
-Plugins extend what GitHub Copilot can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
-
-> **Note (Copilot CLI):** Lines starting with `>` show what to type in a CLI session. Don't include the `>` character itself. In the app or VS Code, send the prompt without the `>` prefix.
+If you haven't installed the Azure Skills plugin yet, do it now — it's a one-time setup that adds deployment tools, Bicep schema lookups, and infrastructure generation (details in the root [Quick Start](../../README.md#quick-start)):
 
 ```
 > /plugin marketplace add microsoft/azure-skills
-```
-
-```
 > /plugin install azure@azure-skills
 ```
-
-> **Already installed?** If you completed the root [Quick Start](../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
-> For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 #### Step 2: Generate the data models and data layer
 
@@ -294,8 +268,8 @@ Check the step update function:
 Now wire up the real AI call to replace the stub.
 
 ```
-> Read the Phase 3 AI Features section in PLAN.md. Implement the 
-  generateSteps function to call gpt-5-mini via the openai SDK for
+> Read the AI Task Decomposition section in PLAN.md (end of Phase 1). 
+  Implement the generateSteps function to call gpt-5-mini via the openai SDK for
   my language. Use the exact system prompt from the spec. The client 
   connects to Microsoft Foundry using the AZURE_AI_ENDPOINT (with 
   /openai/v1/ path) and AZURE_AI_KEY env vars. Parse the AI response 
@@ -459,14 +433,12 @@ If the Simulator says `Application failed preflight checks` or `SBMainWorkspace 
   <img src="./images/phase3-deploy.webp" alt="Phase 3: Deploy to Azure" width="800" />
 </p>
 
-> PLAN.md labels this **Phase 4: Deploy**. Use that section name in prompts.
-
 #### Option A: Deploy interactively with GitHub Copilot
 
 ##### Step 1: Generate infrastructure
 
 ```
-> Read the Phase 4 (Deploy) section in PLAN.md. Create Bicep infrastructure
+> Read the Phase 3 (Deploy to Azure) section in PLAN.md. Create Bicep infrastructure
   in an infra/ directory. Prefer Azure Verified Modules (AVM), but use raw
   Microsoft.* Bicep for any resource where AVM parameter drift blocks deployment:
   - Azure Flex Functions with br/public:avm/res/web/site (kind: functionapp,linux)
@@ -482,7 +454,9 @@ If the Simulator says `Application failed preflight checks` or `SBMainWorkspace 
     AZURE_SQL_SERVER (full FQDN), AZURE_SQL_DATABASE
   - Outputs in SCREAMING_SNAKE_CASE: API_URL, SQL_SERVER_NAME, etc.
   - azd-service-name: 'api' tag on the Function App
-  - postprovision hook: schema seed + managed identity SQL user (see PLAN.md)
+  - postprovision hook: reuse the committed infra/hooks/postprovision.sh and
+    infra/hooks/postprovision-schema.sql — wire hooks.postprovision in
+    azure.yaml, do not rewrite them
   Also create an azure.yaml with a single 'api' service using host: function
   and language ts (or my chosen stack). Log issues to issues.md.
 ```
@@ -519,7 +493,7 @@ azd up
 >
 > 1. Watch your resources appear in real-time. Open the [Azure Portal](https://portal.azure.com) → search for your resource group, or run `az resource list --resource-group rg-<env-name> --output table` in a separate terminal.
 > 2. Re-read your `infra/main.bicep`. Can you trace how SQL access, AI settings, and deployment outputs flow into the Function App?
-> 3. Preview what's next: open `PLAN.md` and read the Phase 3 section (iOS app). What SwiftUI components will you need?
+> 3. Preview what's next: open `PLAN.md` and read the Phase 2 section (iOS client). What SwiftUI components will you need?
 > 4. Ask the agent: *"/btw Explain which parts of this deployment use managed identity and which parts use app settings."*
 
 Deployment may take several minutes. If it fails, ask GitHub Copilot to help diagnose:
@@ -528,9 +502,20 @@ Deployment may take several minutes. If it fails, ask GitHub Copilot to help dia
 > azd up failed with this error: [paste the error]. What's wrong?
 ```
 
-##### Step 3: Post-provision checklist (SQL managed identity + schema)
+##### Step 3: Confirm the post-provision SQL setup (should be automatic)
 
-Bicep creates the Function App identity, but **Azure SQL needs a separate SQL step** for the database user. Prefer an automated `infra/hooks/postprovision.sh` from PLAN.md. If you run it manually, do this **in order**:
+Bicep creates the Function App identity, but **Azure SQL needs a separate SQL step** for the database user and schema. This journey ships a working hook — `infra/hooks/postprovision.sh` — that runs automatically after `azd provision` (wired via `hooks.postprovision` in azure.yaml). It creates the managed identity database user, applies the schema + seed data, and cleans up its temporary firewall rule.
+
+Check the `azd up` output for `Post-provision SQL setup complete.` If the hook failed (most commonly `sqlcmd` isn't installed — `brew install sqlcmd` on macOS), fix the cause and re-run just the hook:
+
+```bash
+./infra/hooks/postprovision.sh
+```
+
+<details>
+<summary>Manual fallback: run the SQL setup by hand</summary>
+
+Do this **in order**:
 
 1. Install `sqlcmd` if needed: `brew install sqlcmd` (macOS)
 2. Confirm you are **Microsoft Entra admin** on the SQL server (Bicep should set the deploying user)
@@ -558,12 +543,10 @@ sqlcmd -S "$SQL_FQDN" -d "$SQL_DB" \
   --authentication-method ActiveDirectoryAzCli \
   -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_ddladmin ADD MEMBER [${FUNC_APP}];"
 
-# 5) Schema + seed (if postprovision-schema.sql exists)
-if [ -f infra/hooks/postprovision-schema.sql ]; then
-  sqlcmd -S "$SQL_FQDN" -d "$SQL_DB" \
-    --authentication-method ActiveDirectoryAzCli \
-    -i infra/hooks/postprovision-schema.sql
-fi
+# 5) Schema + seed
+sqlcmd -S "$SQL_FQDN" -d "$SQL_DB" \
+  --authentication-method ActiveDirectoryAzCli \
+  -i infra/hooks/postprovision-schema.sql
 
 # 6) Remove temporary client firewall rule (Azure services rule stays)
 az sql server firewall-rule delete \
@@ -572,6 +555,8 @@ az sql server firewall-rule delete \
 ```
 
 > ⚠️ If `sqlcmd` fails with a permissions or firewall error, fix steps 2–3 first—do not re-run `azd up` until this checklist is green. Always delete `DevClientIP` when finished so your public IP is not left open on the SQL server.
+
+</details>
 
 ##### Step 4: Verify the live deployment
 
@@ -621,7 +606,8 @@ Create a GitHub issue and assign it to GitHub Copilot:
     Azure SQL, Microsoft Foundry (gpt-5-mini), and monitoring
   - Create azure.yaml with a single 'api' service (host: function)
   - Use managed identity for SQL and the plain openai SDK with AZURE_AI_KEY for AI
-  - Follow the Phase 4 spec in PLAN.md
+  - Follow the Phase 3 (Deploy to Azure) spec in PLAN.md and reuse the
+    committed infra/hooks/postprovision.sh + postprovision-schema.sql
   Assign the issue to Copilot.
 ```
 
@@ -834,7 +820,7 @@ Teardown takes 2-3 minutes. This deletes all Azure resources including the SQL d
 
 1. **Add due dates**: Ask GitHub Copilot to *"Add a dueDate field to todos and have the AI suggest deadlines for each action step based on the todo's due date."* Create a todo with a due date, generate steps, and observe whether the AI respects the timeline. Ask GitHub Copilot why some steps have unrealistic deadlines and how to fix the prompt.
 
-2. **Add a "Regenerate" button**: The UI already shows "Regenerate Steps" when steps exist. Test it: generate steps, then regenerate. Are the new steps different? Ask GitHub Copilot to explain why the results vary and how to make them more deterministic (hint: temperature).
+2. **Add a "Regenerate" button**: The UI already shows "Regenerate Steps" when steps exist. Test it: generate steps, then regenerate. Are the new steps different? Ask GitHub Copilot to explain why the results vary and how to make them more repeatable (hint: LLM sampling is random by default; gpt-5-mini fixes temperature at its default, while the gpt-4.1 fallback lets you lower it).
 
 3. **Try a different model**: Ask GitHub Copilot to *"Switch from gpt-5-mini to gpt-4.1 in the Foundry deployment."* Generate steps for the same todo with each model. Compare quality, specificity, and latency. Which is better for this use case?
 
@@ -850,13 +836,13 @@ Teardown takes 2-3 minutes. This deletes all Azure resources including the SQL d
 
 ## What's Next
 
-**Path stage 4 complete.** You've finished the recommended curriculum.
+Explore the other journeys:
 
-- Revisit the flagship: [AIMarket](../aimarket/README.md) if you skipped stage 3  
-- Optional AKS deep dive: [Superset](../superset/README.md)  
+- [AIMarket](../aimarket/README.md) — full-stack marketplace from a spec with AI Search + Foundry chat
+- [Superset](../superset/README.md) — AKS deep dive
 - Deploy another OSS app with `@oss-to-azure-deployer`
 
-> 📚 **Learning path & overview:** [Back to root README](../../README.md#recommended-learning-path)
+> 📚 **All journeys:** [Back to root README](../../README.md#agentic-journeys)
 
 ---
 

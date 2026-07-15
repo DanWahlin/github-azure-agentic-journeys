@@ -2,8 +2,6 @@
 
 > ✨ **Build a full-stack marketplace from a spec document, with AI features from search to checkout.**
 
-**Curriculum:** Journey **#1 (flagship)** · Learning path **Stage 3** · After [n8n](../n8n/README.md) or optional [Superset](../superset/README.md) · Next: [SmartTodo](../smart-todo/README.md)
-
 <p align="center">
   <img src="./images/aimarket-marketplace.webp" alt="AIMarket — AI-Powered Marketplace" width="800" />
 </p>
@@ -19,7 +17,7 @@ In this agentic journey, you'll build AIMarket, a lightweight marketplace app wi
 - Build an AI shopping assistant with Microsoft Foundry
 - Deploy the full stack to Azure Container Apps using `azd`
 
-> ⏱️ **Estimated Time**: **3–5 hours first run** (about 2–3 hours if you've done an OSS journey and know Container Apps). Includes build, test, deploy, and fix loops.
+> ⏱️ **Estimated Time**: **3–5 hours first run** (about 2–3 hours if you've done an OSS journey and know Container Apps). The per-phase estimates below are hands-on time only — the 3–5 hour total includes the test, debug, and fix loops that the phase numbers don't.
 >
 > 💰 **Estimated Cost**: ~$100–115/month **if left running** (AI Search Basic is ~$75 of that; see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
 >
@@ -61,7 +59,7 @@ graph TB
             API["AIMarket API<br/>(Your language · REST)"]
             FRONTEND["Storefront<br/>(React · Port 80)"]
         end
-        DB["Database<br/>(SQLite local · Cosmos DB or PostgreSQL in Azure)"]
+        DB["Database<br/>(SQLite embedded in the API container ·<br/>optional Cosmos DB / PostgreSQL swap)"]
         SEARCH["Azure AI Search<br/>(Semantic Product Discovery)"]
         AOAI["Microsoft Foundry<br/>(gpt-5-mini · Shopping Assistant)"]
     end
@@ -86,11 +84,13 @@ graph TB
 **Azure resources created:**
 
 - **Azure Container Apps**: Serverless hosting for the API and frontend
-- **Database**: SQLite embedded (default). Swappable to Cosmos DB or PostgreSQL via `DATA_PROVIDER` env var
+- **Database**: SQLite embedded in the API container (default). Swappable to Cosmos DB or PostgreSQL via `DATA_PROVIDER` env var
 - **Azure AI Search** (Basic tier): Semantic product discovery
 - **Microsoft Foundry** (AIServices): gpt-5-mini shopping assistant
 - **Azure Container Registry**: Docker image storage
 - **Azure Log Analytics**: Monitoring and diagnostics
+
+> ⚠️ **Data persistence note:** The default deployment does **not** provision a database — SQLite lives inside the API container, so orders and inventory changes are lost whenever the container restarts or scales to zero. That's fine for this lab (the [Grafana journey](../grafana/README.md) explores the same ephemeral-storage tradeoff). If you want persistent data, that's what the repository pattern is for: ask GitHub Copilot to add a Cosmos DB or PostgreSQL module to the Bicep and set `DATA_PROVIDER` accordingly.
 
 ---
 
@@ -145,30 +145,18 @@ Create a project directory inside the repo so GitHub Copilot can access the skil
 cd github-azure-agentic-journeys/journeys/aimarket
 ```
 
-Open GitHub Copilot in your preferred surface (CLI, app, or IDE). Examples below use [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+Start GitHub Copilot. Examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started); the app and VS Code agent chat work the same — type the prompts without the leading `>`:
 
 ```bash
 copilot
 ```
 
-> **Using another surface?** Paste the same prompts into the GitHub Copilot app or VS Code agent chat. See [prerequisites](../../README.md#prerequisites) for tool options.
->
-> **Don't have `copilot`?** Install it only if you want the CLI path, or use the app / VS Code instead.
-
-Plugins extend what GitHub Copilot can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
-
-> **Note (Copilot CLI):** Lines starting with `>` show what to type in a CLI session. Don't include the `>` character itself. In the app or VS Code, send the prompt without the `>` prefix.
+If you haven't installed the Azure Skills plugin yet, do it now — it's a one-time setup that adds deployment tools, Bicep schema lookups, and infrastructure generation (details in the root [Quick Start](../../README.md#quick-start)):
 
 ```
 > /plugin marketplace add microsoft/azure-skills
-```
-
-```
 > /plugin install azure@azure-skills
 ```
-
-> **Already installed?** If you completed the root [Quick Start](../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
-> For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 #### Step 2: Generate the data models
 
@@ -385,6 +373,8 @@ git add -A && git commit -m "AIMarket: API + React storefront"
 gh repo create aimarket --private --source=. --push
 ```
 
+> **Nested repo note:** `git init` here creates a git repo *inside* the cloned journeys repo. That's intentional — the cloud agent needs its own repo to work against. The outer repo will show `journeys/aimarket` as an untracked embedded repository; that's harmless, just don't commit it to the journeys repo. Run these commands from `journeys/aimarket`, never from the repo root.
+>
 > Work only under `journeys/aimarket` for the rest of this journey. Do not copy the app to `~/aimarket`.
 
 ---
@@ -515,7 +505,7 @@ gh pr checkout <PR_NUMBER>
 **🔍 Review the PR like you would any code review:**
 
 - Does the system prompt include the product catalog? (It should fetch products on each request, not hardcode them)
-- Is the temperature set to 0.7? (Higher = more creative, lower = more deterministic)
+- Does the code avoid setting a custom temperature? (gpt-5 family models reject non-default temperature values — only set `0.7` if you're on the gpt-4.1 fallback)
 - Does the ChatWidget send the full message history, or just the latest message?
 - What happens when `AZURE_OPENAI_ENDPOINT` isn't set? (Should return 503, not crash)
 
@@ -552,23 +542,17 @@ az cognitiveservices model list --location westus \
 
 #### Step 1: Generate infrastructure
 
+The Phase 4 spec in PLAN.md and the `container-apps-deployment` skill already contain every infrastructure requirement (resources, Dockerfiles, the postdeploy hook), so the prompt stays short — this is the "spec is the prompt" idea applied to infrastructure:
+
 ```
 > Read the Phase 4 section in PLAN.md and the container-apps-deployment skill
-  at ../../.github/skills/container-apps-deployment/SKILL.md. Create Bicep
-  infrastructure in an infra/ directory to deploy AIMarket to Azure Container Apps.
-  Default stack: Node.js API + React client. I need:
-  - Azure Container Registry (Basic tier)
-  - Container Apps Environment with Log Analytics (zoneRedundant: false)
-  - Two container apps with azd-service-name tags: api and web (port 80)
-  - The API needs health probes on /api/health
-  - Azure AI Search (Basic) + Microsoft Foundry (gpt-5-mini, fallback gpt-4.1)
-  - Create Dockerfiles for both api/ and client/ with .dockerignore files
-  - Create azure.yaml mapping services to their Dockerfiles (language: ts)
-  - CRITICAL: Create infra/hooks/postdeploy.sh that rebuilds the web image with
-    VITE_API_URL=${API_URL}/api, pushes to ACR (--platform linux/amd64), and
-    updates the web Container App. Wire it as hooks.postdeploy in azure.yaml.
-  Read the Containerization, Bicep Requirements, and Deployment sections
-  in PLAN.md for the specific requirements. Log issues to issues.md.
+  at ../../.github/skills/container-apps-deployment/SKILL.md. Following the
+  Containerization, Azure Resources, Bicep Requirements, and Deployment
+  sections exactly, create everything needed to deploy AIMarket to Azure
+  Container Apps: Bicep in infra/, Dockerfiles with .dockerignore files for
+  api/ and client/, azure.yaml (language: ts), and the required postdeploy
+  hook wired into azure.yaml. Default stack: Node.js API + React client.
+  Set the location to westus. Log issues to issues.md.
 ```
 
 **🔍 Before deploying, review these critical details:**
@@ -764,20 +748,16 @@ docker build --build-arg VITE_API_URL="https://<api-fqdn>/api" ...
 
 ```bash
 az provider register --namespace Microsoft.App
-az provider register --namespace Microsoft.DocumentDB
 az provider register --namespace Microsoft.Search
 az provider register --namespace Microsoft.CognitiveServices
 az provider register --namespace Microsoft.OperationalInsights
 ```
 
-### Cosmos DB connection timeout
+### Orders or inventory changes disappear after a while
 
-**Fix:** Ensure the connection string uses the Cosmos DB endpoint (not `localhost`). Check that the API container has the `COSMOS_CONNECTION_STRING` environment variable set.
+**Cause:** The default deployment uses SQLite inside the API container. When the container restarts or scales to zero, that data is gone (see the Data persistence note in the Architecture section).
 
-```
-> Check if the AIMarket API can connect to Cosmos DB. 
-  Look at the container logs for connection errors.
-```
+**Fix:** Expected behavior for this lab. For persistence, ask GitHub Copilot to add a Cosmos DB or PostgreSQL module and switch `DATA_PROVIDER`. (If you did switch providers and see connection timeouts, check that the connection string env var is set on the API container and ask GitHub Copilot to check the container logs.)
 
 ### Docker Build Fails
 
@@ -830,7 +810,7 @@ curl -s -o /dev/null -w "%{http_code}" "$WEB_URL"  # Expect 200
 azd down --force --purge
 ```
 
-Teardown takes 3-5 minutes. This deletes all Azure resources including the Cosmos DB data. If you created the AI services separately, delete those too:
+Teardown takes 3-5 minutes. This deletes all Azure resources. If you created the AI services separately, delete those too:
 
 ```bash
 AI_RESOURCE_GROUP="<resource-group-used-for-separate-ai-services>"
@@ -845,7 +825,7 @@ az group delete --name "$AI_RESOURCE_GROUP" --yes --no-wait
 - **Delegate with context**: the GitHub Copilot cloud agent produces better PRs when your repo has a spec it can read
 - **Ground your AI in real data**: the shopping assistant works because it gets the product catalog as context, not because the LLM memorized products
 - **AI features are APIs**: semantic search and chat are REST endpoints backed by Azure services; no ML expertise required
-- **Start with SQLite, swap to cloud**: build and test locally, then switch the data provider for deployment
+- **Start with SQLite, swap to cloud when you need persistence**: the deployed default is still SQLite (ephemeral container storage), and the repository pattern is what makes the Cosmos DB / PostgreSQL swap a one-variable change instead of a rewrite
 
 ---
 
@@ -859,11 +839,12 @@ az group delete --name "$AI_RESOURCE_GROUP" --yes --no-wait
 
 ## What's Next
 
-**Path stage 3 complete.** Continue to **stage 4:** [SmartTodo](../smart-todo/README.md) — Azure Functions Flex Consumption, Azure SQL, SwiftUI, and Foundry task breakdown (macOS for the iOS phase).
+Explore the other journeys:
 
-Missed the OSS warm-up? [Grafana](../grafana/README.md) and [n8n](../n8n/README.md) are stages 0–1.
+- [SmartTodo](../smart-todo/README.md) — Azure Functions Flex Consumption, Azure SQL, SwiftUI, and Foundry task breakdown (macOS for the iOS phase)
+- [Grafana](../grafana/README.md) and [n8n](../n8n/README.md) — quick OSS deploys to Container Apps
 
-> 📚 **Learning path & overview:** [Back to root README](../../README.md#recommended-learning-path)
+> 📚 **All journeys:** [Back to root README](../../README.md#agentic-journeys)
 
 ---
 

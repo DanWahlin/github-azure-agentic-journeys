@@ -2,10 +2,9 @@
 
 This repository contains agentic journeys that build and deploy applications to Azure using GitHub Copilot agents, skills, and Azure Developer CLI (azd).
 
-## Learner path (curriculum)
+## Journeys
 
-Recommended order (not table order): **Grafana (0) → n8n (1) → Superset optional (2) → AIMarket flagship (3) → SmartTodo (4)**.  
-AIMarket remains journey **#1** (flagship story). Details: root `README.md` → Quick Start + Recommended learning path.
+Journeys are self-contained — learners can start with any of them. The root `README.md` → Agentic journeys table lists them all with cost estimates.
 
 **Plugin (canonical — use everywhere):**
 
@@ -233,20 +232,19 @@ To add a new full-stack journey (e.g., AIMarket):
 
 ```
 journeys/
-├── n8n/                          # n8n OSS deployment journey
-│   └── README.md
 ├── grafana/                      # Grafana OSS deployment journey
+│   └── README.md
+├── n8n/                          # n8n OSS deployment journey
 │   └── README.md
 ├── superset/                     # Apache Superset OSS deployment journey
 │   └── README.md
-├── smart-todo/                   # Full-stack journey (iOS + Functions + AI)
+├── aimarket/                     # Full-stack journey (API + frontend + AI)
 │   ├── README.md
 │   └── PLAN.md
-└── aimarket/                    # Full-stack journey (API + frontend + AI)
+└── smart-todo/                   # Full-stack journey (iOS + Functions + AI)
     ├── README.md
     ├── PLAN.md
-    ├── issues.md
-    └── src/
+    └── infra/hooks/              # Committed post-provision SQL hook + schema
 .github/
 ├── agents/
 │   └── oss-to-azure-deployer.agent.md

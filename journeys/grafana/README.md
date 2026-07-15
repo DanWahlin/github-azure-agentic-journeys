@@ -2,8 +2,6 @@
 
 > ✨ **No external database, no complex probes, just Grafana on Container Apps.**
 
-**Curriculum:** Journey **#3** · Learning path **Stage 0 (start here)** · Next: [n8n](../n8n/README.md)
-
 <p align="center">
   <img src="./images/grafana-observability.webp" alt="Grafana: Observability on Azure" width="800" />
 </p>
@@ -81,30 +79,18 @@ Make sure you're in the repo root first:
 cd github-azure-agentic-journeys
 ```
 
-Then open GitHub Copilot in your preferred surface (CLI, app, or IDE). Examples below use [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+Then start GitHub Copilot. Examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started); the app and VS Code agent chat work the same — type the prompts without the leading `>`:
 
 ```bash
 copilot
 ```
 
-> **Using another surface?** Paste the same prompts into the GitHub Copilot app or VS Code agent chat. See [prerequisites](../../README.md#prerequisites) for tool options.
->
-> **Don't have `copilot`?** Install it only if you want the CLI path, or use the app / VS Code instead.
-
-Plugins extend what GitHub Copilot can do. The Azure Skills plugin adds deployment tools, Bicep schema lookups, and infrastructure generation. Add the marketplace and install the plugin (first time only):
-
-> **Note (Copilot CLI):** Lines starting with `>` show what to type in a CLI session. Don't include the `>` character itself. In the app or VS Code, send the prompt without the `>` prefix.
+If you haven't installed the Azure Skills plugin yet, do it now — it's a one-time setup that adds deployment tools, Bicep schema lookups, and infrastructure generation (details in the root [Quick Start](../../README.md#quick-start)):
 
 ```
 > /plugin marketplace add microsoft/azure-skills
-```
-
-```
 > /plugin install azure@azure-skills
 ```
-
-> **Already installed?** If you completed the root [Quick Start](../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
-> For more details, see the [azure-skills repository](https://github.com/microsoft/azure-skills).
 
 Now select the deployment agent. Agents are specialized personas that know how to handle specific tasks:
 
@@ -130,10 +116,7 @@ Tell the agent what you want in a single prompt (OSS shared recipe: location + s
 
 The agent handles the entire deployment:
 
-1. Loads the right skills (`grafana-azure`, `azure-container-apps`, `azure-bicep-generation`, `azd-deployment`)
-
-The agent loads the `grafana-azure` skill, which provides Grafana-specific configuration for health probes, ports, and environment variables.
-
+1. Loads the `grafana-azure` skill (Grafana-specific health probes, ports, and environment variables) and the `container-apps-deployment` skill, then follows the Azure plugin pipeline: `azure-prepare` → `azure-validate` → `azure-deploy`
 2. Generates a lean Bicep (Azure's infrastructure-as-code language) structure in `infra-grafana/` with no PostgreSQL module needed (SQLite is the default)
 3. Updates `azure.yaml`, registers Azure providers, sets environment variables
 4. Runs `azd up`
@@ -347,7 +330,18 @@ Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
 ## Assignment
 
-1. Create a dashboard in Grafana, then restart the container app with `az containerapp revision restart`. Notice your dashboard is gone. Why? Ask the agent: *"Why did my Grafana dashboard disappear after a restart?"*
+1. Create a dashboard in Grafana, then restart the container app:
+
+   ```bash
+   RG=$(azd env get-value RESOURCE_GROUP_NAME)
+   APP=$(az containerapp list --resource-group "$RG" --query "[0].name" -o tsv)
+   REVISION=$(az containerapp revision list --name "$APP" --resource-group "$RG" --query "[0].name" -o tsv)
+   az containerapp revision restart --name "$APP" --resource-group "$RG" --revision "$REVISION"
+   ```
+
+   (If an `azd env get-value` lookup fails, just ask the agent: *"Restart my Grafana container app."*)
+
+   Notice your dashboard is gone. Why? Ask the agent: *"Why did my Grafana dashboard disappear after a restart?"*
 2. Try the fix: ask the agent *"How do I make Grafana dashboards persist across restarts?"* and implement what it suggests
 3. Clean up with `azd down --force --purge`
 
@@ -355,11 +349,13 @@ Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
 ## What's Next
 
-**Stage 0 complete.** Continue to **stage 1:** [n8n](../n8n/README.md) (Container Apps + PostgreSQL, probes, post-provision hooks).
+Explore the other journeys:
 
-Optional later: [Superset](../superset/README.md) (AKS, stage 2) · Flagship full-stack: [AIMarket](../aimarket/README.md) (stage 3).
+- [n8n](../n8n/README.md) — Container Apps + PostgreSQL, health probes, post-provision hooks
+- [Superset](../superset/README.md) — AKS, init containers (higher cost)
+- [AIMarket](../aimarket/README.md) — full-stack build from a PLAN.md spec with Foundry
 
-> 📚 **Learning path & overview:** [Back to root README](../../README.md#recommended-learning-path)
+> 📚 **All journeys:** [Back to root README](../../README.md#agentic-journeys)
 
 ---
 

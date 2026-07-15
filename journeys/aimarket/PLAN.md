@@ -17,7 +17,7 @@ Pick your API language. Data models, endpoints, and acceptance criteria are iden
 | **Framework** | Express + TypeScript | FastAPI | ASP.NET Core Minimal APIs | Spring Boot |
 | **SQLite** | `better-sqlite3` | `sqlite3` (stdlib) | `Microsoft.Data.Sqlite` | `JdbcTemplate` + SQLite |
 
-Frontend is always React 18 + Tailwind CSS. AI via **gpt-5-mini on Microsoft Foundry** (fallback to gpt-4.1 if unavailable in your region). Deploy with **azd** + **Bicep using Azure Verified Modules (AVM)**. See [`data-access-abstraction` skill](../../.github/skills/data-access-abstraction/SKILL.md) for repository pattern examples in all four languages.
+Frontend is always React 18 + Tailwind CSS. AI via **gpt-5-mini on Microsoft Foundry** (fallback to gpt-4.1 if unavailable in your region). Deploy with **azd** + **Bicep**, preferring Azure Verified Modules (AVM) with raw `Microsoft.*` fallback when AVM blocks deployment. See [`data-access-abstraction` skill](../../.github/skills/data-access-abstraction/SKILL.md) for repository pattern examples in all four languages.
 
 ## Project Structure
 
@@ -564,7 +564,7 @@ Current catalog:
 **Behavior:**
 - On each request, fetch all active products and inject them into the system prompt as JSON
 - Use Microsoft Foundry chat completions API with `gpt-5-mini` (fallback to `gpt-4.1` if unavailable in your region)
-- Temperature: `0.7`
+- Temperature: leave at the model default — gpt-5 family models reject custom temperature values. Set `0.7` only if using the gpt-4.1 fallback.
 - Max tokens: `500`
 - Pass the full message history from the request (the client maintains conversation state)
 
@@ -603,7 +603,7 @@ The Azure Skills plugin for GitHub Copilot provides MCP tools and plugin skills 
 
 ### Azure Resources
 
-Use **Azure Verified Modules (AVM)** from `br/public:avm/...` for ALL resources. For resources that require `listKeys()` or `listCredentials()` to wire secrets into Container App env vars, use deterministic `existing` resource references with `dependsOn` on the AVM module.
+Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resources. If an AVM module blocks deployment (parameter drift, unsupported passthrough, or schema mismatch), switch that single resource to a raw `Microsoft.*` Bicep resource and document why. For resources that require `listKeys()` or `listCredentials()` to wire secrets into Container App env vars, use deterministic `existing` resource references with `dependsOn` on the AVM module.
 
 | Resource | Module / Approach | Purpose |
 |----------|------------------|---------|
@@ -618,17 +618,18 @@ Use **Azure Verified Modules (AVM)** from `br/public:avm/...` for ALL resources.
 
 ### Bicep Requirements
 
-1. **Use AVM modules** for ALL resources — no raw resource definitions
+1. **Prefer AVM modules** for all resources — fall back to raw `Microsoft.*` only where AVM blocks deployment (document why)
 2. **Deterministic naming** — all resources named with `${abbrs.xxx}${resourceToken}` so `existing` refs can resolve
-3. **`azd-service-name` tags** on each container app (azd maps services by tag)
+3. **`azd-service-name` tags** on each container app (azd maps services by tag): `api` and `web` (web serves on port 80)
 4. **Output `AZURE_CONTAINER_REGISTRY_ENDPOINT`** (azd reads this for image push)
 5. **Wire AI credentials** into API container env vars via secrets using `listKeys()` / `listAdminKeys()`
 6. **Azure AI Search** — use `basic` SKU (not `free`), set `disableLocalAuth: false`, and set `semanticSearch: 'free'` to enable the semantic ranker
 7. **Microsoft Foundry** — use `br/public:avm/ptn/ai-ml/ai-foundry` with `baseName` (max 12 chars), `aiModelDeployments` array for gpt-5-mini, and `aiFoundryConfiguration.disableLocalAuth: false`. Enable system-assigned managed identity on the API container app.
 8. **Managed identity for Foundry** — assign the `Cognitive Services User` role (`a97b65f3-24c7-4388-baec-2e87135dc908`) from the API container app's managed identity to the AI Services resource. This allows the API to authenticate to Microsoft Foundry without API keys.
-9. **Container App startup probe** — `failureThreshold` max is 10 (not 30) when using the AVM container-app module
-10. **Soft-deleted Cognitive Services** — if a previous deployment fails or is torn down, the AI Services resource may be soft-deleted and block re-creation. Run `az cognitiveservices account list-deleted` and `az cognitiveservices account purge` before redeploying
-11. **AI model version is region-specific** — use `az cognitiveservices model list --location <region> --query "[?model.name=='gpt-5-mini']"` to find the correct version before generating Bicep
+9. **Container App startup probe** — `failureThreshold` max is 10 (not 30) when using the AVM container-app module. The API app's probes target `GET /api/health`.
+10. **Container Registry** — Basic tier. **Container Apps Environment** — set `zoneRedundant: false` (required in many regions, e.g. westus).
+11. **Soft-deleted Cognitive Services** — if a previous deployment fails or is torn down, the AI Services resource may be soft-deleted and block re-creation. Run `az cognitiveservices account list-deleted` and `az cognitiveservices account purge` before redeploying
+12. **AI model version is region-specific** — use `az cognitiveservices model list --location <region> --query "[?model.name=='gpt-5-mini']"` to find the correct version before generating Bicep
 
 ### Deployment
 
