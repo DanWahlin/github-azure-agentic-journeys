@@ -496,20 +496,28 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 
 ### Post-Provision: Managed Identity SQL Access
 
-Azure SQL requires a post-provision SQL step to add the Function App's managed identity as a database user. **A working hook is committed in this journey folder** — `infra/hooks/postprovision.sh` and `infra/hooks/postprovision-schema.sql`. Reuse them as-is (wire `hooks.postprovision` in `azure.yaml`); do not regenerate them. The hook requires `sqlcmd` (go-sqlcmd / `brew install sqlcmd`) — `az sql db execute` does not exist.
+Azure SQL requires a post-provision SQL step to add the Function App's managed identity as a database user. Generate `infra/hooks/postprovision.sh` (wired as `hooks.postprovision` in `azure.yaml`) that does this automatically after `azd provision`. It requires `sqlcmd` (go-sqlcmd / `brew install sqlcmd`) — `az sql db execute` does not exist.
 
-What the hook does, in order:
-1. Assumes the deploying user is Microsoft Entra admin on the SQL server (set in Bicep).
-2. Adds a temporary firewall rule for the developer machine public IP (Allow Azure Services alone is not enough for local `sqlcmd`).
-3. Connects to the full FQDN `${SQL_SERVER}.database.windows.net` with Entra auth.
-4. `CREATE USER [<function-app-name>] FROM EXTERNAL PROVIDER` if missing.
-5. Grants `db_datareader`, `db_datawriter`, and `db_ddladmin` to that user.
-6. Runs `infra/hooks/postprovision-schema.sql` to create tables and seed data (idempotent).
-7. **Deletes the temporary client firewall rule** when done (do not leave the developer public IP open).
+The hook must, in order:
+1. Fail with a clear install hint if `sqlcmd` is missing.
+2. Read `SQL_SERVER_NAME`, `SQL_DATABASE_NAME`, `FUNCTION_APP_NAME`, and `RESOURCE_GROUP_NAME` via `azd env get-value`.
+3. Normalize the server name both ways — `az sql` commands need the short name, `sqlcmd` needs the full FQDN:
+   ```bash
+   SQL_SERVER_SHORT=${SQL_SERVER%.database.windows.net}
+   SQL_FQDN="${SQL_SERVER_SHORT}.database.windows.net"
+   ```
+4. Add a temporary firewall rule for the developer machine public IP (`curl -s https://api.ipify.org`) — Allow Azure Services alone is not enough for local `sqlcmd`. Delete this rule on exit via a shell `trap`, even when a later step fails (never leave the developer IP open).
+5. Create the managed identity user and grant roles (the deploying user must be Microsoft Entra admin on the SQL server, set in Bicep):
+   ```bash
+   sqlcmd -S "$SQL_FQDN" -d "$SQL_DB" --authentication-method ActiveDirectoryAzCli \
+     -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_ddladmin ADD MEMBER [${FUNC_APP}];"
+   ```
+6. Apply the schema + seed file with `sqlcmd ... -i infra/hooks/postprovision-schema.sql`.
+7. Print `Post-provision SQL setup complete.` on success (the README verification step checks for this line).
 
 ### Database Schema Initialization
 
-`infra/hooks/postprovision-schema.sql` (committed) contains the CREATE TABLE statements and seed rows from the Data Models and Seed Data sections. The post-provision hook runs it after the managed identity setup so the deployed API and iOS app return data immediately.
+Also generate `infra/hooks/postprovision-schema.sql` with the CREATE TABLE statements from the Database Schema section and the seed rows from the Seed Data section. Make it idempotent (`IF OBJECT_ID(...) IS NULL` around DDL; only insert seed rows when the Todos table is empty) so re-running the hook is safe. The post-provision hook runs it after the managed identity setup so the deployed API and iOS app return data immediately.
 
 ### Mobile Distribution
 

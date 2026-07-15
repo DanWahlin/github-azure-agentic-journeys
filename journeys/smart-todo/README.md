@@ -454,9 +454,10 @@ If the Simulator says `Application failed preflight checks` or `SBMainWorkspace 
     AZURE_SQL_SERVER (full FQDN), AZURE_SQL_DATABASE
   - Outputs in SCREAMING_SNAKE_CASE: API_URL, SQL_SERVER_NAME, etc.
   - azd-service-name: 'api' tag on the Function App
-  - postprovision hook: reuse the committed infra/hooks/postprovision.sh and
-    infra/hooks/postprovision-schema.sql — wire hooks.postprovision in
-    azure.yaml, do not rewrite them
+  - postprovision hook: generate infra/hooks/postprovision.sh and
+    infra/hooks/postprovision-schema.sql exactly as specified in the
+    Post-Provision and Database Schema Initialization sections of PLAN.md,
+    wired as hooks.postprovision in azure.yaml
   Also create an azure.yaml with a single 'api' service using host: function
   and language ts (or my chosen stack). Log issues to issues.md.
 ```
@@ -504,7 +505,7 @@ Deployment may take several minutes. If it fails, ask GitHub Copilot to help dia
 
 ##### Step 3: Confirm the post-provision SQL setup (should be automatic)
 
-Bicep creates the Function App identity, but **Azure SQL needs a separate SQL step** for the database user and schema. This journey ships a working hook — `infra/hooks/postprovision.sh` — that runs automatically after `azd provision` (wired via `hooks.postprovision` in azure.yaml). It creates the managed identity database user, applies the schema + seed data, and cleans up its temporary firewall rule.
+Bicep creates the Function App identity, but **Azure SQL needs a separate SQL step** for the database user and schema. The `infra/hooks/postprovision.sh` the agent generated (per the Post-Provision spec in PLAN.md) runs automatically after `azd provision`, wired via `hooks.postprovision` in azure.yaml. It creates the managed identity database user, applies the schema + seed data, and cleans up its temporary firewall rule.
 
 Check the `azd up` output for `Post-provision SQL setup complete.` If the hook failed (most commonly `sqlcmd` isn't installed — `brew install sqlcmd` on macOS), fix the cause and re-run just the hook:
 
@@ -606,8 +607,8 @@ Create a GitHub issue and assign it to GitHub Copilot:
     Azure SQL, Microsoft Foundry (gpt-5-mini), and monitoring
   - Create azure.yaml with a single 'api' service (host: function)
   - Use managed identity for SQL and the plain openai SDK with AZURE_AI_KEY for AI
-  - Follow the Phase 3 (Deploy to Azure) spec in PLAN.md and reuse the
-    committed infra/hooks/postprovision.sh + postprovision-schema.sql
+  - Follow the Phase 3 (Deploy to Azure) spec in PLAN.md, including the
+    postprovision hook it specifies
   Assign the issue to Copilot.
 ```
 

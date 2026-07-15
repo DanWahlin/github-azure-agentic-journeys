@@ -243,8 +243,7 @@ journeys/
 │   └── PLAN.md
 └── smart-todo/                   # Full-stack journey (iOS + Functions + AI)
     ├── README.md
-    ├── PLAN.md
-    └── infra/hooks/              # Committed post-provision SQL hook + schema
+    └── PLAN.md
 .github/
 ├── agents/
 │   └── oss-to-azure-deployer.agent.md
