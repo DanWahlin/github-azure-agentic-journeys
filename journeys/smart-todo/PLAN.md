@@ -1,6 +1,6 @@
 # SmartTodo: AI-Powered Task Breakdown — Spec
 
-A todo app where vague goals become actionable plans. Type "Prepare Conference talk" and AI returns concrete steps you can check off. This document is the spec — GitHub Copilot reads it to generate the implementation.
+SmartTodo turns vague goals into actionable plans. Enter "Prepare conference talk," and the AI returns concrete steps you can check off. GitHub Copilot uses this document as the implementation spec.
 
 **Out of scope:** No user authentication (anonymous for now), no push notifications, no collaboration/sharing, no offline sync, no recurring todos, no image attachments.
 
@@ -18,7 +18,7 @@ Pick your API language. Data models, endpoints, and acceptance criteria are iden
 | **Azure SQL** | `mssql` + `@types/mssql` (dev) | `mssql-python` | `Microsoft.Data.SqlClient` | `mssql-jdbc` (`com.microsoft.sqlserver:mssql-jdbc`) |
 | **AI** | `openai` | `openai` | `OpenAI` | `com.openai:openai-java` |
 
-Frontend: Swift/SwiftUI (iOS 17+). **macOS + Xcode required for the iOS client.** Deploy backend with **azd** + **Bicep**. Prefer Azure Verified Modules (AVM), but use raw `Microsoft.*` resources when AVM parameter drift blocks deployment.
+The client uses Swift and SwiftUI (iOS 17+). **macOS + Xcode are required for the iOS client.** Deploy the backend with **azd** + **Bicep**. Prefer Azure Verified Modules (AVM), but use raw `Microsoft.*` resources when AVM parameter drift blocks deployment.
 
 The iOS app is NOT deployed by azd — only the Azure backend is. The app points at the deployed API URL via a `Config.swift` file.
 
@@ -51,17 +51,17 @@ smart-todo/
 └── azure.yaml                  # azd configuration
 ```
 
-The API must follow the **repository pattern** (interfaces/contracts → implementations → factory) so functions never import the database client directly. Define repository contracts as interfaces/protocols per your language. The data layer uses Azure SQL.
+The API must follow the **repository pattern** (interfaces/contracts → implementations → factory) so functions never import the database client directly. Define repository contracts as interfaces or protocols in your chosen language. The data layer uses Azure SQL.
 
 ---
 
 ## Phase 1: API
 
-Build the API with Azure SQL Database. You'll need an Azure SQL instance provisioned (Phase 3 creates this, or use an existing one during development).
+Build the API with Azure SQL Database. Use an existing Azure SQL instance during local development; Phase 3 provisions the instance used by the deployed app.
 
 ### Data Access Layer
 
-Repository contracts — define as interfaces/protocols per your language:
+Define these repository contracts as interfaces or protocols in your chosen language:
 
 ```
 TodoRepository:
@@ -170,7 +170,7 @@ Request body:
 
 ```json
 {
-  "title": "Prepare Conference talk",
+  "title": "Prepare conference talk",
   "userId": "user-1"
 }
 ```
@@ -259,7 +259,7 @@ The seed script (`src/api/src/data/seed.ts`) must run before first use so the AP
 
 | id | title | status | stepsGenerated |
 |----|-------|--------|----------------|
-| todo-1 | Prepare Conference talk | pending | false |
+| todo-1 | Prepare conference talk | pending | false |
 | todo-2 | Set up home office | in_progress | true |
 | todo-3 | Plan weekend hiking trip | completed | true |
 

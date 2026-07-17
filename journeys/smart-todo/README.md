@@ -1,12 +1,12 @@
 # SmartTodo - AI-Powered Task App
 
-> ✨ **Type a fuzzy goal, get a step-by-step action plan, powered by Azure Functions, Azure SQL, and Microsoft Foundry.**
+> ✨ **Turn a fuzzy goal into a step-by-step action plan with Azure Functions, Azure SQL, and Microsoft Foundry.**
 
 <p align="center">
   <img src="./images/smart-todo-hero.webp" alt="SmartTodo — AI-Powered Task Breakdown" width="800" />
 </p>
 
-You'll build SmartTodo: an iPhone app where you type a todo like "Prepare Conference talk" and AI breaks it into concrete steps you can check off. The backend runs on Azure Functions Flex Consumption, Azure SQL stores the data, and gpt-5-mini on Microsoft Foundry handles the thinking. Pick your language (Node.js, Python, .NET, or Java), hand GitHub Copilot a spec, and it scaffolds the API, generates SwiftUI screens, and deploys the backend to Azure.
+You'll build SmartTodo, an iPhone app that turns a todo such as "Prepare conference talk" into concrete steps you can check off. The backend runs on Azure Functions Flex Consumption, Azure SQL stores the data, and gpt-5-mini on Microsoft Foundry generates the plan. Pick your language (Node.js, Python, .NET, or Java), give GitHub Copilot the spec, and use it to scaffold the API, generate the SwiftUI screens, and deploy the backend to Azure.
 
 ## Learning Objectives
 
@@ -17,7 +17,7 @@ You'll build SmartTodo: an iPhone app where you type a todo like "Prepare Confer
 - Structure a SwiftUI app that talks to a cloud API with async/await networking
 - Deploy the backend to Azure Functions Flex Consumption with `azd` and point the iOS app at the live URL
 
-> ⏱️ **Estimated Time**: **3–5 hours first run** (about 2.5 hours if Functions + SQL are familiar). Includes build, test, deploy, and post-provision SQL steps.
+> ⏱️ **Estimated Time**: **3–5 hours for a first run** (about 2.5 hours if you're familiar with Azure Functions and SQL). This includes the build, test, deployment, and post-provision SQL steps.
 >
 > 💰 **Estimated Cost**: ~$10–30/month **if left running** (Functions Flex + SQL Basic + AI pay-per-token; see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
 >
@@ -104,7 +104,7 @@ graph TB
 
 ## The Spec
 
-SmartTodo is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey folder. It defines the data models, API contracts, AI prompt design, and seed data. You don't need to read the whole thing. GitHub Copilot reads it for you and generates code that matches.
+SmartTodo is driven by [`PLAN.md`](./PLAN.md), the spec in this journey folder. It defines the data models, API contracts, AI prompt design, and seed data. Skim it before you start so you know what the finished app should do; GitHub Copilot will use the details as implementation context.
 
 **Core data model (the parts you'll build):**
 
@@ -128,11 +128,11 @@ SmartTodo is driven by a spec document: [`PLAN.md`](./PLAN.md) in this journey f
 
 ## The Journey
 
-SmartTodo is built in three phases, and this README's phases match PLAN.md's phases one-to-one. Phase 1 builds the API + AI with Azure SQL, Phase 2 adds the SwiftUI app (macOS), and Phase 3 deploys the backend to Azure. The [`PLAN.md`](./PLAN.md) spec is your shared context throughout.
+SmartTodo is built in three phases that map directly to `PLAN.md`. Phase 1 builds the API and AI integration with Azure SQL. Phase 2 adds the SwiftUI app on macOS. Phase 3 deploys the backend to Azure. Keep [`PLAN.md`](./PLAN.md) open as the shared spec throughout.
 
-**How this journey works:** You won't paste one giant prompt and get a finished app. Instead, you'll build incrementally. Ask GitHub Copilot for a piece, inspect what it generated, test it, fix issues, and then move on. This is how developers actually work with AI: generate → inspect → test → refine.
+**How this journey works:** You won't paste one giant prompt and hope for a finished app. You'll work incrementally. Ask GitHub Copilot for one piece, inspect what it generated, test it, fix what needs attention, and then continue. The loop is simple: generate → inspect → test → refine.
 
-> **💡 Tip: Track issues as you go.** When giving GitHub Copilot a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives GitHub Copilot a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
+> **💡 Tip: Track issues as you go.** Add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed"* to your prompt. This keeps generation and deployment problems in one place while you iterate.
 
 > **Note on the iOS app:** The SwiftUI app runs on your Mac (Simulator) or iPhone. It is NOT deployed by `azd`. Only the Azure backend is. The app points at the deployed API URL via a `Config.swift` file.
 
@@ -160,13 +160,13 @@ Create a project directory inside the repo so GitHub Copilot can access the skil
 cd github-azure-agentic-journeys/journeys/smart-todo
 ```
 
-Start GitHub Copilot. Examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started); the app and VS Code agent chat work the same — type the prompts without the leading `>`:
+Start GitHub Copilot. The examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started). The same prompts work in the app and VS Code agent chat; omit the leading `>` there.
 
 ```bash
 copilot
 ```
 
-If you haven't installed the Azure Skills plugin yet, do it now — it's a one-time setup that adds deployment tools, Bicep schema lookups, and infrastructure generation (details in the root [Quick Start](../../README.md#quick-start)):
+If you haven't installed the Azure Skills plugin yet, do it now. This one-time setup adds deployment tools, Bicep schema lookups, and infrastructure generation; see the root [Quick Start](../../README.md#quick-start) for details.
 
 ```
 > /plugin marketplace add microsoft/azure-skills
@@ -175,7 +175,7 @@ If you haven't installed the Azure Skills plugin yet, do it now — it's a one-t
 
 #### Step 2: Generate the data models and data layer
 
-Start with the data models and repository pattern, not the full API. This lets you inspect the generated code before building on top of it. **Generate the project first** — then align `local.settings.json` with the template below.
+Start with the data models and repository pattern, not the full API. This lets you inspect the generated code before building on top of it. **Generate the project first**, then align `local.settings.json` with the template below.
 
 > **Default stack:** Node.js + TypeScript + Azure Functions v4. Prefer another language? Swap it in the prompt and use PLAN.md’s Choose Your Stack table. Todo `status` values are `pending` | `in_progress` | `completed`.
 
@@ -268,7 +268,7 @@ Check the step update function:
   implement it.
 ```
 
-**💡 What you're learning:** Auto-completion is a cross-entity business rule. Changing a step affects the parent todo's status. AI generation usually gets single-entity CRUD right but misses these cross-cutting concerns. This is exactly the kind of thing to look for when reviewing generated code.
+**💡 What you're learning:** Auto-completion is a cross-entity business rule: changing a step can change the parent todo's status. Review generated code for relationships like this, where one update must trigger another.
 
 #### Step 4: Add AI-powered step generation
 
@@ -294,7 +294,7 @@ Now wire up the real AI call to replace the stub.
 4. Does it handle AI service errors gracefully (timeout, rate limit → 503)?
 5. Does it set `stepsGenerated = true` on the todo after inserting steps?
 
-**💡 What you're learning:** Getting an LLM to return consistent, parseable output is the hardest part of AI integration. The system prompt has to be explicit about format ("ONLY a JSON array, no markdown"), and the code needs defensive parsing. This applies to every LLM-backed feature, not just SmartTodo.
+**💡 What you're learning:** Structured AI output needs an explicit contract. The system prompt must require the format ("ONLY a JSON array, no markdown"), and the code still needs defensive parsing when the response doesn't follow it.
 
 #### Step 5: Test the API yourself
 
@@ -314,7 +314,7 @@ If any test fails, describe the failure to GitHub Copilot and let it fix it:
   204 with no response body.
 ```
 
-**💡 What you're learning:** Running tests yourself (instead of delegating) builds understanding. After this, you know what the API returns, how cascade deletes work, and where to look when something breaks after deployment.
+**💡 What you're learning:** Running the verifier yourself shows you what the API returns, how cascade deletion behaves, and which failures matter when you later test the deployed app.
 
 ---
 
@@ -364,7 +364,7 @@ Open `ActionStepsView.swift`. Look for:
   flight. Disable the Generate button during loading.
 ```
 
-**💡 What you're learning:** The iOS app is a thin client. All business logic lives in the API. The app just displays data and sends user actions. You can update the AI prompt, change the database, or add features without touching the Swift code, as long as the API contract stays the same.
+**💡 What you're learning:** The iOS app is a thin client. The API owns the business rules; the app displays data and sends user actions. You can update the AI prompt, change the database, or add features without touching the Swift code as long as the API contract stays the same.
 
 #### Step 2: Test on the Simulator
 
@@ -542,7 +542,7 @@ Review the PR, test the deployment, then merge.
 
 #### 🧪 Try it yourself: Improve the AI
 
-Now that you have the full workflow down, try improving the AI output:
+With the build, deployment, and verification loop working, try improving the AI output:
 
 ```
 > The AI-generated steps are too generic. Update the system prompt to 
@@ -564,7 +564,7 @@ Test it, deploy with `azd up`, and compare the new steps with the old ones.
   <img src="./images/generate-inspect-test-refine.webp" alt="Agentic AI Development Workflow" width="800" />
 </p>
 
-Here's where agentic AI shows up in this journey:
+This journey uses agentic AI in several distinct roles:
 
 | Layer | Use Case | What It Demonstrates |
 |-------|----------|---------------------|
@@ -693,16 +693,6 @@ It must prove seed reads, create, AI step generation, step completion, deletion,
 
 ---
 
-## Cleanup
-
-```bash
-azd down --force --purge
-```
-
-Teardown takes 2-3 minutes. This deletes all Azure resources including the SQL database. If you see soft-delete warnings for Cognitive Services, purge them manually (see Troubleshooting).
-
----
-
 ## Assignment
 
 1. **Add due dates**: Ask GitHub Copilot to *"Add a dueDate field to todos and have the AI suggest deadlines for each action step based on the todo's due date."* Create a todo with a due date, generate steps, and observe whether the AI respects the timeline. Ask GitHub Copilot why some steps have unrealistic deadlines and how to fix the prompt.
@@ -716,8 +706,18 @@ Teardown takes 2-3 minutes. This deletes all Azure resources including the SQL d
    - *"Switch the AI integration from API key auth to managed identity using DefaultAzureCredential."*
    - *"Add rate limiting to the generate-steps endpoint, max 10 calls per userId per hour."*
    - *"Change the function auth level from Anonymous to Function and configure the iOS app to send the function key."*
-   
+
    See [Production Hardening (Out of Scope)](./PLAN.md#production-hardening-out-of-scope) in PLAN.md for the full list of recommendations.
+
+---
+
+## Cleanup
+
+```bash
+azd down --force --purge
+```
+
+Teardown takes 2-3 minutes and deletes all Azure resources, including the SQL database. If you see soft-delete warnings for Cognitive Services, purge them manually as described in Troubleshooting.
 
 ---
 

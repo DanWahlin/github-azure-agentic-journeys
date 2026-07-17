@@ -1,12 +1,12 @@
 # Grafana on Azure Container Apps
 
-> ✨ **No external database, no complex probes, just Grafana on Container Apps.**
+> ✨ **Deploy Grafana on Container Apps with an embedded database and simple health probes.**
 
 <p align="center">
   <img src="./images/grafana-observability.webp" alt="Grafana: Observability on Azure" width="800" />
 </p>
 
-In this agentic journey, you'll deploy [Grafana OSS](https://grafana.com/oss/grafana/), a popular open-source observability platform, to Azure Container Apps. Grafana uses an embedded SQLite database by default, so there's no external database to provision. That makes it one of the simplest deployments in the project. You'll also look at when to swap SQLite for PostgreSQL.
+You'll deploy [Grafana OSS](https://grafana.com/oss/grafana/), an open-source observability platform, to Azure Container Apps. Grafana uses an embedded SQLite database by default, so there is no external database to provision. This keeps the deployment small, while the final sections explain when PostgreSQL is a better fit.
 
 ## Learning Objectives
 
@@ -67,15 +67,15 @@ graph TB
 
 > ⚠️ **Storage note:** Grafana uses SQLite by default, which lives inside the container. Dashboards and data sources are lost when the container restarts. See [Storage Considerations](#storage-sqlite-vs-postgresql) for production options.
 
-**Infrastructure directory:** `infra-grafana/` (generated at the repo root when you run the deployment. It won't exist until then)
+**Infrastructure directory:** `infra-grafana/` (generated at the repo root when you run the deployment; it won't exist until then)
 
 ---
 
 ## Deploy with the Agent
 
-You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) with GitHub Copilot to generate and deploy the entire infrastructure through conversation.
+In GitHub Copilot, use the repository's `oss-to-azure-deployer` agent to generate and deploy the infrastructure from your prompts.
 
-> **💡 Tip: Track issues as you go.** When giving GitHub Copilot a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives GitHub Copilot a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
+> **💡 Tip: Track issues as you go.** Add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed"* to your prompt. This keeps generation and deployment problems in one place while you iterate.
 
 ### Step 1: Setup
 
@@ -85,13 +85,13 @@ Make sure you're in the repo root first:
 cd github-azure-agentic-journeys
 ```
 
-Then start GitHub Copilot. Examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started); the app and VS Code agent chat work the same — type the prompts without the leading `>`:
+Then start GitHub Copilot. The examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started). The same prompts work in the app and VS Code agent chat; omit the leading `>` there.
 
 ```bash
 copilot
 ```
 
-If you haven't installed the Azure Skills plugin yet, do it now — it's a one-time setup that adds deployment tools, Bicep schema lookups, and infrastructure generation (details in the root [Quick Start](../../README.md#quick-start)):
+If you haven't installed the Azure Skills plugin yet, do it now. This one-time setup adds deployment tools, Bicep schema lookups, and infrastructure generation; see the root [Quick Start](../../README.md#quick-start) for details.
 
 ```
 > /plugin marketplace add microsoft/azure-skills
@@ -112,7 +112,7 @@ Select **`oss-to-azure-deployer`** from the list. You're now in an interactive s
   <img src="./images/azure-deployment.webp" alt="Deploy Grafana to Azure" width="800" />
 </p>
 
-Tell the agent what you want in a single prompt (OSS shared recipe: location + secrets + resolve issues):
+Give the agent one prompt that covers the location, secrets, and issue handling:
 
 ```
 > Deploy Grafana to Azure using Bicep and azd. Set the location to westus,
@@ -127,15 +127,15 @@ The agent handles the entire deployment:
 3. Updates `azure.yaml`, registers Azure providers, sets environment variables
 4. Runs `azd up`
 
-> ⏳ **While you wait:** This is the fastest deployment in the project — no database to provision. While it runs, consider: *why* is it so fast? Compare the [architecture diagram](#architecture) to the [n8n architecture](../n8n/README.md#architecture). What's missing? (Answer: no database server. SQLite is embedded in the container, which means zero database provisioning time, but that comes with a tradeoff you'll discover in the [Assignment](#assignment).) You can also check what's being created by running `az resource list --resource-group rg-<env-name> --output table` in a separate terminal.
+> ⏳ **While you wait:** This is the fastest deployment in the project because there is no database server to provision. Compare the [architecture diagram](#architecture) with the [n8n architecture](../n8n/README.md#architecture), then consider the persistence tradeoff created by embedded SQLite. You'll test that tradeoff in the [Assignment](#assignment). You can also inspect the resources as they appear by running `az resource list --resource-group rg-<env-name> --output table` in a separate terminal.
 
-You can ask follow-up questions anytime:
+To explore the storage tradeoff, ask:
 
 ```
 > Should I use PostgreSQL instead of SQLite for Grafana?
 ```
 
-The agent explains: SQLite is fine for dev/testing but dashboards are lost on container restart. For production, either mount Azure Files to `/var/lib/grafana` or switch to PostgreSQL.
+A useful answer should explain that SQLite is suitable for development and testing, but dashboards are lost when the container restarts. For production, mount Azure Files at `/var/lib/grafana` or switch to PostgreSQL.
 
 ### Step 3: Verify
 
@@ -149,7 +149,7 @@ For repeatable verification on Windows, macOS, and Linux, have the agent generat
 
 Open the value returned by `azd env get-value GRAFANA_URL` in your browser. Log in with the admin username and the password set during deployment. If you're not sure what password was generated, ask the agent to retrieve it from the deployment environment without printing it in shared logs.
 
-If something goes wrong, just ask. You're still in the same session:
+If verification fails, describe the symptom in the same session so the agent can inspect the deployment context:
 
 ```
 > Grafana is returning 502 errors
@@ -199,6 +199,7 @@ Grafana starts fast (~15-30 seconds) and provides a dedicated health endpoint at
 | Readiness | n/a | 10s | 3 |
 
 Health endpoint response:
+
 ```json
 {"commit": "abc123", "database": "ok", "version": "10.x.x"}
 ```
@@ -224,6 +225,8 @@ GF_DATABASE_SSL_MODE: require
 
 **Alternative:** Mount Azure Files to `/var/lib/grafana` for persistent SQLite.
 
+</details>
+
 ---
 
 ## Cost Breakdown
@@ -234,8 +237,6 @@ GF_DATABASE_SSL_MODE: require
 | Log Analytics | Pay-per-GB | ~$2-5 |
 | **Total (SQLite)** | | **~$10-20/month** |
 | + PostgreSQL (optional) | B_Standard_B1ms | +~$15/month |
-
-</details>
 
 ---
 
@@ -297,6 +298,7 @@ If the agent finds shell escaping issues, use alphanumeric passwords and redeplo
 ### Out of Memory (OOMKilled)
 
 **Fix:** Increase memory in Bicep:
+
 ```bicep
 resources: {
   cpu: json('0.5')
@@ -308,19 +310,9 @@ resources: {
 
 ---
 
-## Cleanup
-
-```bash
-azd down --force --purge
-```
-
-Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
-
----
-
 ## Key Learnings
 
-- **No database doesn't mean no persistence problem.** SQLite is ephemeral in containers. Know this before deploying.
+- **Embedded storage is still a persistence decision.** SQLite data is ephemeral in this container deployment, so plan for that before production.
 - **Scale-to-zero cold starts are normal.** 30-60s on first request isn't an error.
 - **Same agent, different skills.** The agent loaded `grafana-azure` instead of `n8n-azure` and adapted automatically.
 - **Simpler apps mean simpler infrastructure.** No database dependency means fewer moving parts to break.
@@ -335,9 +327,19 @@ Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
    (If an `azd env get-value` lookup fails, just ask the agent: *"Restart my Grafana container app."*)
 
-   Notice your dashboard is gone. Why? Ask the agent: *"Why did my Grafana dashboard disappear after a restart?"*
-2. Try the fix: ask the agent *"How do I make Grafana dashboards persist across restarts?"* and implement what it suggests
-3. Clean up with `azd down --force --purge`
+   After the restart, check whether the dashboard still exists. With the default ephemeral SQLite storage, it should be gone. Ask the agent: *"Why did my Grafana dashboard disappear after a restart?"*
+2. Try the fix: ask the agent *"How do I make Grafana dashboards persist across restarts?"* and implement what it suggests.
+3. When you're done, continue to Cleanup below.
+
+---
+
+## Cleanup
+
+```bash
+azd down --force --purge
+```
+
+Teardown takes 3-5 minutes because deleting the Container Apps environment can be slow.
 
 ---
 

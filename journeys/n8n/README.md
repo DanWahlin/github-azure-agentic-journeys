@@ -6,7 +6,7 @@
   <img src="./images/n8n-workflow-automation.webp" alt="n8n: Workflow Automation on Azure" width="800" />
 </p>
 
-Want workflow automation on Azure but don't want to write Bicep (Azure's infrastructure-as-code language)? Tell an AI agent what you want, and it generates the infrastructure, configures health probes, and deploys it. You'll have [n8n](https://n8n.io), an open-source workflow automation tool (like Zapier, but self-hosted), running on Container Apps with PostgreSQL in about 20–30 minutes.
+In this journey, you'll deploy [n8n](https://n8n.io), an open-source, self-hosted workflow automation tool, to Azure Container Apps with PostgreSQL. An AI agent generates the Bicep infrastructure, configures the health probes, and runs the deployment. Plan on 20–30 minutes for the first run.
 
 ## Learning Objectives
 
@@ -16,7 +16,7 @@ Want workflow automation on Azure but don't want to write Bicep (Azure's infrast
 - Configure health probes for slow-starting containers
 - Troubleshoot common deployment issues using Azure MCP (Model Context Protocol) tools and container logs
 
-> ⏱️ **Estimated Time**: ~20–30 minutes first run (Postgres provision dominates)
+> ⏱️ **Estimated Time**: ~20–30 minutes first run (PostgreSQL provisioning takes most of that time)
 >
 > 💰 **Estimated Cost**: ~$25–35/month **if left running** (see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
 >
@@ -69,7 +69,7 @@ graph TB
 - **Azure Log Analytics**: Centralized monitoring and logging
 - **User-Assigned Managed Identity**: Secure access to Azure resources
 
-**Infrastructure directory:** `infra-n8n/` (generated at the repo root when you run the deployment. It won't exist until then)
+**Infrastructure directory:** `infra-n8n/` (generated at the repo root when you run the deployment; it won't exist until then)
 
 ---
 
@@ -77,7 +77,7 @@ graph TB
 
 You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) with GitHub Copilot to generate and deploy the entire infrastructure through conversation.
 
-> **💡 Tip: Track issues as you go.** When giving GitHub Copilot a prompt, add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed."* This gives GitHub Copilot a place to record problems it finds or fixes during generation, making it easier to iterate and debug.
+> **💡 Tip: Track issues as you go.** Add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed"* to your prompt. This keeps generation and deployment problems in one place while you iterate.
 
 ### Step 1: Setup
 
@@ -87,13 +87,13 @@ Make sure you're in the repo root first:
 cd github-azure-agentic-journeys
 ```
 
-Then start GitHub Copilot. Examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started); the app and VS Code agent chat work the same — type the prompts without the leading `>`:
+Then start GitHub Copilot. The examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started). The same prompts work in the app and VS Code agent chat; omit the leading `>` there.
 
 ```bash
 copilot
 ```
 
-If you haven't installed the Azure Skills plugin yet, do it now — it's a one-time setup that adds deployment tools, Bicep schema lookups, and infrastructure generation (details in the root [Quick Start](../../README.md#quick-start)):
+If you haven't installed the Azure Skills plugin yet, do it now. This one-time setup adds deployment tools, Bicep schema lookups, and infrastructure generation; see the root [Quick Start](../../README.md#quick-start) for details.
 
 ```
 > /plugin marketplace add microsoft/azure-skills
@@ -114,7 +114,7 @@ Select **`oss-to-azure-deployer`** from the list. You're now in an interactive s
   <img src="./images/azure-deployment.webp" alt="Deploy n8n to Azure" width="800" />
 </p>
 
-Tell the agent what you want in a single prompt (OSS shared recipe: location + secrets + probes + resolve issues):
+Give the agent one prompt that covers the location, secrets, health probes, and issue handling:
 
 ```
 > Deploy n8n to Azure using Bicep and azd. Set the location to westus,
@@ -124,16 +124,6 @@ Tell the agent what you want in a single prompt (OSS shared recipe: location + s
   resolve any issues that come up, and log problems to issues.md.
 ```
 
-The deployment takes several minutes. You'll see the agent generating Bicep files, registering Azure providers, and running `azd up`. It may prompt you to confirm your Azure subscription.
-
-> ⏳ **While you wait:** The agent is provisioning your infrastructure. Here are some things to do while it runs:
->
-> 1. Watch your resources appear in real-time. Open the [Azure Portal](https://portal.azure.com) → search for your resource group (`rg-<env-name>`), or run `az resource list --resource-group rg-<env-name> --output table` in a separate terminal.
-> 2. Look at the [architecture diagram](#architecture) above. Match each box to a resource appearing in the portal.
-> 3. Ask the agent: *"What's happening right now? Walk me through the deployment step by step."*
-> 4. **Quiz yourself:** Why does n8n need an approximately five-minute startup window (`failureThreshold: 10` with `periodSeconds: 30`)? (Hint: expand the collapsed **Configuration Reference** section below and check the Health Probes table.)
-> 5. Browse the [n8n workflow templates](https://n8n.io/workflows/) and pick one you want to try after deployment.
-
 The agent handles the entire deployment:
 
 1. Loads the `n8n-azure` and `container-apps-deployment` skills, then follows the Azure plugin pipeline: `azure-prepare` → `azure-validate` → `azure-deploy`
@@ -141,12 +131,22 @@ The agent handles the entire deployment:
 3. Generates modular Bicep infrastructure in `infra-n8n/`
 4. Updates `azure.yaml`, registers Azure providers, sets environment variables
 5. Runs `azd up`
-6. Configures `WEBHOOK_URL` with `infra-n8n/hooks/postprovision.js`, referenced directly from `azure.yaml`. The JavaScript hook uses Node.js and works on Windows, macOS, and Linux without Bash or PowerShell-specific syntax. Because the update creates a replacement Container App revision, the hook must require both `/healthz` and `/` to return HTTP 200 for six consecutive probes over 30 seconds before it exits.
+6. Configures `WEBHOOK_URL` with `infra-n8n/hooks/postprovision.js`, referenced directly from `azure.yaml`. This cross-platform Node.js hook avoids Bash- or PowerShell-specific syntax. Because the update creates a replacement Container App revision, the hook must not exit until both `/healthz` and `/` return HTTP 200 for six consecutive probes over 30 seconds.
+
+The deployment takes several minutes. You'll see the agent generating Bicep files, registering Azure providers, and running `azd up`. It may prompt you to confirm your Azure subscription.
+
+> ⏳ **While you wait:** Use the deployment time to connect the generated resources to the architecture:
+>
+> 1. Watch your resources appear in real-time. Open the [Azure Portal](https://portal.azure.com) → search for your resource group (`rg-<env-name>`), or run `az resource list --resource-group rg-<env-name> --output table` in a separate terminal.
+> 2. Look at the [architecture diagram](#architecture) above. Match each box to a resource appearing in the portal.
+> 3. Ask the agent: *"What's happening right now? Walk me through the deployment step by step."*
+> 4. **Quiz yourself:** Why does n8n need an approximately five-minute startup window (`failureThreshold: 10` with `periodSeconds: 30`)? (Hint: expand the collapsed **Configuration Reference** section below and check the Health Probes table.)
+> 5. Browse the [n8n workflow templates](https://n8n.io/workflows/) and pick one you want to try after deployment.
 
 You can ask follow-up questions anytime during or after generation:
 
 ```
-> Why did you set the liveness probe to 60 seconds?
+> Why does the liveness probe have a 60-second initial delay?
 > What does the post-provision hook do?
 ```
 
@@ -162,7 +162,7 @@ The agent uses `azure_deploy_app_logs` (an Azure MCP tool that fetches container
 
 Generate `scripts/verify-n8n.mjs` and run it with `node scripts/verify-n8n.mjs`. The portable verifier must read `N8N_URL` through `azd`, poll `/healthz` for HTTP 200, require HTTP 200 from the UI, and use Playwright's bundled Chromium to assert the rendered page is either **Set up owner account** or the normal n8n login screen. HTTP 401 is not an acceptable substitute for this check.
 
-If something goes wrong, just ask. You're still in the same session with full context:
+If verification fails, describe the symptom in the same session so the agent can inspect the deployment context:
 
 ```
 > The container is in CrashLoopBackOff, what's happening?
@@ -228,6 +228,8 @@ Sensitive values are stored as Container App secrets and referenced via `secretR
 
 Current n8n releases use built-in user management. On first launch, complete the **Set up owner account** flow. Do not generate or configure the removed `N8N_BASIC_AUTH_*` variables.
 
+</details>
+
 ---
 
 ## Cost Breakdown
@@ -239,9 +241,7 @@ Current n8n releases use built-in user management. On first launch, complete the
 | Log Analytics | Pay-per-GB (30-day retention) | ~$2-5 |
 | **Total** | | **~$25-35/month** |
 
-Scale-to-zero keeps costs low during idle periods. For production with `minReplicas: 1`, expect ~$60-80/month for Container Apps alone.
-
-</details>
+After verification, you can set `minReplicas: 0` to reduce idle costs through scale-to-zero. If you keep `minReplicas: 1` for production, expect ~$60-80/month for Container Apps alone.
 
 ---
 
@@ -315,20 +315,10 @@ param n8nEncryptionKey string = newGuid()
 
 ---
 
-## Cleanup
-
-```bash
-azd down --force --purge
-```
-
-Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently deletes all data. Export workflows first.
-
----
-
 ## Key Learnings
 
-- **Post-provision hooks** solve circular dependencies (like WEBHOOK_URL needing the deployed URL)
-- **Azure MCP tools** give the agent real-time access to Bicep schemas. It's looking up actual API versions, not guessing.
+- **Post-provision hooks** solve circular dependencies (like WEBHOOK_URL needing the deployed URL).
+- **Azure MCP tools provide current Bicep schemas.** This lets the agent use actual API versions instead of guessing.
 - **Register providers first.** This prevents 409 conflicts during deployment.
 - **Same agent, different skills.** The agent loaded `n8n-azure` and adapted to n8n's specific requirements automatically.
 
@@ -338,7 +328,17 @@ Teardown takes 3-5 minutes (PostgreSQL deletion is slow). This permanently delet
 
 1. Ask the agent: *"How would I add a custom domain to my n8n deployment?"*
 2. Create a simple workflow in n8n: add an HTTP Request node that calls `https://api.github.com/zen`, connect it to a Set node, and run it. This confirms your deployed n8n instance can make outbound API calls.
-3. Clean up with `azd down --force --purge`
+3. When you're done, continue to Cleanup below.
+
+---
+
+## Cleanup
+
+```bash
+azd down --force --purge
+```
+
+Teardown takes 3-5 minutes because PostgreSQL deletion can be slow. This permanently deletes all data, so export your workflows first.
 
 ---
 

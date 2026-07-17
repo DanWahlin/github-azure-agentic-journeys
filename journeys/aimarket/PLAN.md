@@ -1,6 +1,6 @@
 # AIMarket: AI-Powered Marketplace — Spec
 
-Marketplace API + React storefront with AI-powered semantic search and a shopping assistant. This document is the spec — GitHub Copilot reads it to generate the implementation.
+AIMarket is a marketplace API and React storefront with semantic search and an AI shopping assistant. GitHub Copilot uses this document as the implementation spec.
 
 **Out of scope:** No auth, no payments, no image upload, no email, no admin dashboard, no rate limiting, no WebSockets.
 
@@ -17,7 +17,7 @@ Pick your API language. Data models, endpoints, and acceptance criteria are iden
 | **Framework** | Express + TypeScript | FastAPI | ASP.NET Core Minimal APIs | Spring Boot |
 | **SQLite** | `better-sqlite3` | `sqlite3` (stdlib) | `Microsoft.Data.Sqlite` | `JdbcTemplate` + SQLite |
 
-Frontend is always React 18 + Tailwind CSS. AI via **gpt-5-mini on Microsoft Foundry** (fallback to gpt-4.1 if unavailable in your region). Deploy with **azd** + **Bicep**, preferring Azure Verified Modules (AVM) with raw `Microsoft.*` fallback when AVM blocks deployment. See [`data-access-abstraction` skill](../../.github/skills/data-access-abstraction/SKILL.md) for repository pattern examples in all four languages.
+The frontend is always React 18 + Tailwind CSS. AI uses **gpt-5-mini on Microsoft Foundry** (with gpt-4.1 as the fallback if gpt-5-mini is unavailable in your region). Deploy with **azd** + **Bicep**, preferring Azure Verified Modules (AVM) with raw `Microsoft.*` resources when AVM blocks deployment. See the [`data-access-abstraction` skill](../../.github/skills/data-access-abstraction/SKILL.md) for repository pattern examples in all four languages.
 
 ## Project Structure
 
@@ -29,7 +29,7 @@ aimarket/
 └── azure.yaml    # azd configuration (Phase 4)
 ```
 
-The API must follow the **repository pattern** (interfaces → implementations → factory) so the data layer can swap between SQLite (local) and Cosmos DB/PostgreSQL (Azure) via `DATA_PROVIDER` env var.
+The API must follow the **repository pattern** (interfaces → implementations → factory) so routes stay independent of the data layer. SQLite is the default implementation. A Cosmos DB or PostgreSQL deployment also requires its repository implementation, database infrastructure, credentials, and `DATA_PROVIDER` configuration.
 
 ---
 
@@ -39,7 +39,7 @@ Build the API with a local SQLite database. No Azure services needed yet.
 
 ### Data Access Layer
 
-Repository contracts — define as interfaces/protocols per your language:
+Define these repository contracts as interfaces or protocols in your chosen language:
 
 ```
 ProductRepository:
@@ -60,11 +60,11 @@ UserRepository:
   getByEmail(email) → User | null
 ```
 
-Factory reads `DATA_PROVIDER` env var (default `sqlite`), returns the matching implementation. Routes never import database clients directly.
+The factory reads the `DATA_PROVIDER` environment variable (default: `sqlite`) and returns the matching implementation. Routes never import database clients directly.
 
-**SQLite notes:** Store arrays/objects as JSON strings, parse on read. Use `order_items` junction table for order line items. Set `journal_mode=WAL` and `foreign_keys=ON`. DB file: `api/aimarket.db` (add to `.gitignore`).
+**SQLite notes:** Store arrays and objects as JSON strings, then parse them on read. Use an `order_items` junction table for order line items. Set `journal_mode=WAL` and `foreign_keys=ON`. Store the database at `api/aimarket.db` and add it to `.gitignore`.
 
-**API entry point:** Enable CORS, parse JSON, expose `GET /api/health` → `{status:"ok"}`, mount routes at `/api/{products,orders,users,chat}`, global error handler last.
+**API entry point:** Enable CORS, parse JSON, expose `GET /api/health` → `{status:"ok"}`, mount routes at `/api/{products,orders,users,chat}`, and register the global error handler last.
 
 ### Data Models
 
@@ -80,7 +80,7 @@ Factory reads `DATA_PROVIDER` env var (default `sqlite`), returns the matching i
 | category | string | yes | Must be one of: `Electronics`, `Clothing`, `Home`, `Sports`, `Books`, `Toys` |
 | tags | string[] | no | Defaults to `[]` |
 | inventory | number | yes | >= 0, integer |
-| rating | number | no | 1.0–5.0, default `0` |
+| rating | number | no | 0 means unrated; otherwise 1.0–5.0. Default `0` |
 | reviewCount | number | no | >= 0, default `0` |
 | imageUrl | string | no | Valid URL or empty string |
 | sellerId | string | yes | Must reference an existing user with role `seller` |
@@ -352,6 +352,7 @@ Use Unsplash image URLs for `imageUrl`. Format: `https://images.unsplash.com/pho
 | `order-2` | `user-buyer-1` | prod-4 × 3 ($34.99 each) | 104.97 | pending |
 
 **Note:** Seed orders are pre-loaded historical data. They do **not** decrement product inventory. Inventory values in the products table represent current stock.
+
 ---
 
 ## Phase 2: Frontend
@@ -431,13 +432,14 @@ export async function sendChatMessage(messages: ChatMessage[]): Promise<string>
 ```
 
 **URL convention:** Endpoint paths in the client (e.g., `/products`, `/orders`) do NOT include the `/api` prefix — that's part of `API_BASE`. In development, the Vite proxy maps `/api` → `localhost:3000/api`. In production, set `VITE_API_URL` to the full API base including `/api` (e.g., `https://ca-api-xxx.azurecontainerapps.io/api`).
+
 ---
 
 ## Phase 3: AI Features
 
 Add semantic search and a shopping assistant.
 
-**Local vs deploy:** Implement endpoints with graceful fallbacks (SQLite LIKE for search; chat returns 503 without credentials) so Phase 3 works without long-lived standalone AI resources. **Phase 4 provisions Azure AI Search + Microsoft Foundry** and wires env vars into Container Apps. Optional: use temporary local credentials to test AI before deploy—do not create a second permanent Search/Foundry pair if Phase 4 will provision them.
+**Local development and deployment:** Implement endpoints with graceful fallbacks (SQLite LIKE for search; chat returns 503 without a Foundry endpoint) so Phase 3 works without long-lived standalone AI resources. **Phase 4 provisions Azure AI Search + Microsoft Foundry**, injects the Search key, and configures managed-identity authentication for Foundry. You can use temporary local credentials to test AI before deployment, but don't create a second permanent Search/Foundry pair if Phase 4 will provision them.
 
 ### AI Feature 1: Semantic Product Search
 
@@ -505,7 +507,7 @@ Only `query` is required. `category`, `minPrice`, and `maxPrice` are optional fi
 - Uses Azure AI Search with semantic ranking (query type: `semantic`)
 - Falls back to simple text search if Azure AI Search is unavailable
 - Returns top 10 results ranked by semantic relevance
-- Each result includes a `score` (0-1) from Azure AI Search
+- Each result includes an API-normalized `score` from 0 to 1. Normalize the semantic reranker score from its 0–4 range, or squash the unbounded BM25 score into the same 0–1 contract before returning it.
 - **Two-step process:** Search returns IDs and scores from the index, then the API fetches full product details (including `shortDescription`, `imageUrl`) from the database and merges them into the response
 
 #### Indexing
@@ -572,9 +574,10 @@ Current catalog:
 
 ### Environment Variables (Phase 3)
 
-`AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_KEY`, `AZURE_SEARCH_INDEX` (default: `aimarket-products`), `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_KEY`, `AZURE_OPENAI_DEPLOYMENT` (default: `gpt-5-mini`).
+`AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_KEY`, `AZURE_SEARCH_INDEX` (default: `aimarket-products`), `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT` (default: `gpt-5-mini`), and optional `AZURE_OPENAI_KEY` for local testing.
 
-When not set: search falls back to SQLite LIKE queries; `/api/chat` returns 503.
+When Azure AI Search variables are not set, search falls back to SQLite LIKE queries. When `AZURE_OPENAI_ENDPOINT` is not set, `/api/chat` returns 503. In Azure, authenticate to Foundry with the API Container App's managed identity and the `Cognitive Services User` role. For optional local testing, use `AZURE_OPENAI_KEY` as a fallback.
+
 ---
 
 ## Phase 4: Deploy to Azure
@@ -605,18 +608,18 @@ The Azure Skills plugin for GitHub Copilot provides MCP tools and plugin skills 
 
 ### Azure Resources
 
-Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resources. If an AVM module blocks deployment (parameter drift, unsupported passthrough, or schema mismatch), switch that single resource to a raw `Microsoft.*` Bicep resource and document why. For resources that require `listKeys()` or `listCredentials()` to wire secrets into Container App env vars, use deterministic `existing` resource references with `dependsOn` on the AVM module.
+Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resources. If an AVM module blocks deployment (parameter drift, unsupported passthrough, or schema mismatch), switch that single resource to a raw `Microsoft.*` Bicep resource and document why. For a resource that requires a key, such as Azure AI Search, use a deterministic `existing` resource reference with `dependsOn` on the AVM module before calling `listAdminKeys()`.
 
 | Resource | Module / Approach | Purpose |
 |----------|------------------|---------|
-| Monitoring | `br/public:avm/ptn/azd/monitoring` | Log Analytics + App Insights |
+| Monitoring | `br/public:avm/ptn/azd/monitoring` | Log Analytics + Application Insights |
 | Container Registry | `br/public:avm/res/container-registry/registry`; use Azure CLI authentication for pushes and managed identity for pulls | Docker images |
 | Azure AI Search | `br/public:avm/res/search/search-service` (Basic SKU — required for semantic ranking) + `existing` ref for `listAdminKeys()` | Semantic product search |
 | Container Apps Env | `br/public:avm/res/app/managed-environment` | Hosts API + frontend |
 | Container Apps (×2) | `br/public:avm/res/app/container-app` | API + web |
-| Microsoft Foundry | `br/public:avm/ptn/ai-ml/ai-foundry` (`baseName` max 12 chars, `aiModelDeployments` array for gpt-5-mini, `aiFoundryConfiguration.disableLocalAuth: false`) | gpt-5-mini model hosting (fallback: gpt-4.1). Outputs: `aiServicesName`, `aiProjectName`. Use an `existing` ref on the AI Services account to call `listKeys()`. |
+| Microsoft Foundry | `br/public:avm/ptn/ai-ml/ai-foundry` (`baseName` max 12 chars, `aiModelDeployments` array for gpt-5-mini, `aiFoundryConfiguration.disableLocalAuth: false`) | gpt-5-mini model hosting (fallback: gpt-4.1). Outputs: `aiServicesName`, `aiProjectName`. The API authenticates with managed identity. |
 
-**Pattern for wiring secrets:** At subscription scope, `existing` resource references cannot use `dependsOn`, so `listKeys()` calls can fail before a resource exists. Create resource-group-scoped wrapper modules for AI Search and AI Services, then use deterministic `existing` references with `dependsOn` to read their keys. Do not extract or inject ACR admin credentials. Container image pulls must use each Container App's system-assigned identity with `AcrPull`.
+**Pattern for wiring secrets:** At subscription scope, `existing` resource references cannot use `dependsOn`, so `listAdminKeys()` calls can fail before a resource exists. Create a resource-group-scoped wrapper module for Azure AI Search, then use a deterministic `existing` reference with `dependsOn` to read its admin key. Do not extract a Foundry key or ACR admin credentials. Foundry uses managed identity, and container image pulls use each Container App's system-assigned identity with `AcrPull`.
 
 ### Bicep Requirements
 
@@ -624,7 +627,7 @@ Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resourc
 2. **Deterministic naming** — all resources named with `${abbrs.xxx}${resourceToken}` so `existing` refs can resolve
 3. **`azd-service-name` tags** on each container app (azd maps services by tag): `api` and `web` (web serves on port 80)
 4. **Output `AZURE_CONTAINER_REGISTRY_ENDPOINT`** (azd reads this for image push)
-5. **Wire AI credentials** into API container env vars via secrets using `listKeys()` / `listAdminKeys()`
+5. **Wire Azure AI Search credentials** into API container secrets using `listAdminKeys()`. Configure Foundry with `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT`; do not inject a Foundry API key into the deployed app.
 6. **Azure AI Search** — use `basic` SKU (not `free`), set `disableLocalAuth: false`, and set `semanticSearch: 'free'` to enable the semantic ranker
 7. **Microsoft Foundry** — use `br/public:avm/ptn/ai-ml/ai-foundry` with `baseName` (max 12 chars), `aiModelDeployments` array for gpt-5-mini, and `aiFoundryConfiguration.disableLocalAuth: false`. Enable system-assigned managed identity on the API container app.
 8. **Managed identity for Foundry** — assign the `Cognitive Services User` role (`a97b65f3-24c7-4388-baec-2e87135dc908`) from the API container app's managed identity to the AI Services resource. This allows the API to authenticate to Microsoft Foundry without API keys.
@@ -639,4 +642,8 @@ Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resourc
 1. Read the subscription with `az account show --query id -o tsv`, set `AZURE_SUBSCRIPTION_ID` to that value, then run `azd up`.
 2. **Required postdeploy hook:** Generate `infra/hooks/postdeploy.js` and reference it directly from `azure.yaml` without `shell: sh`. The JavaScript hook uses `child_process` argument arrays to rebuild the web image with `VITE_API_URL=<API_URL>/api`, target `linux/amd64`, push to ACR, and update the web Container App. First-time success must not require a manual rebuild.
 3. **Any ARM64 host:** Prefer a remote ACR AMD64 build. If building locally, verify emulation during preflight and use `$BUILDPLATFORM` for the static frontend build stage. Never install privileged binfmt/QEMU handlers automatically.
-4. Set `DATA_PROVIDER=cosmos` or `DATA_PROVIDER=postgres` to switch from SQLite to a cloud database
+4. To replace SQLite, first implement the corresponding repository, provision the chosen cloud database, and configure its credentials. Then set `DATA_PROVIDER=cosmos` or `DATA_PROVIDER=postgres`.
+
+### Deployment Acceptance Criteria
+
+Deployment is complete only when `scripts/verify-deployment.mjs` reads `API_URL` and `WEB_URL` through `azd` and passes every required check: `/api/health`, all 10 products, semantic search, a catalog-grounded chat response, storefront HTTP 200, the production API URL in the built frontend, and every product image. After completing the README assignment, run `azd down --force --purge`.
