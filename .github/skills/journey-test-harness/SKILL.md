@@ -1,270 +1,199 @@
 ---
 name: journey-test-harness
 description: |
-  Run all journeys end-to-end as a test suite. Discovers every journey in journeys/*, runs each through journey-runner with deploy + teardown, captures screenshots of web apps, and produces a summary report.
-  USE FOR: test all journeys, regression test, CI journey validation, nightly journey test, end-to-end journey suite, validate all journeys deploy correctly.
-  DO NOT USE FOR: running a single journey interactively (use journey-runner), creating new journeys (use journey-template), reviewing journey content (use content-reviewer).
+  Run multiple journeys as a cross-platform test suite. Discover journeys, invoke journey-runner in isolated workspaces, deploy, verify, capture screenshots, clean up only owned Azure resources, and produce a consolidated report.
+  USE FOR: test all journeys, regression test, CI journey validation, nightly journey test, end-to-end journey suite, validate journeys deploy correctly.
+  DO NOT USE FOR: running one journey interactively (use journey-runner), creating journeys (use journey-template), or reviewing content (use content-reviewer).
 ---
 
 # Journey Test Harness
 
-Orchestrate the `journey-runner` skill across every journey in this repository. This skill discovers journeys, runs each one end-to-end (build → deploy → screenshot → teardown), and produces a consolidated pass/fail report.
-
-## When to Use
-
-- Regression testing after changes to skills, agents, or journey READMEs
-- Nightly or weekly CI validation that all journeys still deploy successfully
-- Pre-release gate to confirm nothing is broken before merging
+Orchestrate `journey-runner` across the selected journey directories. The harness must work on Windows, macOS, and Linux and must never delete an Azure environment merely because it appears in `azd env list`.
 
 ## Inputs
 
-The harness accepts these parameters from the user prompt:
+1. **Journeys**, default `all`
+2. **Stack**, default Node.js/TypeScript for multi-stack journeys
+3. **Deploy**, default `true`
+4. **Location**, default `westus`
+5. **Concurrency**, default `1`; increase only when quota, local ports, and API limits allow it
 
-1. **Language** (optional) — default `Node.js/TypeScript`. Applies to full-stack journeys (smart-todo, aimarket) that have a `[YOUR LANGUAGE]` placeholder. OSS journeys ignore this.
-2. **Journeys** (optional) — default `all`. A comma-separated list of journey folder names (e.g., `n8n,grafana`) or `all` to run everything in `journeys/*/`.
-3. **Skip deploy** (optional) — default `false`. If `true`, only build/test locally without deploying to Azure.
-4. **Location** (optional) — default `westus`. Azure region for deployments.
+Each deployed journey uses `cleanup: after-verification` unless the user explicitly requests otherwise.
 
-## Execution Flow
+## Step 1: Discover Journeys
 
-### Step 1: Discover Journeys
+Use repository file-search APIs or Node.js `fs.readdir()` to find `journeys/*/README.md`. Do not use `ls | sed`, shell globs, or platform-specific path parsing.
 
-Scan `journeys/*/README.md` to build the list of journeys to test:
+For each journey, record:
 
-```bash
-JOURNEYS=$(ls -d journeys/*/README.md | sed 's|journeys/||;s|/README.md||')
-```
+- Folder name and absolute source path
+- Journey type
+- `PLAN.md` presence
+- Required and optional tools from the journey prerequisite section
+- Estimated cost and time
+- Screenshot requirement
 
-If the user specified a subset (e.g., `journeys=n8n,grafana`), filter to only those.
+Filter only against the discovered folder names. Fail early for an unknown requested journey.
 
-Output the discovery result:
+## Step 2: Suite Preflight
 
-```
-═══════════════════════════════════════════
-  Journey Test Harness
-  Journeys found: 5
-  Language: Node.js/TypeScript
-  Deploy: Yes
-  Location: westus
-═══════════════════════════════════════════
+Load `journey-runner` and run its cross-platform preflight before creating any workspace or Azure resource.
 
-  1. aimarket    (full-stack)
-  2. grafana     (OSS)
-  3. n8n         (OSS)
-  4. smart-todo  (full-stack)
-  5. superset    (OSS)
-```
+The union of selected-journey requirements may include:
 
-### Step 2: Prerequisites Check
+- Node.js 24 LTS or later
+- Azure CLI and valid authentication
+- `azd` 1.28.0 or later with `auth.useAzCliAuth=true`
+- GitHub Copilot CLI
+- Docker daemon and Buildx for AIMarket
+- `kubectl` and Helm 3 for Superset
+- Azure Functions Core Tools v4, Azurite, and Go-based `sqlcmd` for SmartTodo
+- The pinned Playwright package and bundled Chromium for web screenshots
+- Xcode 16+ only when SmartTodo iOS execution is requested on macOS
 
-Before running any journey, verify shared prerequisites:
+Use `.github/skills/journey-runner/scripts/check-prerequisites.mjs` with the union of required tools. Missing required tools stop the whole suite before provider registration. Do not install system tools during the suite.
 
-```bash
-az --version
-azd version
-node --version
-docker --version 2>/dev/null || echo "Docker not available (some journeys may skip)"
-```
+## Step 3: Azure Preparation
 
-Also verify Azure authentication:
+Check Azure CLI and `azd` authentication separately. Confirm the intended subscription and location.
 
-```bash
-az account show --query "{subscription:name, id:id}" -o table
-```
+Register only providers required by selected journeys. Run provider commands as individual processes with argument arrays, not shell loops. Wait for required registrations before starting the first deployment.
 
-If not authenticated, stop and report.
+Record the subscription ID and each provider's state in the suite report.
 
-### Step 3: Register Azure Providers (once)
+## Step 4: Create Suite and Journey Workspaces
 
-Run provider registration once before the first journey:
+Create directories through Node.js filesystem APIs or the active agent's file tools:
 
-```bash
-az provider register --namespace Microsoft.App --wait
-az provider register --namespace Microsoft.DBforPostgreSQL --wait
-az provider register --namespace Microsoft.OperationalInsights --wait
-az provider register --namespace Microsoft.ContainerService --wait
-az provider register --namespace Microsoft.Web --wait
-az provider register --namespace Microsoft.Sql --wait
-az provider register --namespace Microsoft.CognitiveServices --wait
-```
-
-### Step 4: Create Suite Results Folder
-
-Before running any journey, create a top-level suite results folder that outlives per-journey working directories:
-
-```bash
-SUITE_DIR=~/journey-runs/test-suite-$(date +%Y%m%d-%H%M%S)
-mkdir -p "$SUITE_DIR/screenshots"
-```
-
-All screenshots and the final report go here. Per-journey folders are **deleted** after each journey completes.
-
-### Step 5: Run Each Journey
-
-For each journey, follow this sequence:
-
-#### 5a. Create an isolated working directory
-
-All generated infrastructure, `azure.yaml`, and build artifacts go in the working directory — **never in the source repo**:
-
-```bash
-JOURNEY_DIR=~/journey-runs/<journey-name>-$(date +%Y%m%d-%H%M%S)
-mkdir -p "$JOURNEY_DIR"
-cd "$JOURNEY_DIR"
-```
-
-Copy only `PLAN.md` from the repo if it exists (full-stack journeys):
-
-```bash
-cp /path/to/journeys/<journey-name>/PLAN.md . 2>/dev/null
-```
-
-#### 5b. Execute via journey-runner
-
-Invoke the **journey-runner** skill with:
-
-```
-Run the <journey-name> journey end-to-end and tear down when done.
-Stack: <language>
-Location: <location>
-Working directory: <JOURNEY_DIR>
-```
-
-The journey-runner generates all infrastructure (`azure.yaml`, `infra/`, Bicep, hooks) **inside the working directory**, not the source repo.
-
-#### 5c. Capture screenshot
-
-After deployment and verification, if the journey has a web frontend, capture a screenshot and copy it to the suite folder:
-
-```bash
-cp "$JOURNEY_DIR/screenshot-<journey>.png" "$SUITE_DIR/screenshots/" 2>/dev/null
-```
-
-Screenshot mapping by journey:
-
-| Journey | Web URL Output | Screenshot? |
-|---------|---------------|-------------|
-| n8n | `N8N_URL` | Yes (login page) |
-| grafana | `GRAFANA_URL` | Yes (login page) |
-| superset | `SUPERSET_URL` | Yes (login page) |
-| aimarket | `WEB_URL` or `FRONTEND_URL` | Yes (storefront) |
-| smart-todo | None (iOS app) | No — API only |
-
-#### 5d. Tear down Azure resources
-
-Always run teardown regardless of success or failure:
-
-```bash
-cd "$JOURNEY_DIR"
-azd down --force --purge --no-prompt
-```
-
-#### 5e. Delete per-journey working directory
-
-After Azure teardown is complete and screenshots are saved to the suite folder, delete the per-journey folder:
-
-```bash
-rm -rf "$JOURNEY_DIR"
-```
-
-#### 5f. Clean azd state between journeys
-
-```bash
-azd env list 2>/dev/null | grep -v "NAME" | awk '{print $1}' | xargs -I{} azd env delete {} --yes 2>/dev/null
-```
-
-### Step 6: Generate Consolidated Report
-
-After all journeys complete, generate a summary report and save it to the suite folder:
-
-```
-═══════════════════════════════════════════════════════
-  Journey Test Harness — Consolidated Report
-  Date: 2026-04-12T00:00:00Z
-  Language: Node.js/TypeScript
-  Location: westus
-  Total Duration: 2h 15m
-═══════════════════════════════════════════════════════
-
-  Journey         Type        Build   Deploy  Verify  Cleanup  Result
-  ─────────────────────────────────────────────────────────────────────
-  n8n             OSS         ✅      ✅      ✅      ✅       PASS
-  grafana         OSS         ✅      ✅      ✅      ✅       PASS
-  superset        OSS         ✅      ✅      ⚠️      ✅       PARTIAL
-  smart-todo      full-stack  ✅      ✅      ✅      ✅       PASS
-  aimarket        full-stack  ✅      ❌      —       ✅       FAIL
-
-  Summary: 3 PASS | 1 PARTIAL | 1 FAIL
-  Screenshots: 3 captured (see screenshots/)
-
-  Details:
-    superset: Verification warning — /health returned 503 on first attempt (cold start), passed on retry
-    aimarket: Deploy failed — quota exceeded for Microsoft.CognitiveServices in westus
-
-═══════════════════════════════════════════════════════
-```
-
-Save this report to `$SUITE_DIR/test-report.md`.
-
-Timing should come from simple start/end values captured at suite setup, not shell cleverness. Avoid nested command substitution, indirect expansion, parameter transformation, and large here-doc shell commands when building the report. If markdown generation gets complex, write the report file directly instead of using a fragile one-liner.
-
-Do not call `upload-screenshots` or `upload_screenshots`; no screenshot-upload tool is available by default. Keep screenshots in `$SUITE_DIR/screenshots/` and list filenames/paths in the report unless the workflow explicitly provides a real artifact-upload step.
-
-The suite folder structure after completion:
-
-```
-~/journey-runs/test-suite-20260412-060000/
+```text
+<journey-runs-root>/test-suite-<UTC timestamp>/
 ├── test-report.md
-└── screenshots/
-    ├── screenshot-grafana.png
-    ├── screenshot-n8n.png
-    ├── screenshot-superset.png
-    └── screenshot-aimarket.png
+├── screenshots/
+└── runs/
+    └── <journey>-<UTC timestamp>/
 ```
 
-## Journey-Specific Notes
+Use `path.join()` and absolute paths. Don't embed `~/`, `date`, `mkdir`, or shell-specific separators in executable instructions.
 
-### OSS Journeys (n8n, grafana, superset)
+Copy `PLAN.md` with `fs.copyFile()` when needed. Generated application code, infrastructure, logs, and secrets stay inside the isolated run directory, never the source repository.
 
-- Use `@oss-to-azure-deployer` agent flow
-- No language choice needed
-- Infrastructure is generated fresh each run
-- Prefer AVM modules, but if AVM parameter drift blocks the run, use raw `Microsoft.*` Bicep/ARM for that resource and document the reason in the report
-- If the journey creates its own resource group, split subscription-scope `main.bicep` from resource-group-scope `resources.bicep`
-- Superset uses AKS (longer deploy, ~15 min)
+## Step 5: Run Each Journey
 
-### Full-Stack Journeys (smart-todo, aimarket)
+Invoke `journey-runner` with:
 
-- Replace `[YOUR LANGUAGE]` with the chosen stack
-- Copy `PLAN.md` to working directory
-- smart-todo: Skip Phase 2 (iOS/SwiftUI) in CI — no Xcode available. Test API + deploy only.
-- aimarket: Needs Docker for container image builds
-
-## Error Handling
-
-| Scenario | Action |
-|----------|--------|
-| Journey fails to build | Log as FAIL, continue to next journey |
-| Deployment fails | Log error, attempt `azd down` cleanup anyway, continue |
-| Verification fails | Log as PARTIAL (if some pass) or FAIL (if all fail), continue |
-| Teardown fails | Log warning, continue (Azure resources may be orphaned) |
-| Azure quota exceeded | Log as BLOCKED, skip deployment, continue |
-| Timeout (>30 min per journey) | Kill deployment, attempt cleanup, log as TIMEOUT |
-
-## How to Invoke
-
-```
-> Run the journey test harness
+```text
+Journey: <journey-source-path>
+Stack: <stack>
+Location: <location>
+Working directory: <absolute-run-directory>
+Cleanup: after-verification
 ```
 
-```
-> Run the journey test harness with Python for full-stack journeys
-```
+The runner owns per-journey preflight, prompts, local ports, deployment, verification, screenshots, and scoped cleanup.
 
-```
-> Run the journey test harness for n8n and grafana only
-```
+Run serially by default. Parallel runs require:
 
-```
-> Run the journey test harness but skip deployment
-```
+- Distinct local ports
+- Distinct `azd` environment names
+- Distinct resource groups
+- Sufficient regional quota
+- Independent log and screenshot paths
+
+Never share an `azd` environment across journeys.
+
+## Step 6: Preserve Evidence
+
+Before removing a run directory, copy these artifacts with Node.js filesystem APIs:
+
+- `run-report.md`
+- `issues.md`
+- `screenshot-*.png`
+- Sanitized deployment and verification logs
+
+Use the mapping below:
+
+| Journey | Web output | Screenshot |
+|---|---|---|
+| Grafana | `GRAFANA_URL` | Login page |
+| n8n | `N8N_URL` | Owner-setup or login page |
+| Superset | `SUPERSET_URL` | Authenticated welcome page when credentials are available |
+| AIMarket | `WEB_URL` | Storefront with all images loaded |
+| SmartTodo | None | No screenshot on Windows/Linux; simulator screenshot only on a suitable macOS/Xcode host |
+
+Use journey-runner's pinned Playwright Chromium helper. Never use a branded Chrome channel.
+
+## Step 7: Guaranteed Scoped Cleanup
+
+Cleanup runs in a `finally` path after each deployment attempt, including build, deployment, verification, or screenshot failures.
+
+For each journey, delete only:
+
+- Its explicitly recorded `azd` environment
+- Its explicitly recorded resource groups and managed resource groups
+- Soft-deleted resources whose names were recorded as owned by that run
+
+Never run a pipeline over every row from `azd env list`. Other environments may belong to unrelated work.
+
+After `azd down --force --purge --no-prompt`, verify:
+
+- Recorded resource groups return not found
+- No active resource remains with that run's environment tag
+- Any owned soft-deleted resource selected for purge is absent
+- Unrelated environments and resource groups remain unchanged
+
+If cleanup is incomplete, preserve the workspace and list exact remaining resource IDs in the consolidated report.
+
+## Step 8: Workspace Retention
+
+Delete a per-journey working directory only when all of these are true:
+
+1. Evidence was copied successfully.
+2. Azure cleanup was live-verified.
+3. The user didn't request generated code retention.
+4. No unresolved cleanup or debugging artifact depends on the directory.
+
+Use Node.js `fs.rm(path, { recursive: true, force: true })` on the exact recorded run directory. Never construct a deletion path from untrusted output.
+
+## Step 9: Consolidated Report
+
+Write `test-report.md` directly with file tools or Node.js. Don't build Markdown through a large shell one-liner.
+
+Include:
+
+- UTC start/end and total duration
+- Host OS and architecture
+- Tool versions
+- Subscription and location
+- Selected journeys and stack
+- Build, deployment, verification, screenshot, and cleanup status per journey
+- Preserved artifact paths
+- Exact blockers and remaining resource IDs
+
+Example result table:
+
+| Journey | Build | Deploy | Verify | Screenshot | Cleanup | Result |
+|---|---:|---:|---:|---:|---:|---:|
+| Grafana | PASS | PASS | PASS | PASS | PASS | PASS |
+| n8n | PASS | PASS | PASS | PASS | PASS | PASS |
+| Superset | PASS | PASS | PASS | PASS | PASS | PASS |
+| AIMarket | PASS | PASS | PASS | PASS | PASS | PASS |
+| SmartTodo | PASS | PASS | PASS | N/A on Linux/Windows | PASS | PASS |
+
+A journey can't receive PASS when cleanup was requested but not verified.
+
+## Failure Policy
+
+- Missing prerequisite: stop before Azure work.
+- Build failure: one evidence-based repair, then mark FAIL.
+- Deployment failure: collect diagnostics, then run scoped cleanup.
+- Verification failure: retry only documented transient cases, then mark FAIL.
+- Screenshot failure: preserve logs and continue to cleanup; mark PARTIAL only if all functional checks passed.
+- Cleanup failure: mark FAIL and preserve the run directory.
+
+## Safety Rules
+
+- Never install system packages or privileged emulation automatically.
+- Never delete all `azd` environments.
+- Never broaden cleanup scope after a failed deletion.
+- Never expose credentials, cookies, authorization headers, connection strings, or generated secrets.
+- Never claim macOS, Windows, iOS, or browser verification that didn't actually run.

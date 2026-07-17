@@ -88,6 +88,8 @@ Factory reads `DATA_PROVIDER` env var (default `sqlite`), returns the matching i
 | createdAt | string | auto | ISO 8601, set on create |
 | updatedAt | string | auto | ISO 8601, set on create and update |
 
+**Price validation:** Never validate two decimal places with `Math.round(value * 100) === value * 100` or another exact comparison against an unrounded IEEE-754 product. First require a finite positive number, then normalize to integer cents or compare against a value rounded back to two decimals. Regression tests must accept `64.99` and `0.1`, reject `64.991`, and reject `NaN`, positive infinity, and negative infinity.
+
 #### Order
 
 | Field | Type | Required | Constraints |
@@ -340,7 +342,7 @@ Loaded into the SQLite database on startup. Persists locally in the `aimarket.db
 | `prod-9` | Stay warm in sub-zero temperatures with this 700-fill-power down puffer jacket. Water-resistant shell, elastic cuffs, and a detachable hood keep the cold out. Packs into its own pocket for travel. | 700-fill down puffer jacket, water-resistant and packable |
 | `prod-10` | Build a medieval castle with 850 interlocking pieces including turrets, a drawbridge, and 6 knight minifigures. Compatible with all major building block brands. Recommended for ages 6 and up. | 850-piece castle building set with 6 knight minifigures |
 
-Use Unsplash image URLs for `imageUrl`. Format: `https://images.unsplash.com/photo-{id}?w=400&h=300&fit=crop`. Choose photos that match each product (laptop, headphones, shoes, etc.).
+Use Unsplash image URLs for `imageUrl`. Format: `https://images.unsplash.com/photo-{id}?w=400&h=300&fit=crop`. For `prod-10`, use the validated building-block photo ID `photo-1587654780291-39c9404d746b`; the previously generated `photo-1558877385-8c1b8e6c0b8f` returns an error. Choose matching photos for the remaining products. Before accepting seed data, request every image URL and require HTTP 2xx. Replace any URL that redirects to an error or returns 4xx/5xx. The generated API verifier or browser test must fail if any product image is broken.
 
 **Orders:**
 
@@ -598,7 +600,7 @@ The Azure Skills plugin for GitHub Copilot provides MCP tools and plugin skills 
 ### Containerization
 
 - **API Dockerfile:** Multi-stage build for your language. Builder stage compiles, final stage runs production artifacts only. Include `.dockerignore` to exclude dependency directories and db files.
-- **Client Dockerfile:** Multi-stage `node:20-alpine` → `nginx:alpine`. Accept `VITE_API_URL` build arg. Serve with `nginx.conf` using `try_files` for SPA routing. **No `/api/` proxy block** — the frontend calls the API directly via `VITE_API_URL`.
+- **Client Dockerfile:** Multi-stage `node:24-alpine` → `nginx:alpine`. Use `FROM --platform=$BUILDPLATFORM node:24-alpine` for the static build stage so esbuild runs natively on ARM64 hosts; target `linux/amd64` only for the nginx runtime image. Accept `VITE_API_URL` before `npm run build`. Serve with `nginx.conf` using `try_files` for SPA routing. **No `/api/` proxy block** — the frontend calls the API directly via `VITE_API_URL`.
 - **`.dockerignore`:** Both directories must exclude dependency dirs, build output, and `.env`.
 
 ### Azure Resources
@@ -608,13 +610,13 @@ Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resourc
 | Resource | Module / Approach | Purpose |
 |----------|------------------|---------|
 | Monitoring | `br/public:avm/ptn/azd/monitoring` | Log Analytics + App Insights |
-| Container Registry | `br/public:avm/res/container-registry/registry` + `existing` ref for `listCredentials()` | Docker images |
+| Container Registry | `br/public:avm/res/container-registry/registry`; use Azure CLI authentication for pushes and managed identity for pulls | Docker images |
 | Azure AI Search | `br/public:avm/res/search/search-service` (Basic SKU — required for semantic ranking) + `existing` ref for `listAdminKeys()` | Semantic product search |
 | Container Apps Env | `br/public:avm/res/app/managed-environment` | Hosts API + frontend |
 | Container Apps (×2) | `br/public:avm/res/app/container-app` | API + web |
 | Microsoft Foundry | `br/public:avm/ptn/ai-ml/ai-foundry` (`baseName` max 12 chars, `aiModelDeployments` array for gpt-5-mini, `aiFoundryConfiguration.disableLocalAuth: false`) | gpt-5-mini model hosting (fallback: gpt-4.1). Outputs: `aiServicesName`, `aiProjectName`. Use an `existing` ref on the AI Services account to call `listKeys()`. |
 
-**Pattern for wiring secrets:** At subscription scope, `existing` resource references cannot use `dependsOn`, so `listKeys()`/`listCredentials()` fail because the resource hasn't been created yet. **Solution: create wrapper Bicep modules** scoped at resource group level. Each wrapper calls the AVM module, then uses an `existing` ref with `dependsOn` to extract keys. The main template calls these wrappers and reads keys from their outputs. Create wrapper modules for: Container Registry (outputs loginServer, username, password), AI Search (outputs endpoint, adminKey), and AI Services (outputs endpoint, key). For Microsoft Foundry, the AVM `ai-foundry` module outputs `aiServicesName` — use an `existing` ref on `Microsoft.CognitiveServices/accounts` with that name to call `listKeys()`.
+**Pattern for wiring secrets:** At subscription scope, `existing` resource references cannot use `dependsOn`, so `listKeys()` calls can fail before a resource exists. Create resource-group-scoped wrapper modules for AI Search and AI Services, then use deterministic `existing` references with `dependsOn` to read their keys. Do not extract or inject ACR admin credentials. Container image pulls must use each Container App's system-assigned identity with `AcrPull`.
 
 ### Bicep Requirements
 
@@ -630,10 +632,11 @@ Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resourc
 10. **Container Registry** — Basic tier. **Container Apps Environment** — set `zoneRedundant: false` (required in many regions, e.g. westus).
 11. **Soft-deleted Cognitive Services** — if a previous deployment fails or is torn down, the AI Services resource may be soft-deleted and block re-creation. Run `az cognitiveservices account list-deleted` and `az cognitiveservices account purge` before redeploying
 12. **AI model version is region-specific** — use `az cognitiveservices model list --location <region> --query "[?model.name=='gpt-5-mini']"` to find the correct version before generating Bicep
+13. **ACR pull authentication** — use a two-phase deployment: provision each Container App with a public placeholder image and system-assigned identity, grant `AcrPull`, configure `configuration.registries` with the ACR login server and `identity: 'system'`, then deploy the private image. Do not assume every azd version wires the registry automatically.
 
 ### Deployment
 
-1. `azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"` then `azd up` provisions infra and deploys both services
-2. **Required postdeploy hook:** Always generate `infra/hooks/postdeploy.sh` and wire `hooks.postdeploy` in `azure.yaml` (see [`container-apps-deployment` skill](../../.github/skills/container-apps-deployment/SKILL.md)). The script rebuilds the web image with `VITE_API_URL=${API_URL}/api`, uses `--platform linux/amd64`, pushes to ACR, and updates the web Container App. First-time success must not require a manual rebuild.
-3. **Apple Silicon (M1/M2/M3/M4):** `--platform linux/amd64` is mandatory on ARM hosts
+1. Read the subscription with `az account show --query id -o tsv`, set `AZURE_SUBSCRIPTION_ID` to that value, then run `azd up`.
+2. **Required postdeploy hook:** Generate `infra/hooks/postdeploy.mjs` and reference it directly from `azure.yaml` without `shell: sh`. The JavaScript hook uses `child_process` argument arrays to rebuild the web image with `VITE_API_URL=<API_URL>/api`, target `linux/amd64`, push to ACR, and update the web Container App. First-time success must not require a manual rebuild.
+3. **Any ARM64 host:** Prefer a remote ACR AMD64 build. If building locally, verify emulation during preflight and use `$BUILDPLATFORM` for the static frontend build stage. Never install privileged binfmt/QEMU handlers automatically.
 4. Set `DATA_PROVIDER=cosmos` or `DATA_PROVIDER=postgres` to switch from SQLite to a cloud database

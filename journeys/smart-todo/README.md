@@ -21,16 +21,20 @@ You'll build SmartTodo: an iPhone app where you type a todo like "Prepare Confer
 >
 > 💰 **Estimated Cost**: ~$10–30/month **if left running** (Functions Flex + SQL Basic + AI pay-per-token; see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
 >
-> 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
+> 📋 **Prerequisites**
 >
-> **Additional prerequisites for this journey:**
-> - Language runtime: [Node.js LTS](https://nodejs.org/) by default (or Python 3.10+ / .NET 8+ / Java 17+ — see PLAN.md)
-> - [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local): local Functions development
-> - [Docker](https://docs.docker.com/get-docker/) (recommended): local SQL Server for Phase 1
-> - [sqlcmd](https://learn.microsoft.com/sql/tools/sqlcmd/sqlcmd-utility) (for post-provision managed identity): `brew install sqlcmd` on macOS
-> - [Xcode](https://developer.apple.com/xcode/): iOS simulator (**macOS only**, Phase 2)
-
-> ⚠️ **Platform gate:** Full journey (including Phase 2 iOS) requires **macOS + Xcode**. On Windows or Linux, complete **Phase 1 (API) + Phase 3 (Deploy)** and verify with curl — that still counts as finishing the Azure path.
+> - Azure CLI, Azure Developer CLI 1.28.0+, and an agentic coding tool
+> - Node.js 24 LTS or later for the cross-platform post-provision hook and default API stack
+> - Azure Functions Core Tools v4 for local Functions execution
+> - Azurite as a project-local development dependency for local Functions storage when `UseDevelopmentStorage=true`
+> - The current Go-based `sqlcmd` for managed-identity database setup
+> - Docker if you want to run SQL Server locally in Phase 1
+> - The selected API runtime if you choose Python 3.10+, .NET 8+, or Java 17+ instead of Node.js
+> - Xcode for the iOS simulator on macOS only
+>
+> Run `node --version`, `func --version`, and `sqlcmd --version` before starting. The [cross-platform installation guide](../../docs/tool-installation.md) includes Windows, macOS, and Linux options for Functions Core Tools and `sqlcmd`.
+>
+> ⚠️ **Platform gate:** The full journey, including Phase 2 simulator testing, requires macOS and Xcode. On Windows or Linux, generate and statically verify the SwiftUI source, then complete Phase 1 and Phase 3 and verify the deployed API with HTTP calls. That counts as finishing the Azure path.
 
 > [!NOTE]
 > Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
@@ -138,10 +142,12 @@ SmartTodo is built in three phases, and this README's phases match PLAN.md's pha
 </p>
 
 > **📋 Local database setup:** This API uses Azure SQL. For local development, you have two options:
-> 1. **Use a local SQL Server** (recommended): Run `docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=YourStrong!Pass123" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2022-latest` and set `AZURE_SQL_SERVER=localhost`, `AZURE_SQL_USER=sa`, `AZURE_SQL_PASSWORD=YourStrong!Pass123` in `local.settings.json`.
+> 1. **Use a local SQL Server**: This container is AMD64-only. Use it only when Docker's AMD64 emulation is already working; don't install privileged emulation as part of the journey. Set `AZURE_SQL_SERVER=localhost`, `AZURE_SQL_USER=sa`, and a locally generated password in `local.settings.json`.
 > 2. **Use Azure SQL directly**: Create a free-tier Azure SQL database in the portal and use its connection details in `local.settings.json`.
 >
-> Phase 3 creates the production Azure SQL instance automatically, so if you don't want to worry about it locally, you can skip local setup.
+> On Apple Silicon, Windows ARM64, and Linux ARM64, prefer Azure SQL unless AMD64 container execution has already passed preflight. Phase 3 creates the production Azure SQL instance automatically.
+
+Because the default settings use `AzureWebJobsStorage=UseDevelopmentStorage=true`, start Azurite before `func start`. Install and verify it using the [cross-platform tool guide](../../docs/tool-installation.md#azurite).
 
 You'll build the API in stages, not all at once. Each step teaches a different aspect of working with GitHub Copilot.
 
@@ -293,53 +299,12 @@ Now wire up the real AI call to replace the stub.
 
 Don't ask GitHub Copilot to test. Run these yourself and understand what each one verifies.
 
-Start the Functions dev server, then in a new terminal:
-
-```bash
-cd src/api
-# Install dependencies and seed (language-specific commands)
-# Node.js: npm install && npm run seed && npm run build && npm start
-# Python:  pip install -r requirements.txt && python seed.py && func start
-# .NET:    dotnet build && func start
-# Java:    mvn package && func start
-```
+Change to `src/api`, start Azurite when using development storage, then run the selected stack's install, seed, build, and `func start` commands as separate processes. Don't chain required steps with shell-specific operators.
 
 > **⚠️ Node.js note:** If Functions fails to find any functions, check that `"main"` in `package.json` is `"dist/functions/*.js"` (not `"dist/src/functions/*.js"`). Since `tsconfig.json` sets `rootDir: "src"`, the `src/` prefix is stripped from the output path.
 > For `azd` remote builds, do not exclude `src/` or `tsconfig.json` in `.funcignore`; Azure needs them to compile TypeScript.
 
-```bash
-# Does the server start and respond?
-curl http://localhost:7071/api/todos?userId=user-1
-# Expected: JSON array of seed todos, e.g. [{"id":"todo-1","title":"...","status":"pending",...}, ...]
-
-# Create a new todo
-curl -X POST http://localhost:7071/api/todos \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Prepare Conference talk", "userId": "user-1"}'
-# Expected: 201 response with the created todo JSON, e.g. {"id":"<new-uuid>","title":"Prepare Conference talk",...}
-
-# Update a todo's status
-curl -X PATCH http://localhost:7071/api/todos/todo-1 \
-  -H "Content-Type: application/json" \
-  -d '{"status": "in_progress"}'
-# Expected: 200 response with updated todo, status should be "in_progress"
-
-# Generate AI steps (requires AZURE_AI_ENDPOINT and AZURE_AI_KEY in local.settings.json)
-curl -X POST http://localhost:7071/api/todos/todo-1/generate-steps
-# Expected: 200 response with {"steps": [...]} containing 3-7 action steps
-
-# Toggle a step's completion
-curl -X PATCH http://localhost:7071/api/todos/todo-2/steps/step-2-3 \
-  -H "Content-Type: application/json" \
-  -d '{"isCompleted": true}'
-# Expected: 200 response with the step JSON, isCompleted should be true
-
-# Delete a todo (should cascade-delete steps)
-curl -X DELETE http://localhost:7071/api/todos/todo-3
-# Expected: 204 No Content (empty response body)
-curl http://localhost:7071/api/todos?userId=user-1  # todo-3 should be gone
-# Expected: JSON array without todo-3
-```
+Generate `scripts/verify-api.mjs`, point it at the selected local port, and run `node scripts/verify-api.mjs`. It must verify seed reads, create, status update, AI step generation when credentials are configured, step completion, delete, cascade behavior, and final absence. Temporary records must be removed in `finally`, and any failed status or assertion must exit nonzero.
 
 If any test fails, describe the failure to GitHub Copilot and let it fix it:
 
@@ -454,10 +419,10 @@ If the Simulator says `Application failed preflight checks` or `SBMainWorkspace 
     AZURE_SQL_SERVER (full FQDN), AZURE_SQL_DATABASE
   - Outputs in SCREAMING_SNAKE_CASE: API_URL, SQL_SERVER_NAME, etc.
   - azd-service-name: 'api' tag on the Function App
-  - postprovision hook: generate infra/hooks/postprovision.sh and
+  - cross-platform postprovision hook: generate infra/hooks/postprovision.mjs and
     infra/hooks/postprovision-schema.sql exactly as specified in the
     Post-Provision and Database Schema Initialization sections of PLAN.md,
-    wired as hooks.postprovision in azure.yaml
+    referenced directly as hooks.postprovision in azure.yaml without shell: sh
   Also create an azure.yaml with a single 'api' service using host: function
   and language ts (or my chosen stack). Log issues to issues.md.
 ```
@@ -485,10 +450,7 @@ az provider register --namespace Microsoft.OperationalInsights
 
 Set subscription and deploy:
 
-```bash
-azd env set AZURE_SUBSCRIPTION_ID $(az account show --query id -o tsv)
-azd up
-```
+Read the subscription ID with `az account show --query id -o tsv`, pass the returned value to `azd env set AZURE_SUBSCRIPTION_ID <subscription-id>`, then run `azd up`. This sequence is the same on Windows, macOS, and Linux.
 
 > ⏳ **While you wait:** Azure is provisioning your Function App, SQL Database, and Microsoft Foundry. Here's how to use the time:
 >
@@ -503,79 +465,37 @@ Deployment may take several minutes. If it fails, ask GitHub Copilot to help dia
 > azd up failed with this error: [paste the error]. What's wrong?
 ```
 
-##### Step 3: Confirm the post-provision SQL setup (should be automatic)
+##### Step 3: Confirm the post-provision SQL setup
 
-Bicep creates the Function App identity, but **Azure SQL needs a separate SQL step** for the database user and schema. The `infra/hooks/postprovision.sh` the agent generated (per the Post-Provision spec in PLAN.md) runs automatically after `azd provision`, wired via `hooks.postprovision` in azure.yaml. It creates the managed identity database user, applies the schema + seed data, and cleans up its temporary firewall rule.
+Bicep creates the Function App identity, but Azure SQL needs a separate database user and schema step. The generated `infra/hooks/postprovision.mjs` runs automatically after provisioning and works on Windows, macOS, and Linux. It invokes `sqlcmd` through Node.js, temporarily opens only the current client IP, handles Azure SQL Redirect/Proxy connectivity, applies the schema and seed data, and restores the firewall rule and original connection policy in `finally`.
 
-Check the `azd up` output for `Post-provision SQL setup complete.` If the hook failed (most commonly `sqlcmd` isn't installed — `brew install sqlcmd` on macOS), fix the cause and re-run just the hook:
+Check `azd up` for `Post-provision SQL setup complete.` If the hook reports a missing prerequisite, use the [cross-platform installation guide](../../docs/tool-installation.md), verify `node --version` and `sqlcmd --version`, then rerun:
 
-```bash
-./infra/hooks/postprovision.sh
+```text
+node infra/hooks/postprovision.mjs
 ```
 
-<details>
-<summary>Manual fallback: run the SQL setup by hand</summary>
-
-Do this **in order**:
-
-1. Install `sqlcmd` if needed: `brew install sqlcmd` (macOS)
-2. Confirm you are **Microsoft Entra admin** on the SQL server (Bicep should set the deploying user)
-3. Allow **your public IP** on the SQL firewall (Allow Azure Services alone is not enough for local `sqlcmd`)
-4. Create the managed identity user + roles
-5. Apply schema + seed SQL
-
-```bash
-# 3) Temporary firewall rule for your machine (remove in step 6)
-MY_IP=$(curl -s https://api.ipify.org)
-SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)
-RG=$(azd env get-value RESOURCE_GROUP_NAME)
-# Strip FQDN suffix if present — az sql server expects the short server name
-SQL_SERVER_SHORT=${SQL_SERVER%.database.windows.net}
-az sql server firewall-rule create \
-  --resource-group "$RG" --server "$SQL_SERVER_SHORT" \
-  --name DevClientIP --start-ip-address "$MY_IP" --end-ip-address "$MY_IP"
-
-SQL_DB=$(azd env get-value SQL_DATABASE_NAME)
-FUNC_APP=$(azd env get-value FUNCTION_APP_NAME)
-SQL_FQDN="${SQL_SERVER_SHORT}.database.windows.net"
-
-# 4) Managed identity user + roles
-sqlcmd -S "$SQL_FQDN" -d "$SQL_DB" \
-  --authentication-method ActiveDirectoryAzCli \
-  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_ddladmin ADD MEMBER [${FUNC_APP}];"
-
-# 5) Schema + seed
-sqlcmd -S "$SQL_FQDN" -d "$SQL_DB" \
-  --authentication-method ActiveDirectoryAzCli \
-  -i infra/hooks/postprovision-schema.sql
-
-# 6) Remove temporary client firewall rule (Azure services rule stays)
-az sql server firewall-rule delete \
-  --resource-group "$RG" --server "$SQL_SERVER_SHORT" \
-  --name DevClientIP
-```
-
-> ⚠️ If `sqlcmd` fails with a permissions or firewall error, fix steps 2–3 first—do not re-run `azd up` until this checklist is green. Always delete `DevClientIP` when finished so your public IP is not left open on the SQL server.
-
-</details>
+Do not reproduce the setup as ad hoc shell commands. The portable hook owns identifier escaping, argument quoting, temporary firewall cleanup, and connection-policy restoration. If it fails, fix the reported prerequisite or Azure permission and rerun the same idempotent hook.
 
 ##### Step 4: Verify the live deployment
 
-```bash
-API_URL=$(azd env get-value API_URL)
+Generate `scripts/verify-deployment.mjs` and run it from Windows, macOS, or Linux:
 
-# API responds?
-curl -s "$API_URL/api/todos?userId=user-1"
-
-# Create a todo
-curl -s -X POST "$API_URL/api/todos" \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Prepare Conference talk", "userId": "user-1"}'
-
-# Generate AI steps
-TODO_ID=$(curl -s "$API_URL/api/todos?userId=user-1" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
-curl -s -X POST "$API_URL/api/todos/$TODO_ID/generate-steps" | python3 -m json.tool
+```text
+node scripts/verify-deployment.mjs
 ```
+
+The script must read `API_URL` through `azd`, then prove the full backend flow with Node.js `fetch`:
+
+1. List the three seed todos.
+2. Create a temporary todo and require HTTP 201.
+3. Generate 3–7 AI steps and require HTTP 200.
+4. Fetch the todo and first step.
+5. Complete that step and verify `isCompleted: true`.
+6. Delete the temporary todo and require HTTP 204.
+7. Fetch the list again and verify the temporary todo is absent.
+
+The verifier must clean up its temporary todo in `finally` and exit nonzero on any failed assertion.
 
 ##### Step 5: Point the iOS app at Azure
 
@@ -680,20 +600,7 @@ Functions and Microsoft Foundry scale to zero when idle, so you pay almost nothi
 
 **Cause:** Managed identity not granted access to Azure SQL. The identity needs to be added as a database user with the right roles.
 
-**Fix:**
-
-```bash
-# Run the managed identity setup (you must be Microsoft Entra admin on the SQL server)
-SQL_SERVER=$(azd env get-value SQL_SERVER_NAME)
-SQL_DB=$(azd env get-value SQL_DATABASE_NAME)
-FUNC_APP=$(azd env get-value FUNCTION_APP_NAME)
-SQL_SERVER_SHORT=${SQL_SERVER%.database.windows.net}
-SQL_FQDN="${SQL_SERVER_SHORT}.database.windows.net"
-
-sqlcmd -S "$SQL_FQDN" -d "$SQL_DB" \
-  --authentication-method ActiveDirectoryAzCli \
-  -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}];"
-```
+**Fix:** Run `node infra/hooks/postprovision.mjs` while authenticated as the configured Microsoft Entra administrator. The idempotent hook handles the managed-identity user, roles, temporary firewall rule, Proxy/Redirect policy, and cleanup.
 
 If logs show `getaddrinfo ENOTFOUND <sql-name>`, set `AZURE_SQL_SERVER` to the full FQDN: `<sql-name>.database.windows.net`.
 
@@ -703,15 +610,7 @@ If logs show `getaddrinfo ENOTFOUND <sql-name>`, set `AZURE_SQL_SERVER` to the f
 
 **Fix:** Check that `generateSteps` strips markdown wrapping before parsing. Verify the AI config:
 
-```bash
-azd env get-value AZURE_AI_ENDPOINT
-azd env get-value AZURE_AI_DEPLOYMENT
-
-# Check Function App settings
-az functionapp config appsettings list --name $(azd env get-value FUNCTION_APP_NAME) \
-  --resource-group $(azd env get-value RESOURCE_GROUP_NAME) \
-  --query "[?name=='AZURE_AI_ENDPOINT' || name=='AZURE_AI_DEPLOYMENT']"
-```
+Generate `scripts/diagnose-smart-todo.mjs`. It must read the Function App and resource group through `azd`, inspect only the names and presence of required app settings through Azure CLI argument arrays, and redact all setting values. Run it with `node scripts/diagnose-smart-todo.mjs`.
 
 When using the plain `openai` SDK, normalize the endpoint to include `/openai/v1/` before creating the client.
 
@@ -778,30 +677,13 @@ Make sure the URL uses `https://` and includes no trailing slash.
 
 ## Verification Checklist
 
-```bash
-API_URL=$(azd env get-value API_URL)
+Run the same portable verifier used in Phase 3:
 
-# 1. API responds (expect JSON array)
-curl -s "$API_URL/api/todos?userId=user-1" | python3 -m json.tool | head -5
-
-# 2. Create a todo
-TODO_ID=$(curl -s -X POST "$API_URL/api/todos" \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Test verification todo", "userId": "user-1"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
-echo "Created todo: $TODO_ID"
-
-# 3. AI step generation works (expect 3-7 steps)
-curl -s -X POST "$API_URL/api/todos/$TODO_ID/generate-steps" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'{len(d[\"steps\"])} steps generated')"
-
-# 4. Step completion works
-STEP_ID=$(curl -s "$API_URL/api/todos/$TODO_ID" | python3 -c "import sys,json; print(json.load(sys.stdin)['steps'][0]['id'])")
-curl -s -X PATCH "$API_URL/api/todos/$TODO_ID/steps/$STEP_ID" \
-  -H "Content-Type: application/json" \
-  -d '{"isCompleted": true}' | python3 -c "import sys,json; print(f'Step completed: {json.load(sys.stdin)[\"isCompleted\"]}')"
-
-# 5. Cleanup test data
-curl -s -X DELETE "$API_URL/api/todos/$TODO_ID" -o /dev/null -w "HTTP %{http_code}\n"
+```text
+node scripts/verify-deployment.mjs
 ```
+
+It must prove seed reads, create, AI step generation, step completion, deletion, and final absence. A passing process exits `0`; any failed HTTP status, malformed payload, or cleanup failure exits nonzero.
 
 </details>
 

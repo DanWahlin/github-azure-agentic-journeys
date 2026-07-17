@@ -30,10 +30,5 @@ The official `apache/superset:latest` image does NOT include psycopg2 for Postgr
    ```
 
 ### Verification
-```bash
-# Check if using PostgreSQL (should show PostgresqlImpl)
-kubectl logs -n superset <pod> -c superset | grep -i impl
 
-# Verify psycopg2 is installed
-kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"
-```
+Run `node .github/scripts/verify-superset.mjs`; it fails if the pod isn't Ready/Running, PostgreSQL evidence is absent, SQLite appears in logs, or `/health` doesn't return HTTP 200. To isolate the package import, run `kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"`.

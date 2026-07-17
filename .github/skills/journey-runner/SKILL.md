@@ -1,360 +1,290 @@
 ---
 name: journey-runner
 description: |
-  Run an agentic journey end-to-end: extract prompts from a journey README, execute them in sequence, build the app, deploy to Azure, and verify. Use for full-stack and OSS journeys.
+  Run an agentic journey end-to-end: preflight the host, extract prompts, execute them in an isolated workspace, build, deploy to Azure, verify with real requests and screenshots, and clean up only owned resources.
   USE FOR: test a journey, run a journey end-to-end, validate journey prompts, deploy a journey to Azure, walk through a journey, execute journey steps, CI journey test.
-  DO NOT USE FOR: creating new journeys (use journey-template), reviewing journey content (use content-reviewer), modifying journey code (use coder). Say "run journey runner" to start.
+  DO NOT USE FOR: creating new journeys (use journey-template), reviewing journey content (use content-reviewer), or modifying unrelated code.
 ---
 
 # Journey Runner Skill
 
-Execute an agentic journey end-to-end by reading its README, extracting the prompts and commands, running them in sequence, and verifying the results. This is the automated equivalent of a learner walking through the journey manually.
+Run a journey like a learner would, but with strict preflight, isolated state, evidence-backed verification, and scoped cleanup. The workflow must work on Windows, macOS, and Linux.
 
-## When to Use
+## Required Runner Tools
 
-- Testing a new or updated journey before publishing
-- CI validation that a journey's prompts produce working code
-- Reproducing a journey to verify deployment works
-- Onboarding — running a journey to generate a working app
+The runner itself requires:
 
-## Inputs
+- Node.js 24 LTS or later
+- Azure CLI
+- Azure Developer CLI (`azd`) 1.28.0 or later
+- GitHub Copilot CLI
 
-The runner needs:
+Screenshot runs additionally require the local Playwright package and bundled Chromium under `scripts/`. Installation options for all operating systems are in [`../../../docs/tool-installation.md`](../../../docs/tool-installation.md).
 
-1. **Journey path** — e.g., `journeys/smart-todo/`
-2. **Stack choice** (if multi-stack) — e.g., "Node.js" for journeys that offer language options
-3. **Azure subscription** — for deployment phases (skip if user requests local-only run)
+Do not install system tools during a run. Report the missing tool, its install link, and the validation command, then stop before generating code or creating Azure resources. Project-local `npm ci` for the checked-in runner helpers is allowed only during explicit runner setup, not as a surprise halfway through a journey.
 
-## Execution Pipeline
+## Inputs and Defaults
 
-### Step 0: Parse the Journey
+Inputs:
 
-Read the journey's `README.md` and extract:
+1. Journey path, such as `journeys/smart-todo/`
+2. Stack choice when the journey supports multiple stacks
+3. Azure subscription for deployment runs
+4. Cleanup policy: `after-verification` or `leave-running`
 
-1. **Journey type**: full-stack (has `PLAN.md`) or OSS deployment (uses `@oss-to-azure-deployer`)
-2. **Phases**: each `### Phase N` or `### Step N` section
-3. **Prompts**: code blocks prefixed with `>` inside Copilot CLI sessions — these are the prompts to execute
-4. **Shell commands**: fenced `bash` blocks — these are commands to run directly
-5. **Verification commands**: commands inside "🧪 Test it yourself" or "Verification Checklist" sections
-6. **Prerequisites**: tools needed (Node.js, Python, Xcode, Docker, etc.)
-
-Output a structured execution plan before starting:
-
-```
-Journey: SmartTodo (full-stack)
-Phases: 3
-Prompts to execute: 12
-Shell commands: 8
-Verification checks: 5
-Prerequisites: Node.js LTS, Azure Functions Core Tools v4, Xcode 16+
-Estimated time: ~2.5 hours
-```
-
-### Step 1: Prerequisites Check
-
-Verify all required tools are installed:
-
-```bash
-# Check each prerequisite listed in the journey
-node --version        # Need 20+
-func --version        # Azure Functions Core Tools v4
-az --version          # Azure CLI
-azd version           # Azure Developer CLI
-docker --version      # If Docker is required
-xcode-select -p       # If Xcode is required (macOS only)
-```
-
-If a prerequisite is missing, report it and stop. Do not attempt to install tools.
-
-### Step 2: Set Up Working Directory
-
-Create an isolated working directory for the journey run:
-
-```bash
-WORK_DIR=~/journey-runs/<journey-name>-$(date +%Y%m%d-%H%M%S)
-mkdir -p "$WORK_DIR"
-cd "$WORK_DIR"
-```
-
-Copy the PLAN.md (if full-stack journey):
-
-```bash
-cp /path/to/journeys/<journey-name>/PLAN.md .
-```
-
-### Step 3: Execute Phases Sequentially
-
-For each phase in the journey:
-
-#### 3a. Execute Copilot CLI Prompts
-
-Prompts in journey READMEs look like this:
-
-```
-> Read the PLAN.md file in this directory. Create a [YOUR LANGUAGE] project...
-```
-
-For each prompt:
-1. Replace `[YOUR LANGUAGE]` with the chosen stack (e.g., "Node.js/Express with TypeScript")
-2. Execute the prompt as a code generation task — treat it as an instruction to generate/modify code in the working directory
-3. Wait for completion before proceeding to the next prompt
-
-#### 3b. Execute Shell Commands
-
-Commands in `bash` blocks are run directly:
-
-```bash
-cd src/api
-npm install
-npm start
-```
-
-For dev servers (`npm start`, `npm run dev`, `func start`):
-- Start in the background
-- Wait for the server to be ready (poll health endpoint or wait for stdout)
-- Keep running for verification commands
-- Stop after verification
-
-#### 3c. Run Verification Commands
-
-Commands in "🧪 Test it yourself" sections verify the phase worked:
-
-```bash
-curl http://localhost:7071/api/todos?userId=user-1
-```
-
-For each verification:
-1. Run the command
-2. Check for expected output (non-error HTTP status, valid JSON, etc.)
-3. Log PASS/FAIL with the actual output
-4. If FAIL, log the error but continue to the next verification (don't stop the run)
-
-#### 3d. Log Phase Results
-
-After each phase, output a summary:
-
-```
-Phase 1: Build the API
-  ✅ Project scaffolded (src/api/ created)
-  ✅ Data models generated (Todo, ActionStep)
-  ✅ Repository pattern implemented (interfaces + SQLite)
-  ✅ API endpoints created (6 functions)
-  ✅ AI step generation wired up
-  ⚠️ Verification: GET /api/todos returned 200 but empty array (seed data may not have loaded)
-  ✅ Verification: POST /api/todos returned 201
-```
-
-### Step 4: Deploy to Azure (if applicable)
-
-Only execute if the journey has a deployment phase AND the user didn't request to skip deployment.
-
-#### 4a. Pre-deployment
-
-```bash
-# Register providers (idempotent)
-az provider register --namespace Microsoft.Web
-az provider register --namespace Microsoft.Sql
-# ... (per journey requirements)
-
-# Set subscription
-azd env set AZURE_SUBSCRIPTION_ID $(az account show --query id -o tsv)
-```
-
-#### 4b. Deploy
-
-```bash
-azd up
-```
-
-This is the longest step (5-15 minutes). Monitor for errors.
-
-When generating Bicep for CI journey runs, start with AVM modules where they fit, but switch an individual resource to raw `Microsoft.*` Bicep/ARM if AVM parameter drift, unsupported passthrough, or schema mismatch blocks deployment. If the journey creates its own resource group, use a subscription-scope `main.bicep` that calls a resource-group-scope module for the actual resources.
-
-#### 4c. Post-deployment Verification
-
-Run the Verification Checklist from the README against the live deployment:
-
-```bash
-API_URL=$(azd env get-value API_URL)
-curl -s "$API_URL/api/todos?userId=user-1"
-# ... etc
-```
-
-#### 4d. Screenshot Web Frontends
-
-If the journey has a web frontend deployed to Azure (a `web` or `frontend` service in `azure.yaml`, or a URL output like `WEB_URL`), capture a screenshot of the running app using Playwright:
-
-1. Get the frontend URL from azd outputs (e.g., `azd env get-value WEB_URL`)
-2. Use Playwright to navigate to the URL, wait for the page to load, and take a full-page screenshot
-3. Save the screenshot to the working directory as `screenshot-<journey-name>.png`
-4. Copy or preserve that path in the report. Do not call `upload-screenshots` or `upload_screenshots` unless the current workflow explicitly provides such a tool.
-
-```javascript
-// Playwright screenshot capture
-const { chromium } = require('playwright');
-
-async function captureScreenshot(url, outputPath) {
-  const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-  // Wait an extra 3 seconds for async data to load (API calls, images, etc.)
-  await page.waitForTimeout(3000);
-  await page.screenshot({ path: outputPath, fullPage: true });
-  await browser.close();
-}
-```
-
-**When to capture:**
-- Journey has a web frontend URL in its azd outputs (`WEB_URL`, `FRONTEND_URL`, etc.)
-- The URL returns HTTP 200 (skip screenshot if the frontend isn't reachable)
-
-**When to skip:**
-- API-only journeys (no frontend)
-- Mobile-only frontends (iOS/Android — can't screenshot a simulator remotely)
-- OSS deployments where the app requires login before showing content (capture the login page instead)
-
-Include the screenshot path in the final report.
-
-#### 4e. Cleanup (if requested)
-
-If the user asked to clean up after verification:
-
-```bash
-azd down --force --purge
-```
-
-### Step 5: Generate Report
-
-Output a final report:
-
-```
-═══════════════════════════════════════════
-  Journey Run Report: SmartTodo
-  Date: 2026-04-05T08:30:00Z
-  Duration: 47 minutes
-  Stack: Node.js + TypeScript
-═══════════════════════════════════════════
-
-  Phase 1: Build the API         ✅ PASS (12/12 checks)
-  Phase 2: Build the iOS App     ✅ PASS (6/6 checks)
-  Phase 3: Deploy to Azure       ⚠️ PARTIAL (4/5 checks)
-    ❌ AI step generation returned 503 (model still deploying)
-
-  Prompts executed:  12/12
-  Verifications:     22/23 passed
-  Deployment:        Succeeded
-  Screenshot:        ~/journey-runs/smart-todo-20260405-083000/screenshot-smart-todo.png
-  Cleanup:           Skipped (not requested)
-
-  Working directory: ~/journey-runs/smart-todo-20260405-083000
-═══════════════════════════════════════════
-```
-
----
-
-## Journey Type Variations
-
-### Full-Stack Journeys (e.g., AIMarket, SmartTodo)
-
-- Copy `PLAN.md` to working directory first
-- Execute prompts phase-by-phase (API → Frontend/Mobile → AI → Deploy)
-- For multi-stack journeys, replace `[YOUR LANGUAGE]` in all prompts
-- Mobile frontends (iOS/Android) are built locally, not deployed — verify via simulator check or build success only
-- Frontend rebuild step (VITE_API_URL) may be needed after initial deploy
-
-### OSS Deployment Journeys (e.g., n8n, Grafana, Superset)
-
-- No PLAN.md — prompts go through `@oss-to-azure-deployer` agent
-- Simpler flow: Setup → Deploy → Verify
-- Agent loads the app-specific skill automatically
-- Verification is curl-based (health endpoint, UI loading)
-
----
-
-## How to Invoke
-
-This skill is triggered by natural language. The user's prompt controls the behavior. Here are example prompts and how to interpret them:
-
-**Run a full journey end-to-end:**
-> "Run the smart-todo journey"
-- Execute all phases including deployment
-- Use the default stack if only one is offered
-- Do not clean up Azure resources after
-
-**Skip deployment:**
-> "Run the AIMarket journey locally — don't deploy to Azure"
-- Execute all build/test phases
-- Stop before the deployment phase
-- No `azd up`, no Azure resources created
-
-**Choose a stack:**
-> "Run the AIMarket journey with Python"
-- Replace all `[YOUR LANGUAGE]` placeholders with Python/FastAPI
-- Use the Python column from the "Choose Your Stack" table in PLAN.md
-
-**Clean up after:**
-> "Run the n8n journey end-to-end and tear down when done"
-- Execute all phases including deployment and verification
-- Run `azd down --force --purge` after verification passes
-
-**Stop on failure:**
-> "Run the smart-todo journey but stop if anything fails"
-- Halt execution on the first verification failure instead of continuing
-
-**Verbose output:**
-> "Run the Grafana journey with full output"
-- Log complete command output for every step, not just pass/fail summaries
-
-### Defaults (when the user doesn't specify)
+Defaults:
 
 | Behavior | Default |
-|----------|---------|
-| Deploy to Azure | Yes — execute the deployment phase |
-| Cleanup after | No — leave Azure resources running |
-| Stack choice | Use the only option, or ask the user if multiple exist |
-| On failure | Log and continue to next step |
-| Output verbosity | Summary only (pass/fail per step) |
+|---|---|
+| Deploy to Azure | Yes, when the journey contains a deployment phase |
+| Cleanup | `after-verification` |
+| Stack | Use the only option; ask before starting when multiple materially different stacks exist |
+| Verification failure | Record the failure, attempt one evidence-based repair, then stop that phase if it still fails |
+| Output | Concise phase summary plus artifact paths and actual command results |
 
----
+Only use `leave-running` when the user explicitly requests it.
 
-## Error Handling
+## Step 0: Parse the Journey
 
-### Prompt Execution Failures
+Read the journey's `README.md`, `PLAN.md` when present, and every associated journey skill. Extract:
 
-If a Copilot CLI prompt produces code that doesn't compile or has errors:
-1. Log the error
-2. Attempt one self-correction: describe the error and ask for a fix
-3. If the fix works, continue
-4. If it fails again, log as FAIL and continue to next step
+- Journey type and phases
+- Prompts to send to Copilot
+- Commands and generated scripts
+- Required and optional host tools
+- Local ports
+- Deployment outputs
+- Verification criteria
+- Platform gates such as Xcode
 
-### Deployment Failures
+Build a prerequisite list from the journey's own prerequisite section. Do not rely on a hard-coded generic list when the journey requires Helm, `sqlcmd`, Azure Functions Core Tools, Docker, or another host tool.
 
-Common deployment issues and automatic recovery:
+Before execution, print a plan containing the journey, stack, host OS/architecture, phases, required tools, optional tools, planned ports, deployment choice, and cleanup policy.
 
-| Error | Recovery |
-|-------|----------|
-| Provider not registered | Run `az provider register` and retry |
-| Soft-deleted Cognitive Services | Run `az cognitiveservices account purge` and retry |
-| Quota exceeded | Log error, skip deployment, report as BLOCKED |
-| Role assignment delay | Wait 60 seconds after `azd up`, retry verification |
+## Step 1: Cross-Platform Preflight
 
-### Verification Failures
+Detect the host with Node.js `process.platform`, `process.arch`, and `os.release()`. Never infer the operating system from path syntax.
 
-- HTTP 5xx → retry once after 10 seconds (cold start)
-- Empty response → check if seed data was loaded
-- Connection refused → check if server is running
-- 503 from AI → model may still be deploying, wait 60s and retry
+Run the helper from this skill directory:
 
----
+```text
+node scripts/check-prerequisites.mjs --required node,az,azd,copilot,<journey-tools> --optional <optional-tools>
+```
 
-## Checklist for Adding Runner Support to a Journey
+Journey-specific minimums:
 
-When creating a new journey, ensure it's runner-compatible:
+| Journey | Additional required tools | Optional or platform-gated tools |
+|---|---|---|
+| Grafana | None | Playwright for screenshots |
+| n8n | Node.js 24 LTS or later | Playwright for screenshots |
+| Superset | Node.js 24 LTS or later, `kubectl`, Helm 3 | Playwright for screenshots |
+| AIMarket | Node.js 24 LTS or later, Docker CLI and running daemon, GitHub CLI | Playwright; local AMD64 emulation only when remote builds are unavailable |
+| SmartTodo | Node.js 24 LTS or later, Azure Functions Core Tools v4, `sqlcmd` | Project-local Azurite for local execution; Docker for alternate stacks or local SQL; Xcode 16+ only for macOS iOS execution |
 
-- [ ] All Copilot CLI prompts are in `>` prefixed code blocks
-- [ ] All shell commands are in fenced `bash` blocks
-- [ ] Verification commands use `curl` with predictable output (JSON, HTTP status codes)
-- [ ] Dev server start commands are identifiable (contain `npm start`, `npm run dev`, `func start`, etc.)
-- [ ] `PLAN.md` is self-contained — no references to files outside the journey directory
-- [ ] Deployment outputs use `azd env get-value` for all dynamic values
-- [ ] Cleanup is a single `azd down --force --purge` command
+### Authentication preflight
+
+Check Azure CLI and `azd` separately:
+
+1. `az account show` must succeed and show the intended subscription.
+2. Configure `azd` to reuse Azure CLI authentication with `azd config set auth.useAzCliAuth true`.
+3. Run an `azd` command that reads account/environment state before creating resources.
+4. If Azure CLI works but `azd` still reports an expired token, stop and report the mismatch. Do not assume `az login` fixed `azd`.
+
+### Architecture preflight
+
+For Container Apps images, compare host architecture with the required `linux/amd64` target.
+
+- Prefer a remote ACR build on any ARM64 host.
+- If a local cross-build is required, verify Buildx and AMD64 emulation before provisioning.
+- Never install privileged QEMU/binfmt handlers automatically.
+- Require frontend Dockerfiles with native `$BUILDPLATFORM` builder stages when native tools such as esbuild are involved.
+
+### Mobile platform matrix
+
+- macOS with Xcode: build and run the iOS app or simulator when the journey requires it.
+- Windows or Linux: generate and inspect SwiftUI source, build and test the backend, deploy Azure resources, and run backend API verification. Do not claim an iOS simulator or Xcode test occurred.
+
+Any missing required prerequisite stops the journey before Phase 1.
+
+## Step 2: Create an Isolated Workspace
+
+Create a unique directory without shell-specific date or path expressions. Use Node.js filesystem APIs or the active agent's file tools.
+
+Recommended shape:
+
+```text
+<journey-runs-root>/<journey-name>-<UTC timestamp>/
+```
+
+Copy only `PLAN.md` and other explicitly required source documents. Never write generated application files into the source journey directory.
+
+Record:
+
+- Absolute workspace path
+- Source commit
+- Host OS and architecture
+- Tool versions
+- Selected stack
+- Selected local ports
+- Cleanup policy
+
+Before starting a local server, test whether its preferred port is available. Select a supported free port rather than stopping an unrelated process.
+
+## Step 3: Invoke Copilot Correctly
+
+Copilot CLI accepts prompt text with `-p`; it does not accept a `--prompt-file` CLI option. Do not launch background jobs with an unverified flag.
+
+Write each prompt to a UTF-8 file, then use the cross-platform helper:
+
+```text
+node scripts/run-copilot-prompt.mjs --prompt-file <prompt-path> --cwd <workspace>
+```
+
+The helper reads the file and calls `copilot -p <prompt>` with `shell: false`, avoiding Bash and PowerShell quoting differences.
+
+Before launching a batch, run `copilot --help` and one harmless prompt smoke test. If that fails, do not start parallel or background journey processes.
+
+Execute prompts sequentially within a journey. Wait for each prompt to finish, inspect the files it produced, and only then continue.
+
+## Step 4: Execute Commands Portably
+
+Do not execute a fenced `bash` block verbatim in PowerShell.
+
+Priority order:
+
+1. Run checked-in or generated Node.js verification and lifecycle scripts.
+2. Run individual CLIs with argument arrays and `shell: false`.
+3. Use a journey-provided PowerShell or Bash variant that matches the host.
+4. If only an OS-specific command exists, stop and log a documentation defect rather than inventing a translation after resources exist.
+
+Generated `azd` lifecycle hooks must be `.mjs` or `.ts` files referenced directly from `azure.yaml`. Do not generate `.sh` hooks, `shell: sh`, `chmod`, shell traps, command substitution, or pipelines for required deployment behavior.
+
+For development servers:
+
+- Start a tracked background process.
+- Wait for a health endpoint or explicit ready signal.
+- Run verification against the actual selected port.
+- Stop only the process started by this run.
+
+## Step 5: Build and Local Verification
+
+Run the journey's build, lint, and tests before Azure deployment. Verification must assert behavior, not merely process exit.
+
+For each check, record:
+
+- Command or script
+- Expected result
+- Actual status and key output
+- PASS, FAIL, or BLOCKED
+
+If a check fails, make one targeted repair based on the real error and rerun the failing check. Never replace unavailable execution with plausible output.
+
+## Step 6: Azure Deployment
+
+Before `azd up`:
+
+1. Register only providers required by the journey.
+2. Record the `azd` environment name, intended resource-group name, expected managed resource groups, deployment tags, and names of soft-deletable resources.
+3. Read the subscription ID with `az account show --query id -o tsv`, then pass that value to `azd env set AZURE_SUBSCRIPTION_ID <value>` without shell command substitution.
+4. Validate generated Bicep and `azure.yaml`.
+5. Confirm required host hooks and tools passed preflight.
+
+Run `azd up` and capture its real output. Monitor long-running deployment processes rather than assuming they completed.
+
+For Container Apps using ACR, verify all of these before the first private image deployment:
+
+- System-assigned identity exists.
+- `AcrPull` is assigned to that identity.
+- The Container App registry configuration contains the ACR login server and `identity: system`.
+- The deployed image architecture is compatible with `linux/amd64`.
+
+A filtered command such as `azd deploy web` can skip project-level hooks. Run the documented hook directly after a filtered deployment and repeat production verification.
+
+## Step 7: Production Verification
+
+Run the journey's portable verification script against live outputs. Do not stop at HTTP 200 when the journey requires data, authentication, images, or mutations.
+
+Examples:
+
+- Grafana: root HTTP 200 and `/api/health` reports database `ok`.
+- n8n: `/healthz` HTTP 200 and owner-setup or login page renders.
+- Superset: pod `1/1 Running`, `/health` HTTP 200, login succeeds with the documented selectors.
+- AIMarket: 10 products, search and chat work, production API URL is baked into the frontend, and every product image loads.
+- SmartTodo: seed read, create, AI step generation, fetch, step update, delete, and absence confirmation all pass.
+
+Temporary verification records must be deleted in `finally`.
+
+## Step 8: Screenshot Web Frontends
+
+The runner helper uses Playwright's bundled Chromium. Do not require the branded Chrome channel, especially on Linux ARM64.
+
+One-time runner setup from the `scripts/` directory:
+
+```text
+npm ci
+npx playwright install chromium
+```
+
+Linux hosts may require the administrator-approved command `npx playwright install --with-deps chromium`. Do not run it silently.
+
+Capture a public page:
+
+```text
+node scripts/capture-screenshot.mjs --url <url> --output <png> --fail-on-resource-errors true
+```
+
+For Superset login, additionally pass:
+
+```text
+--username admin --password <secret> --username-selector #username --password-selector #password --submit-selector "button:has-text('Sign in')" --success-path /superset/welcome/
+```
+
+Never print credentials. Visually inspect the saved image and review failed document, script, XHR, fetch, and image requests. A broken product image fails AIMarket acceptance.
+
+Skip screenshots for API-only journeys and for iOS on Windows/Linux. A mobile screenshot is only required on a suitable macOS/Xcode host.
+
+## Step 9: Scoped Cleanup
+
+With the default `after-verification` policy, preserve reports and screenshots, then run:
+
+```text
+azd down --force --purge --no-prompt
+```
+
+Cleanup must use the ownership inventory recorded before deployment. Delete only the exact `azd` environment, resource groups, managed resource groups, and soft-deleted resources created by this run.
+
+Verify cleanup with live Azure queries:
+
+- Every recorded resource group returns not found.
+- No active resource remains with the run's `azd-env-name` tag.
+- Any purged soft-deletable resource is absent.
+- Unrelated resource groups and deployments remain untouched.
+
+If cleanup fails, report the exact remaining resource IDs. Never broaden deletion scope to make the report look clean.
+
+## Step 10: Report
+
+Write `run-report.md` and include:
+
+- Journey, stack, host OS/architecture, and tool versions
+- Source commit and workspace path
+- Phase results with real pass/fail counts
+- Deployment environment and owned resource groups
+- Verification requests and actual outcomes
+- Screenshot paths and browser resource failures
+- Cleanup policy and verification result
+- Remaining blockers or platform limitations
+
+Write sanitized journey defects to that journey's `issues.md`. Keep shared orchestration defects in the runner issue section. Never include credentials, tokens, cookies, connection strings, SQL passwords, or authorization headers.
+
+## Runner-Compatible Journey Checklist
+
+- [ ] The journey prerequisite section lists every required host tool and links to OS-specific installation options.
+- [ ] Commands work on Windows, macOS, and Linux, or clearly state a platform gate.
+- [ ] Required hooks are JavaScript/TypeScript, not shell-specific scripts.
+- [ ] Verification uses portable scripts with deterministic exit codes.
+- [ ] Local ports are configurable.
+- [ ] ARM64 and AMD64 image behavior is explicit.
+- [ ] Browser checks use bundled Chromium rather than a branded Chrome channel.
+- [ ] Dynamic values come from `azd env get-value` without shell substitution.
+- [ ] Cleanup can identify and verify only the resources owned by the run.

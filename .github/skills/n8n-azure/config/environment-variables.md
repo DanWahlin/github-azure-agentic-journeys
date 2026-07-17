@@ -68,13 +68,9 @@ param n8nEncryptionKey string = newGuid()
 - If you redeploy with a new key, existing encrypted data becomes unreadable
 - Store this key securely after deployment
 
-## Authentication Settings
+## User Management
 
-| Variable | Value | Required | Description |
-|----------|-------|----------|-------------|
-| `N8N_BASIC_AUTH_ACTIVE` | `true` | ✅ | Enable basic auth |
-| `N8N_BASIC_AUTH_USER` | `admin` | ✅ | Auth username |
-| `N8N_BASIC_AUTH_PASSWORD` | (secret) | ✅ | Auth password |
+Current n8n releases use built-in user management. The first browser visit shows **Set up owner account**. Do not configure the removed `N8N_BASIC_AUTH_ACTIVE`, `N8N_BASIC_AUTH_USER`, or `N8N_BASIC_AUTH_PASSWORD` variables.
 
 ## Webhook Configuration
 
@@ -88,13 +84,7 @@ WEBHOOK_URL cannot be set during initial deployment because:
 1. It depends on the Container App FQDN
 2. FQDN isn't known until after the Container App is created
 
-**Solution:** Post-provision hook automatically configures this:
-```bash
-N8N_FQDN=$(az containerapp show --name $APP --resource-group $RG \
-  --query "properties.configuration.ingress.fqdn" -o tsv)
-az containerapp update --name $APP --resource-group $RG \
-  --set-env-vars "WEBHOOK_URL=https://$N8N_FQDN"
-```
+**Solution:** Generate `infra-n8n/hooks/postprovision.mjs`. The hook reads the Container App and resource-group values through `azd`, obtains the FQDN with Azure CLI, and updates `WEBHOOK_URL` by invoking Azure CLI with argument arrays. Reference the `.mjs` file directly from `azure.yaml`; don't use shell variables or `shell: sh`.
 
 ## Secrets Management
 
@@ -105,7 +95,6 @@ configuration: {
   secrets: [
     { name: 'postgres-password', value: postgresPassword }
     { name: 'n8n-encryption-key', value: n8nEncryptionKey }
-    { name: 'n8n-auth-password', value: n8nBasicAuthPassword }
   ]
 }
 ```
@@ -115,7 +104,6 @@ Reference via `secretRef`:
 env: [
   { name: 'DB_POSTGRESDB_PASSWORD', secretRef: 'postgres-password' }
   { name: 'N8N_ENCRYPTION_KEY', secretRef: 'n8n-encryption-key' }
-  { name: 'N8N_BASIC_AUTH_PASSWORD', secretRef: 'n8n-auth-password' }
 ]
 ```
 
@@ -139,10 +127,5 @@ env: [
   { name: 'N8N_PORT', value: '5678' }
   { name: 'N8N_PROTOCOL', value: 'https' }
   { name: 'N8N_ENDPOINT_HEALTH', value: 'healthz' }
-  
-  // Authentication
-  { name: 'N8N_BASIC_AUTH_ACTIVE', value: string(n8nBasicAuthActive) }
-  { name: 'N8N_BASIC_AUTH_USER', value: n8nBasicAuthUser }
-  { name: 'N8N_BASIC_AUTH_PASSWORD', secretRef: 'n8n-auth-password' }
 ]
 ```

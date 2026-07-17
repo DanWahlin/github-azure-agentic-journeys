@@ -91,6 +91,10 @@ Functions never import the database client directly — they get a `DataStore` f
 
 **Node.js deployment note:** For `azd` remote/Oryx build, do not exclude `src/` or `tsconfig.json` in `.funcignore`; Azure needs both to compile TypeScript. Exclude `node_modules/`, `dist/**/*.map`, and `local.settings.json`.
 
+**Local Functions storage:** When `local.settings.json` uses `AzureWebJobsStorage=UseDevelopmentStorage=true`, Azurite is a required local prerequisite. Start it before `func start`, or configure a real development Storage account instead.
+
+**Local SQL architecture:** The standard SQL Server Linux container is AMD64-only. On Apple Silicon, Windows ARM64, and Linux ARM64, default to Azure SQL unless Docker's AMD64 emulation has already been verified. Never install privileged QEMU/binfmt handlers automatically.
+
 **Azure SQL notes:** Use `[order]` (bracket-quoted) since `order` is a SQL reserved word. For managed identity auth, use `azure-active-directory-default` authentication — no passwords. SSL is required by default. In Azure, set `AZURE_SQL_SERVER` to the full FQDN from `fullyQualifiedDomainName` (for example, `sql-name.database.windows.net`) and do not strip the `.database.windows.net` suffix. For local development, connect to Azure SQL using a connection string with SQL auth or your Azure AD identity — set `AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`, and optionally `AZURE_SQL_USER`/`AZURE_SQL_PASSWORD` in `local.settings.json`.
 
 ### Data Models
@@ -457,8 +461,7 @@ infra:
   path: ./infra
 hooks:
   postprovision:
-    - shell: sh
-      run: ./infra/hooks/postprovision.sh
+    run: ./infra/hooks/postprovision.mjs
 ```
 
 Single service only — no `web` service. The iOS app runs on device, not in Azure.
@@ -496,24 +499,21 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 
 ### Post-Provision: Managed Identity SQL Access
 
-Azure SQL requires a post-provision SQL step to add the Function App's managed identity as a database user. Generate `infra/hooks/postprovision.sh` (wired as `hooks.postprovision` in `azure.yaml`) that does this automatically after `azd provision`. It requires `sqlcmd` (go-sqlcmd / `brew install sqlcmd`) — `az sql db execute` does not exist.
+Azure SQL requires a post-provision step to add the Function App's managed identity as a database user. Generate `infra/hooks/postprovision.mjs` and reference it directly from `azure.yaml`. This repository requires Node.js 24 LTS or later, `azd` 1.28.0+, Azure CLI, and the current Go-based `sqlcmd`; Windows, macOS, and Linux installation options are in [`../../docs/tool-installation.md`](../../docs/tool-installation.md).
 
-The hook must, in order:
-1. Fail with a clear install hint if `sqlcmd` is missing.
-2. Read `SQL_SERVER_NAME`, `SQL_DATABASE_NAME`, `FUNCTION_APP_NAME`, and `RESOURCE_GROUP_NAME` via `azd env get-value`.
-3. Normalize the server name both ways — `az sql` commands need the short name, `sqlcmd` needs the full FQDN:
-   ```bash
-   SQL_SERVER_SHORT=${SQL_SERVER%.database.windows.net}
-   SQL_FQDN="${SQL_SERVER_SHORT}.database.windows.net"
-   ```
-4. Add a temporary firewall rule for the developer machine public IP (`curl -s https://api.ipify.org`) — Allow Azure Services alone is not enough for local `sqlcmd`. Delete this rule on exit via a shell `trap`, even when a later step fails (never leave the developer IP open).
-5. Create the managed identity user and grant roles (the deploying user must be Microsoft Entra admin on the SQL server, set in Bicep):
-   ```bash
-   sqlcmd -S "$SQL_FQDN" -d "$SQL_DB" --authentication-method ActiveDirectoryAzCli \
-     -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = '${FUNC_APP}') CREATE USER [${FUNC_APP}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_datawriter ADD MEMBER [${FUNC_APP}]; ALTER ROLE db_ddladmin ADD MEMBER [${FUNC_APP}];"
-   ```
-6. Apply the schema + seed file with `sqlcmd ... -i infra/hooks/postprovision-schema.sql`.
-7. Print `Post-provision SQL setup complete.` on success (the README verification step checks for this line).
+The JavaScript hook must use `execFileSync()` or `spawnSync()` argument arrays, not interpolated shell commands. It must:
+
+1. Fail before making Azure changes if `az`, `azd`, `node`, or `sqlcmd` is unavailable.
+2. Read `SQL_SERVER_NAME`, `SQL_DATABASE_NAME`, `FUNCTION_APP_NAME`, and `RESOURCE_GROUP_NAME` through `azd env get-value`.
+3. Normalize the SQL server to both its short name and `<name>.database.windows.net` FQDN in JavaScript.
+4. Read the server's current Azure SQL connection policy. If it is `Redirect`, temporarily change it to `Proxy` so developer-host traffic stays on port 1433 instead of redirecting to ports 11000–11999.
+5. Obtain the developer's public IP with Node.js HTTPS/fetch, create a uniquely named temporary SQL firewall rule, and register cleanup in a `finally` block.
+6. Invoke `sqlcmd` with `--authentication-method ActiveDirectoryAzCli` to create the Function App managed-identity user and grant `db_datareader`, `db_datawriter`, and `db_ddladmin`. Escape SQL identifiers and string values before constructing the statement.
+7. Invoke `sqlcmd` again with `-i infra/hooks/postprovision-schema.sql` to apply the idempotent schema and seed data.
+8. In `finally`, delete the temporary firewall rule and restore the original SQL connection policy even if schema creation fails.
+9. Print `Post-provision SQL setup complete.` only after every required step succeeds.
+
+Do not use shell traps, command substitution, `curl`, `grep`, or OS-specific path syntax in the generated hook.
 
 ### Database Schema Initialization
 
@@ -526,11 +526,12 @@ The iOS app is NOT deployed via azd. To test: replace the `Config.swift` `apiBas
 ### Known Deployment Gotchas
 
 1. **SQL/AI region limits:** If SQL provisioning or `gpt-5-mini` deployment fails, try `westus3`, `centralus`, or `southcentralus`; verify model version with `az cognitiveservices model list`.
-2. **Post-provision SQL access:** The deploying user must be Microsoft Entra admin, and local SQL setup needs a temporary firewall rule for the developer IP.
-3. **Azure SQL DNS failures:** If logs show `getaddrinfo ENOTFOUND <sql-name>`, `AZURE_SQL_SERVER` is only the short name. Use `<sql-name>.database.windows.net`.
-4. **Oryx TypeScript build fails:** Check `.funcignore`; do not exclude `src/` or `tsconfig.json`.
-5. **Storage deploy failures:** For 403 or missing container errors, ensure Storage `networkAcls.defaultAction` is `Allow`, the deploying user has `Storage Blob Data Contributor`, and the `deploymentpackage` container exists.
-6. **Simulator preflight busy:** If Xcode reports `Application failed preflight checks` or `SBMainWorkspace Busy`, terminate/uninstall the app from that simulator, reboot the simulator, then clean build and run again.
+2. **Post-provision SQL access:** The deploying user must be Microsoft Entra admin, and local SQL setup needs a temporary firewall rule for the developer IP. The portable hook must clean it up in `finally`.
+3. **Azure SQL Redirect policy:** Clients outside Azure may be redirected from port 1433 to ports 11000–11999. If those ports are blocked, temporarily switch the server to `Proxy` during post-provision and restore its original policy afterward.
+4. **Azure SQL DNS failures:** If logs show `getaddrinfo ENOTFOUND <sql-name>`, `AZURE_SQL_SERVER` is only the short name. Use `<sql-name>.database.windows.net`.
+5. **Oryx TypeScript build fails:** Check `.funcignore`; do not exclude `src/` or `tsconfig.json`.
+6. **Storage deploy failures:** For 403 or missing container errors, ensure Storage `networkAcls.defaultAction` is `Allow`, the deploying user has `Storage Blob Data Contributor`, and the `deploymentpackage` container exists.
+7. **Simulator preflight busy:** If Xcode reports `Application failed preflight checks` or `SBMainWorkspace Busy`, terminate/uninstall the app from that simulator, reboot the simulator, then clean build and run again.
 
 ---
 

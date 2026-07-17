@@ -38,20 +38,23 @@ Before starting, ensure you have:
 - **Agentic coding tool**: [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started), the [GitHub Copilot app](https://github.com/features/ai/github-app), [VS Code + GitHub Copilot](https://code.visualstudio.com), or another agentic coding tool that supports agents and skills
 - **GitHub account with GitHub Copilot access** ([Free](https://github.com/features/copilot/plans), [Pro](https://github.com/features/copilot/plans), or [Enterprise](https://github.com/features/copilot/plans)) if using GitHub Copilot
 - **Azure subscription** - [Create account](https://azure.microsoft.com/pricing/purchase-options/azure-account)
-- **Azure CLI** (`az`) - [Install](https://docs.microsoft.com/cli/azure/install-azure-cli)
-- **Azure Developer CLI** (`azd`) - [Install](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+- **Azure CLI** (`az`) - [Install](https://learn.microsoft.com/cli/azure/install-azure-cli)
+- **Azure Developer CLI** (`azd`) 1.28.0 or later - [Install](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+- **Node.js 24 LTS or later** - [Install](https://nodejs.org/en/download)
 
-  ```bash
+  ```text
   # Verify installations
+  node --version
   az version
   azd version
 
-  # Login to Azure and select your subscription
+  # Login once and make azd reuse the Azure CLI session
   az login
-  azd auth login
+  az account show
+  azd config set auth.useAzCliAuth true
   ```
 
-Journey-specific tools (Docker, kubectl, Xcode, language runtimes) are listed on each journey page.
+Journey-specific tools are listed on each journey page. The [cross-platform installation guide](./docs/tool-installation.md) provides Windows, macOS, and Linux options for every required tool.
 
 ## GitHub Copilot tools
 
@@ -82,10 +85,10 @@ cd github-azure-agentic-journeys
 
 ### 2. Confirm Azure login
 
-```bash
+```text
 az login
-azd auth login
 az account show   # confirm the subscription you expect
+azd config set auth.useAzCliAuth true
 ```
 
 ### 3. Install the Azure plugin

@@ -21,12 +21,15 @@ In this agentic journey, you'll build AIMarket, a lightweight marketplace app wi
 >
 > 💰 **Estimated Cost**: ~$100–115/month **if left running** (AI Search Basic is ~$75 of that; see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
 >
-> 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
+> 📋 **Prerequisites**
 >
-> **Additional prerequisites for this journey:**
-> - [Docker](https://docs.docker.com/get-docker/): needed for image builds in Phase 4
-> - [GitHub CLI](https://cli.github.com/) (`gh`): needed for repo creation and issue management in Phases 2–3
-> - Language runtime: [Node.js LTS](https://nodejs.org/) by default (or Python 3.10+ / .NET 8+ / Java 17+ — see PLAN.md)
+> - Azure CLI, Azure Developer CLI 1.28.0+, and an agentic coding tool
+> - Node.js 24 LTS or later for the frontend, cross-platform hooks, and default API stack
+> - Docker with a running daemon and Buildx for image builds
+> - GitHub CLI (`gh`) for the repository and issue workflow in Phases 2–3
+> - The selected API runtime if you choose Python 3.10+, .NET 8+, or Java 17+ instead of Node.js
+>
+> Run `node --version`, `docker version`, `docker buildx version`, and `gh auth status` before starting. See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, macOS, and Linux options.
 
 > [!NOTE]
 > Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
@@ -253,43 +256,28 @@ If any of these are missing, ask GitHub Copilot to fix them one at a time:
 
 #### Step 5: Test the API yourself
 
-Don't ask GitHub Copilot to test. Run these yourself and understand what each one verifies.
+Don't ask GitHub Copilot to claim it tested the API. Generate a reusable cross-platform verifier, run it yourself, and inspect the output.
 
-Start the API dev server for your language, then in a new terminal:
+1. Check that the preferred API port is free. If it is already in use, select another port instead of stopping the unrelated process.
+2. Start the API with its documented `PORT` or equivalent setting.
+3. Generate `scripts/verify-api.mjs` using Node.js `fetch`. The script must read `API_URL` and default to the selected local URL.
+4. Run:
 
-> **Port note:** The examples below use port 3000. Replace with your language's default if different (Python: 8000, .NET: 5000, Java: 8080). See the "Choose Your Stack" table in PLAN.md.
-
-```bash
-# Does the server start and respond?
-curl http://localhost:3000/api/health
-# Expected: {"status":"ok"} or similar JSON health response
-
-# Do all 10 seed products load with pagination?
-curl http://localhost:3000/api/products | python3 -m json.tool | head -20
-# Expected: JSON array with product objects (name, price, category, inventory)
-
-# Does category filtering work?
-curl "http://localhost:3000/api/products?category=Electronics"
-# Expected: Only products with category "Electronics" (3 items, not all 10)
-
-# Does a single product include the full description?
-curl http://localhost:3000/api/products/prod-1 | python3 -m json.tool
-# Expected: Single product object with all fields including description
-
-# Does a missing product return the correct error format?
-curl http://localhost:3000/api/products/nonexistent
-# Expected: 404 response with error message
-
-# Does order creation decrement inventory?
-INVENTORY_BEFORE=$(curl -s http://localhost:3000/api/products/prod-3 | python3 -c "import sys,json; print(json.load(sys.stdin)['inventory'])")
-curl -X POST http://localhost:3000/api/orders \
-  -H "Content-Type: application/json" \
-  -d '{"userId":"user-buyer-1","items":[{"productId":"prod-3","quantity":2}],"shippingAddress":{"street":"1 Main","city":"Seattle","state":"WA","zip":"98101","country":"US"}}'
-INVENTORY_AFTER=$(curl -s http://localhost:3000/api/products/prod-3 | python3 -c "import sys,json; print(json.load(sys.stdin)['inventory'])")
-echo "Inventory: $INVENTORY_BEFORE → $INVENTORY_AFTER (should decrease by 2)"
+```text
+node scripts/verify-api.mjs
 ```
 
-If any test fails, this is the real workflow: describe the failure to GitHub Copilot and let it fix it.
+The verifier must fail with a nonzero exit code unless all of these pass:
+
+- `GET /api/health` returns JSON and HTTP 200.
+- `GET /api/products` returns all 10 seed products.
+- `GET /api/products?category=Electronics` returns only the three electronics products.
+- `GET /api/products/prod-1` includes the full description.
+- `GET /api/products/nonexistent` returns the documented 404 error envelope.
+- Creating an order decrements inventory by the requested quantity.
+- Updating a product to `64.99` succeeds, while a three-decimal price such as `64.991` fails validation.
+
+If any check fails, describe the exact request, expected result, and actual result to GitHub Copilot. Keep the verifier in the generated project so the same checks work from PowerShell, Command Prompt, Bash, and CI.
 
 ```
 > The category filter isn't working — GET /api/products?category=Electronics 
@@ -335,6 +323,7 @@ Start both services, then open `http://localhost:5173` in your browser.
 **🔍 Open the app in your browser at `http://localhost:5173`:**
 
 - Do all 10 products display with images, prices, and ratings?
+- In the browser network panel, do all 10 image requests return HTTP 2xx? Treat a broken seed image as a journey failure and replace it with a verified URL before continuing.
 - Does typing in the search bar filter products?
 - Click "Electronics". Do only 3 products show?
 - Click a product → does the detail page load with the full description?
@@ -364,12 +353,12 @@ Pick one issue (or find a real one) and fix it with GitHub Copilot:
 
 You'll need a GitHub repo for Phase 3's cloud agent workflow. Stay in this journey folder:
 
-```bash
-# From journeys/aimarket (create a new git root for the generated app if needed)
-cd "$(git rev-parse --show-toplevel)/journeys/aimarket"
-# If this folder is not its own git repo yet:
+From the journeys repository root, change to `journeys/aimarket`, then run:
+
+```text
 git init
-git add -A && git commit -m "AIMarket: API + React storefront"
+git add -A
+git commit -m "AIMarket: API + React storefront"
 gh repo create aimarket --private --source=. --push
 ```
 
@@ -391,18 +380,7 @@ This phase teaches two things: how to integrate Azure AI services, and how to de
 
 **Recommended:** Skip creating standalone AI resources here. Implement search + chat with **graceful fallbacks** (SQLite LIKE for search; chat returns 503 without credentials). Phase 4 Bicep provisions **Azure AI Search + Microsoft Foundry** and wires env vars into Container Apps.
 
-**Optional local AI now:** If you want live semantic search and chat before deploy, set env vars from an existing Search + Foundry resource (or ask GitHub Copilot to create temporary ones and delete them later):
-
-```bash
-# Only if testing AI features locally before Phase 4
-export AZURE_SEARCH_ENDPOINT="https://<your-search-service>.search.windows.net"
-export AZURE_SEARCH_KEY="<your-admin-key>"
-export AZURE_SEARCH_INDEX="aimarket-products"
-
-export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com"
-export AZURE_OPENAI_KEY="<your-api-key>"
-export AZURE_OPENAI_DEPLOYMENT="gpt-5-mini"
-```
+**Optional local AI now:** If you want live semantic search and chat before deploy, have GitHub Copilot create an uncommitted `.env.local` containing `AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_KEY`, `AZURE_SEARCH_INDEX`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_KEY`, and `AZURE_OPENAI_DEPLOYMENT`. Add the file to `.gitignore` and load it through the selected framework instead of placing credentials in shell history. Use existing Search and Foundry resources, or create temporary resources and delete them immediately after testing.
 
 Do **not** create a second long-lived Search/Foundry pair if you are about to run Phase 4 — you will pay twice.
 
@@ -425,19 +403,7 @@ Open the search service file. Key things to understand:
 - The endpoint does a **two-step process**: search returns IDs and scores, then full product details come from your database
 - There's a **fallback**: when Azure credentials aren't set, it uses a SQLite LIKE query instead
 
-Test it yourself:
-
-```bash
-# Does semantic search understand intent (not just keywords)?
-curl -X POST http://localhost:3000/api/products/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "something lightweight for travel"}'
-
-# Does it find gifts?
-curl -X POST http://localhost:3000/api/products/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "gift for a kid"}'
-```
+Extend `scripts/verify-api.mjs` with semantic assertions, then rerun it. It must prove that “something lightweight for travel” returns the UltraBook product and “gift for a kid” returns the castle set or another valid toy without relying on exact string matching alone.
 
 > **No results?** If search returns no results, make sure products have been pushed to the search index. Restart the API (which indexes on startup) or call `POST /api/products/reindex`.
 
@@ -465,12 +431,10 @@ If your surface supports it (e.g. Copilot CLI `/delegate`), delegate asynchronou
 
 **Option B: Create an issue and assign GitHub Copilot cloud agent**
 
-Create the issue:
+Create `issue-body.md` with this content:
 
-```bash
-gh issue create \
-  --title "Add AI shopping assistant (chat endpoint + ChatWidget)" \
-  --body "## What
+```markdown
+## What
 Add the AI shopping assistant to AIMarket.
 
 ## Spec
@@ -490,7 +454,13 @@ Read PLAN.md in the root of the pushed AIMarket repository. Implement:
 - Assistant does not invent products outside the catalog
 - Multi-turn conversation works (follow-up questions)
 - ChatWidget opens, sends messages, displays responses
-- If Azure credentials are missing, endpoint returns 503"
+- If Azure credentials are missing, endpoint returns 503
+```
+
+Create the issue with one shell-neutral command:
+
+```text
+gh issue create --title "Add AI shopping assistant (chat endpoint + ChatWidget)" --body-file issue-body.md
 ```
 
 Then assign it to the GitHub Copilot cloud agent. Navigate to the issue on GitHub and click **"Assign to Copilot"**.
@@ -563,22 +533,20 @@ The Phase 4 spec in PLAN.md and the `container-apps-deployment` skill already co
 4. Open `client/nginx.conf`. Does it ONLY have `try_files` for SPA routing? No `/api/` proxy block. (With public ingress on Container Apps, each service has its own URL, so nginx proxying to `aimarket-api` will crash because that hostname doesn't resolve.)
 5. Open `client/.dockerignore`. Does it exclude dependency directories (`node_modules/`, `.git/`)? Without this, the Docker build context is huge and may fail.
 6. Open `api/.dockerignore`. Make sure it does NOT exclude build config files like `tsconfig.json`. The Docker build needs them to compile.
-7. Open `client/Dockerfile`. Does it have `ARG VITE_API_URL` and `ENV VITE_API_URL=$VITE_API_URL` **before** the `npm run build` step?
-8. Does `azure.yaml` define `hooks.postdeploy` → `infra/hooks/postdeploy.sh`? Without this, the storefront will load HTML but products will fail.
+7. Open `client/Dockerfile`. Does the builder use `$BUILDPLATFORM`, and are `ARG VITE_API_URL` and `ENV VITE_API_URL=$VITE_API_URL` **before** `npm run build`?
+8. Do both Container Apps use system-assigned identity, an `AcrPull` assignment, and an explicit ACR registry entry using `identity: system` before a private image is deployed?
+9. Does `azure.yaml` define `hooks.postdeploy` → `infra/hooks/postdeploy.mjs` without `shell: sh`? Without this, the storefront will load HTML but products will fail.
 
 **💡 What you're learning:** Deployment infrastructure has sharp edges that break silently. Missing service tags = deployment succeeds but app doesn't update. Missing `.dockerignore` = disk space errors. Wrong nginx config = container crashes on startup. The postdeploy hook exists because Vite bakes `VITE_API_URL` at **build** time—the API FQDN is only known **after** provision.
 
 #### Step 2: Deploy
 
-```bash
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
-azd up
-```
+Read the subscription ID with `az account show --query id -o tsv`, pass the returned value to `azd env set AZURE_SUBSCRIPTION_ID <subscription-id>`, then run `azd up`.
 
 > ⏳ **While you wait:** Azure is building your Docker images and provisioning Container Apps, AI Search, and Foundry. While it runs:
 >
 > 1. Watch resources in the [Azure Portal](https://portal.azure.com) or `az resource list --resource-group rg-<env-name> --output table`.
-> 2. Open `infra/hooks/postdeploy.sh` and trace how `VITE_API_URL` is set after deploy.
+> 2. Open `infra/hooks/postdeploy.mjs` and trace how `VITE_API_URL` is set after deploy.
 > 3. Think about why the API and frontend are *separate* Container Apps. What are the scaling implications?
 
 Deployment may take several minutes. If it fails, ask GitHub Copilot to help diagnose:
@@ -592,51 +560,38 @@ Deployment may take several minutes. If it fails, ask GitHub Copilot to help dia
 The **postdeploy hook** should have rebuilt the web image with `VITE_API_URL=<API_URL>/api`. Confirm products load at `WEB_URL`. If they do not:
 
 ```
-> The frontend can't reach the API. Run or fix infra/hooks/postdeploy.sh:
-  rebuild client with VITE_API_URL=$(azd env get-value API_URL)/api,
-  --platform linux/amd64, push to ACR, update the web Container App.
+> The frontend can't reach the API. Run or fix infra/hooks/postdeploy.mjs.
+  It must read API_URL with azd, rebuild the client with API_URL + "/api",
+  target linux/amd64, push to ACR, and update the web Container App without
+  relying on Bash or PowerShell-specific syntax.
 ```
 
 <details>
-<summary>Manual fallback: rebuild and push the frontend image</summary>
+<summary>Manual fallback: run the portable frontend hook</summary>
 
-```bash
-API_URL=$(azd env get-value API_URL)
-ACR=$(azd env get-value AZURE_CONTAINER_REGISTRY_ENDPOINT)
-ACR_NAME=${ACR%%.*}
-RG=$(azd env get-value RESOURCE_GROUP_NAME)
+A filtered `azd deploy web` can skip project-level postdeploy hooks. Run the JavaScript hook directly instead:
 
-az acr login --name "$ACR_NAME"
-docker build --platform linux/amd64 \
-  --build-arg VITE_API_URL="${API_URL}/api" \
-  -t "$ACR/aimarket-web:fixed" client/
-docker push "$ACR/aimarket-web:fixed"
-
-WEB_APP=$(az containerapp list --resource-group "$RG" \
-  --query "[?tags.\"azd-service-name\"=='web'].name" -o tsv)
-az containerapp update --name "$WEB_APP" --resource-group "$RG" \
-  --image "$ACR/aimarket-web:fixed"
+```text
+node infra/hooks/postdeploy.mjs
 ```
+
+The hook must read all dynamic values through `azd env get-value`, call Docker and Azure CLI with argument arrays, and verify that the updated Container App reaches `Running` before exiting.
 
 </details>
 
-**💡 What you're learning:** Build-time env vars for SPAs are a classic multi-service deploy problem. Production teams use postdeploy hooks, runtime config injection, or two-stage CI/CD—so the first deploy still ends green.
+**💡 What you're learning:** Build-time env vars for SPAs are a classic multi-service deploy problem. Production teams use postdeploy hooks, runtime config injection, or two-stage CI/CD so the first deploy still ends green.
 
 #### Step 4: Verify the live deployment
 
-```bash
-API_URL=$(azd env get-value API_URL)
-WEB_URL=$(azd env get-value WEB_URL)
+Generate `scripts/verify-deployment.mjs` and run it from Windows, macOS, or Linux:
 
-# API works?
-curl -s "$API_URL/api/health"
-curl -s "$API_URL/api/products" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'{d[\"totalCount\"]} products')"
-
-# Frontend loads?
-curl -s -o /dev/null -w "HTTP %{http_code}" "$WEB_URL"
+```text
+node scripts/verify-deployment.mjs
 ```
 
-Open `$WEB_URL` in your browser. You should see the product grid with 10 products. If you see "Failed to load products," the `VITE_API_URL` isn't set correctly. Go back to Step 3.
+The script must read `API_URL` and `WEB_URL` with `azd`, then require HTTP 200 from `/api/health`, 10 products from `/api/products`, a rendered storefront containing a known product, and no failed product-image requests.
+
+Open the value returned by `azd env get-value WEB_URL` in your browser. You should see the product grid with 10 products. If you see "Failed to load products," the `VITE_API_URL` isn't set correctly. Go back to Step 3.
 
 Also check the browser dev tools Network tab. Product requests should go to `https://ca-api-xxx.../api/products`, not `/api/products` (the relative path means the fix didn't take).
 
@@ -764,8 +719,8 @@ az provider register --namespace Microsoft.OperationalInsights
 **Build context too large:**
 Check that `client/.dockerignore` and `api/.dockerignore` exclude `node_modules/`, `.git/`, and build output directories.
 
-**Wrong platform (Apple Silicon):**
-Add `--platform linux/amd64` to your `docker build` commands. Azure Container Apps runs Linux AMD64 containers.
+**Wrong image platform on an ARM64 host:**
+Prefer a remote ACR build for `linux/amd64`. If building locally, verify Buildx and AMD64 emulation during preflight, keep the static frontend builder on `$BUILDPLATFORM`, and target `linux/amd64` for runtime images. Never install privileged QEMU/binfmt automatically.
 
 **Frontend can't find the API (`VITE_API_URL` not set):**
 The `ARG VITE_API_URL` line must come BEFORE the `npm run build` step in `client/Dockerfile`. If it's after, the build arg is silently ignored.
@@ -779,26 +734,7 @@ The `ARG VITE_API_URL` line must come BEFORE the `npm run build` step in `client
 
 ## Verification Checklist
 
-```bash
-API_URL=$(azd env get-value API_URL)
-WEB_URL=$(azd env get-value WEB_URL)
-
-# 1. API responds (expect JSON with products)
-curl -s "$API_URL/api/products" | python3 -m json.tool | head -5
-
-# 2. Semantic search works (expect ranked results)
-curl -s -X POST "$API_URL/api/products/search" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "budget friendly electronics"}' | python3 -m json.tool | head -10
-
-# 3. Chat assistant responds (expect product recommendations)
-curl -s -X POST "$API_URL/api/chat" \
-  -H "Content-Type: application/json" \
-  -d '{"messages": [{"role": "user", "content": "What are your best sellers?"}]}' | python3 -m json.tool
-
-# 4. Frontend loads (expect HTML)
-curl -s -o /dev/null -w "%{http_code}" "$WEB_URL"  # Expect 200
-```
+Run `node scripts/verify-deployment.mjs`. It must read `API_URL` and `WEB_URL` through `azd`, assert all ten products, semantic ranking, a grounded chat response, HTTP 200 from the storefront, the production API URL in the built frontend, and successful loading of every product image.
 
 </details>
 
@@ -812,10 +748,7 @@ azd down --force --purge
 
 Teardown takes 3-5 minutes. This deletes all Azure resources. If you created the AI services separately, delete those too:
 
-```bash
-AI_RESOURCE_GROUP="<resource-group-used-for-separate-ai-services>"
-az group delete --name "$AI_RESOURCE_GROUP" --yes --no-wait
-```
+If you created a separate temporary AI resource group, delete only its recorded exact name with `az group delete --name <temporary-ai-resource-group> --yes --no-wait`, then verify that exact group is gone.
 
 ---
 

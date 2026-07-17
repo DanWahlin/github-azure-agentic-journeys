@@ -9,28 +9,27 @@ Deploy Apache Superset data visualization platform on Azure Kubernetes Service.
 
 > **Complexity Note**: Superset is the most complex deployment in this project due to psycopg2 requirements and AKS architecture. Deploy time: ~15-20 minutes.
 
+## Prerequisites and Portability
+
+Require Azure CLI, Azure Developer CLI 1.28.0 or later, Node.js 24 LTS or later, `kubectl`, and Helm 3. Verify `node --version`, `kubectl version --client`, and `helm version` before generating infrastructure. Stop before provisioning if any required tool is missing. Installation options for Windows, macOS, and Linux are in `../../../docs/tool-installation.md`.
+
+Generate the AKS post-provision workflow as `infra-superset/hooks/postprovision.mjs` and reference it directly from `azure.yaml`. The hook must call Helm, Azure CLI, and `kubectl` with `execFileSync()` or `spawnSync()` argument arrays. Do not generate a Bash-only `.sh` hook.
+
 ## Critical: Infrastructure Generation
 
 This skill provides Superset-specific configuration only. Infrastructure (Bicep, azure.yaml, K8s manifests) should be generated fresh each time by the official `azure-prepare` → `azure-validate` → `azure-deploy` pipeline. Do NOT rely on pre-existing infra code.
 
 ## Critical: Subscription Context
 
-**ALWAYS set AZURE_SUBSCRIPTION_ID explicitly before running `azd up`:**
-```bash
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
-```
+**ALWAYS set AZURE_SUBSCRIPTION_ID explicitly before running `azd up`.** Read it with `az account show --query id -o tsv`, then pass the returned value to `azd env set AZURE_SUBSCRIPTION_ID <subscription-id>`. Do not use Bash command substitution when the host OS is unknown.
+
 Without this, azd and Azure MCP tools will fail silently or produce incomplete deployments.
 
 ## Critical: PostgreSQL AVM Defaults
 
 **📖 See [../config/postgresql-avm-defaults.md](../config/postgresql-avm-defaults.md) for all PostgreSQL AVM gotchas** (publicNetworkAccess, passwordAuth, HA, password pinning). Without these, Superset will fail with "authentication failed" or "connection timeout".
 
-**Superset-specific:** Also pin Superset secrets:
-```bash
-azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
-azd env set SUPERSET_SECRET_KEY "$(openssl rand -hex 32)"
-azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -hex 16)"
-```
+**Superset-specific:** Pin `POSTGRES_PASSWORD`, `SUPERSET_SECRET_KEY`, and `SUPERSET_ADMIN_PASSWORD` in the azd environment. Generate them with Node's `crypto.randomBytes()` or another cryptographically secure platform API. Do not require `openssl`, which is not installed by default on Windows.
 
 ## Critical: AKS AVM Module Defaults
 
@@ -47,7 +46,7 @@ module aksCluster 'br/public:avm/res/container-service/managed-cluster:0.9.0' = 
 
 ## Quick Start (Verified)
 
-```bash
+```text
 # 1. Register providers (one-time per subscription)
 az provider register --namespace Microsoft.ContainerService
 az provider register --namespace Microsoft.DBforPostgreSQL
@@ -56,19 +55,19 @@ az provider register --namespace Microsoft.OperationalInsights
 # 2. Create environment
 azd env new my-superset-env
 
-# 3. Set required variables (passwords pinned — safe for redeploy)
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+# 3. Set required variables (replace placeholders with collected/generated values)
+azd env set AZURE_SUBSCRIPTION_ID "<subscription-id>"
 azd env set AZURE_LOCATION "westus"
-azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
-azd env set SUPERSET_SECRET_KEY "$(openssl rand -hex 32)"
-azd env set SUPERSET_ADMIN_PASSWORD "$(openssl rand -hex 16)"
+azd env set POSTGRES_PASSWORD "<generated-secret>"
+azd env set SUPERSET_SECRET_KEY "<generated-secret>"
+azd env set SUPERSET_ADMIN_PASSWORD "<generated-secret>"
 
 # 4. Deploy (~15-20 minutes)
 azd up
 
 # 5. Access Superset
 azd env get-value SUPERSET_URL
-# Login: admin / $(azd env get-value SUPERSET_ADMIN_PASSWORD)
+# Login: admin / value returned by azd env get-value SUPERSET_ADMIN_PASSWORD
 ```
 
 **Deployment time breakdown:**
@@ -175,7 +174,7 @@ Use these Azure MCP Server tools for Superset deployments:
 
 ## Deployment Checklist
 
-Before verifying: ensure PostgreSQL has a firewall rule, AKS has kubectl access, ConfigMap has `superset_config.py`, K8s secret has `SQLALCHEMY_DATABASE_URI` + `SUPERSET_SECRET_KEY` + `ADMIN_PASSWORD`, and `PYTHONPATH=/psycopg2-lib` is set. See [troubleshooting.md](troubleshooting.md) for the full verification checklist.
+Before verifying: ensure PostgreSQL has a firewall rule, AKS has kubectl access, Helm installed NGINX Ingress, ConfigMap has `superset_config.py`, K8s secret has `SQLALCHEMY_DATABASE_URI` + `SUPERSET_SECRET_KEY` + `ADMIN_PASSWORD`, and `PYTHONPATH=/psycopg2-lib` is set. See [troubleshooting.md](troubleshooting.md) for the full verification checklist.
 
 ## Default Credentials
 
@@ -206,20 +205,20 @@ azd down --force --purge
 
 After deployment completes:
 
-```bash
+```text
 # 1. Check pod status (expected: 1/1 Running)
 kubectl get pods -n superset
 
-# 2. Verify PostgreSQL (expected: "Context impl PostgresqlImpl")
-kubectl logs -n superset <pod> -c superset-init | grep -i "PostgresqlImpl"
+# 2. Print init logs and confirm they contain "Context impl PostgresqlImpl"
+kubectl logs -n superset <pod> -c superset-init
 
 # 3. Verify psycopg2 installed
 kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"
 
-# 4. Test health endpoint (expected: HTTP 200)
-EXTERNAL_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -I http://$EXTERNAL_IP/health
-
-# 5. Test login page (expected: HTTP 200)
-curl -I http://$EXTERNAL_IP/login/
+# 4. Get the ingress IP, copy it, and test the endpoints
+kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath="{.status.loadBalancer.ingress[0].ip}"
+curl -I http://<external-ip>/health
+curl -I http://<external-ip>/login/
 ```
+
+For automated browser login, use selectors `#username`, `#password`, and `button:has-text("Sign in")`. Do not use `input[name="username"]`; the React-rendered form exposes IDs. Verify successful navigation to `/superset/welcome/`.

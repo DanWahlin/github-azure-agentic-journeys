@@ -20,7 +20,13 @@ In this agentic journey, you'll deploy [Grafana OSS](https://grafana.com/oss/gra
 >
 > 💰 **Estimated Cost**: ~$10–20/month **if left running** (see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and GitHub Copilot. See [prerequisites](../../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**
+>
+> - Azure CLI, Azure Developer CLI 1.28.0+, and an agentic coding tool
+> - Node.js 24 LTS or later for portable verification scripts
+> - An Azure subscription with permission to create resource groups and Container Apps
+>
+> See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, macOS, and Linux setup and verification commands.
 
 > [!NOTE]
 > Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
@@ -139,16 +145,9 @@ Ask the agent to confirm everything is working:
 > Verify the Grafana deployment is working. Check the health endpoint.
 ```
 
-You can also verify manually. Open a new terminal and run the following commands to check the health endpoint:
+For repeatable verification on Windows, macOS, and Linux, have the agent generate `scripts/verify-grafana.mjs`. It must read `GRAFANA_URL` through `azd`, require HTTP 200 from `/api/health`, and assert `database: "ok"`. Run it with `node scripts/verify-grafana.mjs`.
 
-```bash
-# Store your deployed URL in a variable (azd env stores outputs from the deployment)
-GRAFANA_URL=$(azd env get-value GRAFANA_URL)
-curl -s "$GRAFANA_URL/api/health"
-# Expected: {"commit":"...","database":"ok","version":"10.x.x"}
-```
-
-Open `$GRAFANA_URL` in your browser. Log in with the admin username and the password set during deployment. If you're not sure what password was generated, ask the agent: *"What's the Grafana admin password?"* It can retrieve it from the deployment environment.
+Open the value returned by `azd env get-value GRAFANA_URL` in your browser. Log in with the admin username and the password set during deployment. If you're not sure what password was generated, ask the agent to retrieve it from the deployment environment without printing it in shared logs.
 
 If something goes wrong, just ask. You're still in the same session:
 
@@ -332,12 +331,7 @@ Teardown takes 3-5 minutes (Container Apps environment deletion is slow).
 
 1. Create a dashboard in Grafana, then restart the container app:
 
-   ```bash
-   RG=$(azd env get-value RESOURCE_GROUP_NAME)
-   APP=$(az containerapp list --resource-group "$RG" --query "[0].name" -o tsv)
-   REVISION=$(az containerapp revision list --name "$APP" --resource-group "$RG" --query "[0].name" -o tsv)
-   az containerapp revision restart --name "$APP" --resource-group "$RG" --revision "$REVISION"
-   ```
+   Ask GitHub Copilot to generate `scripts/restart-grafana.mjs`. It must read the resource group through `azd`, locate the tagged Grafana Container App and its active revision through Azure CLI argument arrays, then restart only that revision. Run `node scripts/restart-grafana.mjs`.
 
    (If an `azd env get-value` lookup fails, just ask the agent: *"Restart my Grafana container app."*)
 

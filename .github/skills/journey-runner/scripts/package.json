@@ -1,0 +1,15 @@
+{
+  "name": "journey-runner-tools",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Cross-platform helpers for the journey-runner skill",
+  "scripts": {
+    "capture": "node capture-screenshot.mjs",
+    "preflight": "node check-prerequisites.mjs",
+    "copilot": "node run-copilot-prompt.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.61.1"
+  }
+}

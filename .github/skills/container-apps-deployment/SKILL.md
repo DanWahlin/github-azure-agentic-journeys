@@ -2,15 +2,15 @@
 name: container-apps-deployment
 description: |
   Container Apps deployment gotchas and SPA frontend patterns for Azure. Supplements the official azure-prepare plugin skill with additional patterns for zone redundancy, azure.yaml configuration, and SPA frontend deployment (VITE_API_URL).
-  USE FOR: Container Apps zone redundancy errors, azure.yaml language field, SPA frontend VITE_API_URL, React deployment to Azure, multi-service Container Apps frontend+API.
-  DO NOT USE FOR: generating Bicep infrastructure from scratch (use azure-prepare plugin), ACR authentication setup (use azure-prepare bicep.md two-phase pattern), AKS deployments (use superset-azure).
+  USE FOR: Container Apps zone redundancy errors, managed-identity ACR pulls, azure.yaml language fields, cross-platform hooks, SPA frontend VITE_API_URL, React deployment to Azure, and ARM64-to-AMD64 builds.
+  DO NOT USE FOR: generating complete Bicep infrastructure from scratch (use azure-prepare plugin) or AKS deployments (use superset-azure).
 ---
 
 # Container Apps Deployment Patterns
 
 Supplements the official `azure-prepare` plugin skill with additional gotchas for Container Apps deployments — zone redundancy, azure.yaml, and SPA frontend patterns.
 
-> **📖 ACR Authentication:** Follow the **two-phase pattern** in `azure-prepare` plugin's `references/services/container-apps/bicep.md`. Do NOT add a `registries` block in Bicep — `azd deploy` calls `az containerapp registry set --identity system` for you.
+> **📖 ACR authentication:** Use a deterministic two-phase pattern. Provision Container Apps with a public placeholder image and system-assigned identity, grant `AcrPull`, then configure `configuration.registries` with the ACR login server and `identity: 'system'` before deploying private images. Some azd versions call `az containerapp registry set` automatically and some do not. Never assume that implicit step occurred; verify the registry configuration before the first private-image deployment.
 
 ## Region-Specific Gotchas
 
@@ -53,20 +53,19 @@ services:
 
 **Without `language`:** `azd up` fails with "must specify language or image".
 
-### Hooks for post-deploy steps
+### Cross-platform hooks
+
+This repository requires `azd` 1.28.0 or later and Node.js 24 LTS or later. Use JavaScript or TypeScript hooks referenced directly from `azure.yaml`; `azd` detects the language from the extension. Do not generate Bash-only `.sh` or PowerShell-only `.ps1` lifecycle hooks.
 
 ```yaml
 hooks:
   postprovision:
-    shell: sh
-    run: infra/hooks/postprovision.sh   # Runs after azd provision
+    run: infra/hooks/postprovision.mjs
   postdeploy:
-    shell: sh
-    run: infra/hooks/postdeploy.sh      # Runs after azd deploy
+    run: infra/hooks/postdeploy.mjs
 ```
 
-Use `postprovision` for steps that need the infrastructure (e.g., setting WEBHOOK_URL from FQDN).
-Use `postdeploy` for steps that need deployed services (e.g., rebuilding frontend with API URL).
+Use `postprovision` for steps that need infrastructure outputs, such as setting `WEBHOOK_URL`. Use `postdeploy` for steps that need deployed services, such as rebuilding a frontend with its API URL. Hook code must invoke `az`, `azd`, and Docker through `execFileSync()` or `spawnSync()` argument arrays, never interpolated shell command strings.
 
 ## SPA Frontend Deployment (React/Vite)
 
@@ -80,85 +79,36 @@ When deploying a React/Vite frontend and API as **separate Container Apps**, the
 
 **Root Cause:** `VITE_API_URL` defaults to `/api` (the Vite dev proxy). In production, nginx has no `/api` route — it serves the SPA for all paths.
 
-### Solution: Post-deploy Hook (required for happy path)
+### Solution: Cross-platform post-deploy hook
 
-**Do not leave this as a manual learner step on first success.** When generating AIMarket (or any Vite SPA + separate API Container Apps) infrastructure, always create `infra/hooks/postdeploy.sh` and wire it in `azure.yaml` so `azd up` / `azd deploy` finishes with a working frontend.
-
-```yaml
-# azure.yaml
-hooks:
-  postdeploy:
-    shell: sh
-    run: infra/hooks/postdeploy.sh
-```
-
-```bash
-#!/bin/sh
-# infra/hooks/postdeploy.sh — rebuild SPA with API URL after deploy
-set -e
-
-# azd may run hooks with cwd = the hook's directory (infra/hooks/), not the project root.
-# Always resolve the app root (parent of infra/) so client/ and azure.yaml paths work.
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
-APP_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
-cd "$APP_ROOT"
-
-echo "=== Post-deploy: Rebuilding frontend with API URL (cwd=$APP_ROOT) ==="
-
-API_URL=$(azd env get-value API_URL)
-# Strip trailing slash if present
-API_URL=${API_URL%/}
-ACR_SERVER=$(azd env get-value AZURE_CONTAINER_REGISTRY_ENDPOINT)
-ACR_NAME=$(echo "$ACR_SERVER" | cut -d. -f1)
-RG=$(azd env get-value RESOURCE_GROUP_NAME)
-# Prefer azd service tag 'web'; fall back to common names
-WEB_APP=$(az containerapp list --resource-group "$RG" \
-  --query "[?tags.\"azd-service-name\"=='web'].name" -o tsv)
-if [ -z "$WEB_APP" ]; then
-  WEB_APP=$(az containerapp list --resource-group "$RG" \
-    --query "[?contains(name, 'web')].name | [0]" -o tsv)
-fi
-
-if [ ! -d "$APP_ROOT/client" ]; then
-  echo "ERROR: client/ not found under $APP_ROOT — postdeploy cwd is wrong"
-  exit 1
-fi
-
-IMAGE_TAG="${ACR_SERVER}/aimarket-web:$(date +%Y%m%d%H%M%S)"
-
-az acr login --name "$ACR_NAME"
-
-# Always target linux/amd64 (required on Apple Silicon; harmless on Intel)
-docker build --platform linux/amd64 \
-  --build-arg VITE_API_URL="${API_URL}/api" \
-  -t "$IMAGE_TAG" "$APP_ROOT/client"
-
-docker push "$IMAGE_TAG"
-
-az containerapp update --name "$WEB_APP" --resource-group "$RG" \
-  --image "$IMAGE_TAG"
-
-echo "Frontend updated with VITE_API_URL=${API_URL}/api"
-```
-
-Make the script executable when generating: `chmod +x infra/hooks/postdeploy.sh`.
-
-When wiring `azure.yaml`, prefer an explicit project-root working directory if your azd version supports it:
+**Do not leave this as a manual learner step on first success.** Generate `infra/hooks/postdeploy.mjs` and reference it directly from `azure.yaml`:
 
 ```yaml
 hooks:
   postdeploy:
-    shell: sh
-    run: infra/hooks/postdeploy.sh
-    # Some azd versions: cwd defaults to the service project; the script still cds to APP_ROOT.
+    run: infra/hooks/postdeploy.mjs
 ```
 
-**After first green deploy**, optionally explain *why* the hook exists (build-time env vars vs runtime URL). Do not make the learner discover a blank product grid first.
+The JavaScript hook must:
+
+1. Resolve the application root with `import.meta.url` and `fileURLToPath()` rather than assuming the current working directory.
+2. Read `API_URL`, `AZURE_CONTAINER_REGISTRY_ENDPOINT`, and `RESOURCE_GROUP_NAME` with `azd env get-value`.
+3. Find the web Container App by its `azd-service-name=web` tag.
+4. Log in to ACR through Azure CLI.
+5. Build the frontend with `VITE_API_URL=<API_URL>/api` and target `linux/amd64`.
+6. Push a unique image tag and update the web Container App.
+7. Wait until the new revision is ready, then verify the storefront can load products.
+
+Call external tools with `execFileSync()` or `spawnSync()` and argument arrays. Do not concatenate a shell command, use `chmod`, or depend on Bash, PowerShell, `cut`, `grep`, or `date`. Use JavaScript for path handling, timestamps, retries, and JSON parsing.
+
+A filtered command such as `azd deploy web` can skip project-level hooks. After any filtered web deployment, run `node infra/hooks/postdeploy.mjs` explicitly and verify production product loading.
+
+**After the first green deploy**, explain why the hook exists. Don't make the learner discover a blank product grid first.
 
 ### Frontend Dockerfile Requirements
 
 ```dockerfile
-FROM node:20-alpine AS build
+FROM --platform=$BUILDPLATFORM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -173,7 +123,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 ```
 
-**Key:** `ARG` + `ENV` must appear **before** `RUN npm run build` so Vite picks it up.
+**Keys:** `ARG` + `ENV` must appear **before** `RUN npm run build` so Vite picks up the URL. `$BUILDPLATFORM` keeps the static Vite/esbuild build native on ARM64 hosts; the final image is still built for the requested `linux/amd64` target.
 
 ### nginx.conf — SPA Only
 
@@ -203,15 +153,13 @@ export async function getProducts() {
 In dev: `VITE_API_URL` is unset → falls back to `/api` → Vite proxy handles it.
 In prod: `VITE_API_URL` is `https://ca-api-xxx.azurecontainerapps.io/api` → calls API directly.
 
-## Apple Silicon (M1/M2/M3) Cross-Compilation
+## ARM64 Host Cross-Compilation
 
-Azure Container Apps runs Linux AMD64. When building on Apple Silicon:
+Azure Container Apps runs Linux AMD64. This applies to Apple Silicon, Windows ARM64, and Linux ARM64 hosts.
 
-```bash
-docker build --platform linux/amd64 -t myimage .
-```
+Prefer remote ACR builds targeting `linux/amd64`. If the journey builds locally, preflight must verify Docker Buildx and AMD64 emulation before deployment. Never install privileged QEMU/binfmt handlers automatically. On a managed Linux host, stop and ask for approval or use the remote build path.
 
-Without `--platform linux/amd64`, the image builds for ARM64 and the container crashes with `exec format error`.
+Without an AMD64 target, the container crashes with `exec format error`. Building native tools such as esbuild entirely under emulation can also crash, which is why static frontend builder stages use `$BUILDPLATFORM`.
 
 ## Bicep Output Naming Convention
 

@@ -7,23 +7,19 @@ description: n8n workflow automation configuration for Azure. Use when deploying
 
 Application-specific configuration for deploying n8n to Azure Container Apps with PostgreSQL. Infrastructure should be generated fresh by the `azure-prepare` → `azure-validate` → `azure-deploy` pipeline.
 
+## Prerequisites and Portability
+
+Require Azure CLI, Azure Developer CLI 1.28.0 or later, and Node.js 24 LTS or later. Generated lifecycle hooks must be JavaScript (`.mjs`) or TypeScript (`.ts`) files referenced directly from `azure.yaml`; do not generate Bash-only `.sh` or PowerShell-only `.ps1` hooks. See `../../../docs/tool-installation.md` for Windows, macOS, and Linux installation options.
+
 ## Critical: Subscription Context
 
-**ALWAYS set AZURE_SUBSCRIPTION_ID explicitly before running `azd up`:**
-```bash
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
-```
+**ALWAYS set AZURE_SUBSCRIPTION_ID explicitly before running `azd up`.** Read it with `az account show --query id -o tsv`, then pass the returned value to `azd env set AZURE_SUBSCRIPTION_ID <subscription-id>`. Do not emit Bash command substitution when the operating system is unknown.
 
 ## Critical: PostgreSQL AVM Defaults
 
 **📖 See [../config/postgresql-avm-defaults.md](../config/postgresql-avm-defaults.md) for all PostgreSQL AVM gotchas** (publicNetworkAccess, passwordAuth, HA, password pinning). Without these settings, n8n will fail with "authentication failed" or "connection timeout".
 
-**n8n-specific:** Also pin n8n's own secrets:
-```bash
-azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
-azd env set N8N_ENCRYPTION_KEY "$(openssl rand -hex 16)"
-azd env set N8N_AUTH_PASSWORD "$(openssl rand -hex 16)"
-```
+**n8n-specific:** Pin `POSTGRES_PASSWORD` and `N8N_ENCRYPTION_KEY` in the azd environment so redeployments keep the same values. Generate both with Node's `crypto.randomBytes()` or another cryptographically secure platform API. Do not require `openssl`, and do not create `N8N_AUTH_PASSWORD`; current n8n releases use built-in owner-account management rather than the removed `N8N_BASIC_AUTH_*` variables.
 
 ## Critical: PostgreSQL SKU Format
 
@@ -38,7 +34,7 @@ sku: { name: 'Standard_B1ms', tier: 'Burstable' }  // Both fields required
 
 ## Quick Start (Verified)
 
-```bash
+```text
 # 1. Register providers (one-time per subscription)
 az provider register --namespace Microsoft.App
 az provider register --namespace Microsoft.DBforPostgreSQL
@@ -47,19 +43,18 @@ az provider register --namespace Microsoft.OperationalInsights
 # 2. Create environment
 azd env new my-n8n-env
 
-# 3. Set required variables (passwords pinned — safe for redeploy)
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+# 3. Set required variables (replace placeholders with collected/generated values)
+azd env set AZURE_SUBSCRIPTION_ID "<subscription-id>"
 azd env set AZURE_LOCATION "westus"
-azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
-azd env set N8N_ENCRYPTION_KEY "$(openssl rand -hex 16)"
-azd env set N8N_AUTH_PASSWORD "$(openssl rand -hex 16)"
+azd env set POSTGRES_PASSWORD "<generated-secret>"
+azd env set N8N_ENCRYPTION_KEY "<generated-secret>"
 
 # 4. Deploy (~7-10 minutes)
 azd up
 
 # 5. Access n8n
 azd env get-value N8N_URL
-# Login: admin / $(azd env get-value N8N_AUTH_PASSWORD)
+# First launch: complete the Set up owner account flow
 ```
 
 **Deployment time breakdown:**
@@ -100,7 +95,7 @@ graph TB
 
 | Setting | Value | Reason |
 |---------|-------|--------|
-| Image | `docker.io/n8nio/n8n:latest` | Official Docker Hub image |
+| Image | `docker.io/n8nio/n8n:2.30.6` | Pin a tested official image; never use `latest` |
 | Port | 5678 | n8n default port |
 | CPU | 1.0 cores | Minimum for responsive UI |
 | Memory | 2Gi | n8n recommended minimum |
@@ -132,7 +127,19 @@ Use the dedicated health endpoint `/healthz` for startup, readiness, and livenes
 
 ## Verification
 
-After `azd up`, run the verification commands in [troubleshooting.md](troubleshooting.md). Key checks: HTTP 200 from `$N8N_URL/healthz`, HTTP 200 from the n8n UI URL, `WEBHOOK_URL` is set on the container, and container logs show no errors. In CI, poll `/healthz` for up to 5 minutes before checking the UI.
+After `azd up`, run the verification commands in [troubleshooting.md](troubleshooting.md). Key checks: HTTP 200 from `$N8N_URL/healthz`, HTTP 200 from the n8n UI URL, the owner-setup or login page renders, `WEBHOOK_URL` is set on the container, and container logs show no errors. In CI, poll `/healthz` for up to 5 minutes before checking the UI.
+
+## Cross-Platform Post-Provision Hook
+
+Generate `infra-n8n/hooks/postprovision.mjs` and reference it directly from `azure.yaml`:
+
+```yaml
+hooks:
+  postprovision:
+    run: ./infra-n8n/hooks/postprovision.mjs
+```
+
+The hook must use `child_process.execFileSync()` or `spawnSync()` with argument arrays to call `azd` and `az`; it must not assemble shell command strings. Read the Container App FQDN, set `WEBHOOK_URL=https://<fqdn>`, and fail with a nonzero exit code if either CLI call fails. This works natively on Windows, macOS, and Linux.
 
 ## Tear Down
 

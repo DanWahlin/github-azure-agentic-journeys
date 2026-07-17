@@ -20,7 +20,13 @@ Want workflow automation on Azure but don't want to write Bicep (Azure's infrast
 >
 > 💰 **Estimated Cost**: ~$25–35/month **if left running** (see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
 >
-> 📋 **Prerequisites**: Azure CLI, Azure Developer CLI, and GitHub Copilot. See [prerequisites](../../README.md#prerequisites) for installation links.
+> 📋 **Prerequisites**
+>
+> - Azure CLI, Azure Developer CLI 1.28.0+, and an agentic coding tool
+> - Node.js 24 LTS or later for the cross-platform post-provision hook
+> - An Azure subscription with permission to create Container Apps and PostgreSQL Flexible Server
+>
+> See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, macOS, and Linux installation and verification commands.
 
 > [!NOTE]
 > Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
@@ -28,7 +34,7 @@ Want workflow automation on Azure but don't want to write Bicep (Azure's infrast
 ### Done when
 
 - [ ] `$N8N_URL/healthz` returns HTTP 200
-- [ ] UI loads (HTTP 200); title contains n8n
+- [ ] UI loads (HTTP 200); title contains n8n and the owner-setup or login page renders
 - [ ] `WEBHOOK_URL` set on the container (agent or post-provision hook)
 - [ ] `azd down --force --purge` completed
 
@@ -135,7 +141,7 @@ The agent handles the entire deployment:
 3. Generates modular Bicep infrastructure in `infra-n8n/`
 4. Updates `azure.yaml`, registers Azure providers, sets environment variables
 5. Runs `azd up`
-6. Configures `WEBHOOK_URL` via post-provision hook
+6. Configures `WEBHOOK_URL` with `infra-n8n/hooks/postprovision.mjs`, referenced directly from `azure.yaml`. The JavaScript hook uses Node.js and works on Windows, macOS, and Linux without Bash or PowerShell-specific syntax.
 
 You can ask follow-up questions anytime during or after generation:
 
@@ -154,28 +160,7 @@ Ask the agent to confirm everything is working:
 
 The agent uses `azure_deploy_app_logs` (an Azure MCP tool that fetches container logs) to confirm the deployment is healthy.
 
-You can also verify manually. Open a new terminal and run the following commands to check the health endpoint:
-
-```bash
-# Store your deployed URL in a variable (azd env stores outputs from the deployment)
-N8N_URL=$(azd env get-value N8N_URL)
-
-# Wait for the dedicated health endpoint first
-for i in {1..30}; do
-  code=$(curl -k -sS -o /tmp/n8n-health.txt -w "%{http_code}" --max-time 20 "$N8N_URL/healthz" || true)
-  [ "$code" = "200" ] && break
-  echo "Waiting for n8n /healthz, attempt $i/30, status=$code"
-  sleep 10
-done
-
-# Check the UI HTTP status code (200 means the app is responding)
-curl -s -o /dev/null -w "%{http_code}" "$N8N_URL"
-# Expected: 200
-
-# Verify the page title confirms it's n8n
-curl -s "$N8N_URL" | grep -o "<title>[^<]*</title>"
-# Expected: <title>n8n.io - Workflow Automation</title>
-```
+Generate `scripts/verify-n8n.mjs` and run it with `node scripts/verify-n8n.mjs`. The portable verifier must read `N8N_URL` through `azd`, poll `/healthz` for HTTP 200, require HTTP 200 from the UI, and use Playwright's bundled Chromium to assert the rendered page is either **Set up owner account** or the normal n8n login screen. HTTP 401 is not an acceptable substitute for this check.
 
 If something goes wrong, just ask. You're still in the same session with full context:
 
@@ -206,7 +191,6 @@ The deployment automatically configures these n8n environment variables:
 | `DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED` | `false` | Azure cert compatibility |
 | `DB_POSTGRESDB_CONNECTION_TIMEOUT` | `60000` | 60s timeout for cold starts |
 | `N8N_ENCRYPTION_KEY` | Auto-generated | Encryption key for credentials |
-| `N8N_BASIC_AUTH_ACTIVE` | `true` | Enable basic authentication |
 | `N8N_PORT` | `5678` | n8n default port |
 | `N8N_PROTOCOL` | `https` | Protocol for generated URLs |
 | `N8N_ENDPOINT_HEALTH` | `healthz` | Dedicated health endpoint for probes |
@@ -216,7 +200,7 @@ The deployment automatically configures these n8n environment variables:
 
 | Setting | Value |
 |---------|-------|
-| Image | `docker.io/n8nio/n8n:latest` |
+| Image | `docker.io/n8nio/n8n:2.30.6` |
 | CPU | 1.0 core |
 | Memory | 2 GiB |
 | Min Replicas | 1 while verifying the deployment; 0 afterward if you want scale-to-zero |
@@ -241,7 +225,8 @@ Sensitive values are stored as Container App secrets and referenced via `secretR
 
 - `postgres-password` → `DB_POSTGRESDB_PASSWORD`
 - `n8n-encryption-key` → `N8N_ENCRYPTION_KEY`
-- `n8n-auth-password` → `N8N_BASIC_AUTH_PASSWORD`
+
+Current n8n releases use built-in user management. On first launch, complete the **Set up owner account** flow. Do not generate or configure the removed `N8N_BASIC_AUTH_*` variables.
 
 ---
 

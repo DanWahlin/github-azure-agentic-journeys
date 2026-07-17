@@ -7,13 +7,7 @@
 **Symptoms:** Container app shows "Failed" or keeps restarting
 
 **Solutions:**
-1. Check logs:
-   ```bash
-   az containerapp logs show \
-     --name <container-app-name> \
-     --resource-group <resource-group> \
-     --follow
-   ```
+1. Check logs with `az containerapp logs show --name <container-app-name> --resource-group <resource-group> --follow`.
 2. Verify health probes aren't too aggressive
 3. Increase startup probe failure threshold
 
@@ -37,16 +31,12 @@
 
 **Causes:**
 - Password not set correctly
-- Special characters in password
+- The generated value wasn't passed as one process argument
 
 **Solutions:**
-1. Verify password was passed correctly:
-   ```bash
-   az containerapp show --name <app> -g <rg> \
-     --query "properties.template.containers[0].env"
-   ```
-2. Use alphanumeric password without special shell characters
-3. Redeploy with new password
+1. Inspect only environment-variable names and secret references. Don't print the password value.
+2. Generate a cryptographically secure password and pass it through an argument array or environment binding, not a shell-interpolated command string.
+3. Redeploy with the pinned value.
 
 ### Dashboards Lost After Restart
 
@@ -74,19 +64,16 @@
 
 ### Startup Probe Timeout
 
-**Default config allows 5 minutes for startup (30 failures × 10s interval)**
+**Default AVM-compatible config allows 5 minutes for startup (10 failures × 30s interval)**
 
 If still failing:
-1. Increase `failureThreshold` to 60
+1. With the AVM module, keep `failureThreshold` at its maximum of 10 and increase `periodSeconds` to extend the startup window.
 2. Check if image pull is slow
 3. Verify network connectivity
 
 ### Readiness Probe Failing
 
-Check `/api/health` response:
-```bash
-curl -v https://<fqdn>/api/health
-```
+Run `node .github/scripts/verify-grafana.mjs`; it requires HTTP 200 and `database: "ok"` from `/api/health`.
 
 Should return:
 ```json
@@ -120,7 +107,7 @@ resources: {
 
 ## Azure CLI Commands
 
-```bash
+```text
 # List container apps
 az containerapp list -g <resource-group> -o table
 
@@ -145,7 +132,7 @@ az containerapp env show --name <env> -g <rg>
 2. **Use /api/health for probes** - Returns JSON with database status
 3. **SQLite is ephemeral** - Dashboards lost on restart without persistent storage
 4. **Scale-to-zero cold start** - First request takes 30-60s, this is normal
-5. **Avoid shell special characters in passwords** - Use alphanumeric for CLI deployments
+5. **Keep strong passwords intact** - Pass generated values through argument arrays or environment bindings rather than weakening them for shell quoting
 6. **Azure CLI over azd for Grafana** - azd has `--no-prompt` bugs with secure params
 7. **Resource group deletion is slow** - Container Apps environments take 3-5 minutes
 8. **PostgreSQL is optional** - SQLite works for dev; use PostgreSQL for production

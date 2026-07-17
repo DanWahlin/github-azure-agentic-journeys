@@ -114,19 +114,7 @@ Grafana provides a dedicated health endpoint that returns:
 
 ## Verifying Health Probe Configuration
 
-After deployment:
-
-```bash
-# Check direct health endpoint
-curl https://<GRAFANA_FQDN>/api/health
-
-# Expected response (HTTP 200):
-# {"commit":"...","database":"ok","version":"10.x.x"}
-
-# Check container status
-az containerapp show --name <app-name> --resource-group <rg-name> \
-  --query "properties.runningStatus"
-```
+After deployment, run `node .github/scripts/verify-grafana.mjs`. It reads `GRAFANA_URL` through `azd`, requires HTTP 200 from `/api/health`, and fails unless the JSON contains `database: "ok"`. Inspect live status separately with `az containerapp show --name <app-name> --resource-group <rg-name> --query properties.runningStatus`.
 
 ## Common Health Probe Issues
 

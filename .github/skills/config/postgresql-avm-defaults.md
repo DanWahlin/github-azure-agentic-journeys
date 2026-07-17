@@ -35,11 +35,7 @@ module postgresServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.15
 
 ## Password Pinning
 
-`newGuid()` generates a new password on every `azd up`. PostgreSQL keeps the original. Pin passwords to azd env variables:
-
-```bash
-azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
-```
+`newGuid()` generates a new password on every `azd up`. PostgreSQL keeps the original. Generate a cryptographically secure value with Node.js or the current platform's secure API, then pin it once with `azd env set POSTGRES_PASSWORD <generated-secret>`. Don't require OpenSSL or shell command substitution. See [`../../../docs/tool-installation.md`](../../../docs/tool-installation.md#secure-cross-platform-secret-generation).
 
 Reference in `main.parameters.json`:
 ```json

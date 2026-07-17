@@ -51,6 +51,7 @@ pnpm-debug.log*
 .yarn/
 .pnp.*
 package-lock.json
+!/.github/skills/journey-runner/scripts/package-lock.json
 yarn.lock
 pnpm-lock.yaml
 dist/

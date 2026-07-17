@@ -152,14 +152,8 @@ stringData:
 1. **Never commit secrets to Git**
 2. **Use Kubernetes Secrets** or Azure Key Vault
 3. **Rotate secrets regularly**
-4. **Generate secure random values:**
-   ```bash
-   # Generate secret key
-   openssl rand -base64 32
-   
-   # Generate password
-   openssl rand -base64 16
-   ```
+4. Generate values with Node.js `crypto.randomBytes()` or another cryptographically secure platform API. See the [cross-platform secret-generation guidance](../../../../docs/tool-installation.md#secure-cross-platform-secret-generation).
+5. Store generated values in the azd environment and never commit them.
 
 ## Environment vs Config File
 

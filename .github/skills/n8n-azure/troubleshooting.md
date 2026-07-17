@@ -2,23 +2,9 @@
 
 Common issues and solutions when deploying n8n to Azure.
 
-## Quick Diagnosis Commands
+## Quick Diagnosis
 
-```bash
-# Get deployment values
-APP_NAME=$(azd env get-value N8N_CONTAINER_APP_NAME)
-RG=$(azd env get-value RESOURCE_GROUP_NAME)
-
-# Check container logs
-az containerapp logs show --name $APP_NAME --resource-group $RG --follow
-
-# Check container status
-az containerapp show --name $APP_NAME --resource-group $RG \
-  --query "properties.runningStatus"
-
-# List all azd environment values
-azd env get-values
-```
+Run `node scripts/verify-n8n.mjs` first. The verifier reads deployment values through `azd`, inspects live Container App status and revisions through Azure CLI argument arrays, polls `/healthz`, and checks the rendered owner-setup or login page. If it reports a container failure, use the exact app and resource-group values from its sanitized output with `az containerapp logs show`.
 
 ---
 
@@ -138,7 +124,7 @@ param n8nEncryptionKey string = newGuid()  // ✅ Works
 - `azd up` completes but hook fails
 - Error: "Could not retrieve Container App FQDN"
 
-**Root Cause:** Output names don't match what the hook expects, or script not executable.
+**Root Cause:** Output names do not match what the hook expects, the Node.js runtime is missing, or `azure.yaml` still references an OS-specific shell script.
 
 **Solution:**
 
@@ -148,10 +134,13 @@ param n8nEncryptionKey string = newGuid()  // ✅ Works
    output RESOURCE_GROUP_NAME string = resourceGroup().name
    ```
 
-2. **Make scripts executable:**
-   ```bash
-   chmod +x infra/hooks/postprovision.sh
+2. **Verify the portable hook:**
+   ```yaml
+   hooks:
+     postprovision:
+       run: ./infra-n8n/hooks/postprovision.mjs
    ```
+   Run `node --version` and execute the `.mjs` file directly to see its full error. JavaScript hooks do not need `chmod` and work on Windows, macOS, and Linux.
 
 ---
 
@@ -180,14 +169,7 @@ This is safe for Azure PostgreSQL (Azure manages the certificates, connection is
 
 **Root Cause:** WEBHOOK_URL wasn't configured after deployment.
 
-**Solution:** Should be handled by post-provision hooks. Manual fix:
-
-```bash
-N8N_FQDN=$(az containerapp show --name $APP_NAME --resource-group $RG \
-  --query "properties.configuration.ingress.fqdn" -o tsv)
-az containerapp update --name $APP_NAME --resource-group $RG \
-  --set-env-vars "WEBHOOK_URL=https://$N8N_FQDN"
-```
+**Solution:** Run `node infra-n8n/hooks/postprovision.mjs`. The idempotent portable hook reads the required values, discovers the FQDN, updates `WEBHOOK_URL`, and exits nonzero when Azure CLI fails.
 
 ---
 
@@ -249,11 +231,11 @@ module postgresServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.15
 }
 ```
 
-**Manual fix for existing deployment:**
-```bash
-az postgres flexible-server update --resource-group $RG --name $PG_NAME --public-access Enabled
-az postgres flexible-server firewall-rule create --resource-group $RG --name $PG_NAME \
-  --rule-name AllowAzure --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
+**Manual fix for an existing deployment:** Read `RESOURCE_GROUP_NAME` and the PostgreSQL server name through `azd`, then pass those values explicitly:
+
+```text
+az postgres flexible-server update --resource-group <resource-group> --name <postgres-server> --public-access Enabled
+az postgres flexible-server firewall-rule create --resource-group <resource-group> --name <postgres-server> --rule-name AllowAzure --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
 ```
 
 ---
@@ -269,10 +251,7 @@ az postgres flexible-server firewall-rule create --resource-group $RG --name $PG
 
 **Solution:** Pin passwords to azd environment variables:
 
-```bash
-# Set once — persists across deploys
-azd env set POSTGRES_PASSWORD "$(openssl rand -hex 16)"
-```
+Generate a cryptographically secure password with Node.js or the current platform's secure random API, then set it once with `azd env set POSTGRES_PASSWORD <generated-secret>`. Do not require `openssl`; it is not installed by default on Windows.
 
 Reference in `main.parameters.json`:
 ```json
@@ -365,13 +344,4 @@ probes: [
 ]
 ```
 
-Then verify with a polling loop before checking the UI:
-```bash
-N8N_URL=$(azd env get-value N8N_URL)
-for i in {1..30}; do
-  code=$(curl -k -sS -o /tmp/n8n-health.txt -w "%{http_code}" --max-time 20 "$N8N_URL/healthz" || true)
-  [ "$code" = "200" ] && break
-  echo "Waiting for n8n /healthz, attempt $i/30, status=$code"
-  sleep 10
-done
-```
+Then run `node scripts/verify-n8n.mjs`. It polls `/healthz` before launching bundled Playwright Chromium for the UI assertion.

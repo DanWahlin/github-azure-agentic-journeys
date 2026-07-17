@@ -70,7 +70,7 @@ The skill is what the `@oss-to-azure-deployer` agent reads. Follow this section 
 
 1. **Overview / When to Use** — one paragraph
 2. **Critical: Infrastructure Generation** — infrastructure is generated fresh each deployment via `azure-prepare` plugin, NOT committed to the repo
-3. **Critical: Subscription Context** — `azd env set AZURE_SUBSCRIPTION_ID $(az account show --query id -o tsv)` before deployment
+3. **Critical: Subscription Context** — read the value with `az account show --query id -o tsv`, then pass it to `azd env set AZURE_SUBSCRIPTION_ID <subscription-id>` without shell command substitution
 4. **Critical: \<App-Specific Gotcha\>** — the #1 deployment failure cause (e.g., PostgreSQL SKU needs both `name` AND `tier`; Bicep outputs MUST use SCREAMING_SNAKE_CASE)
 5. **Official Documentation** — link to app's docs
 6. **Quick Start (Verified)** — exact prompt sequence, tested and confirmed
@@ -115,10 +115,10 @@ Every journey README MUST follow this exact structure. Reference `journeys/aimar
 >
 > 💰 **Estimated Cost**: ~$X-Y/month (<main cost driver> — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
 >
-> 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
+> 📋 **Prerequisites**: List every required host tool here, including its validation command. Link to the [cross-platform tool guide](../../../docs/tool-installation.md) for Windows, macOS, and Linux installation options.
 >
 > **Additional prerequisites for this journey:**
-> - [Tool](https://link) — why it's needed
+> - `<Tool>` — why it's needed
 
 ---
 
@@ -154,7 +154,7 @@ Then install the plugin:
 > /plugin install azure@azure-skills
 ```
 
-> **Already installed?** If you completed the root [Quick Start](../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
+> **Already installed?** If you completed the root [Quick Start](../../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
 > **Canonical only:** `microsoft/azure-skills` — never document alternate marketplace names.
 
 <For OSS journeys, select the agent:>
@@ -419,7 +419,7 @@ Supported `host` values: `containerapp`, `aks`, `appservice`, `function`, `stati
 
 **API (Node.js with native deps):**
 ```dockerfile
-FROM node:20-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json* ./
@@ -427,7 +427,7 @@ RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY . .
 RUN npx tsc -p tsconfig.json
 
-FROM node:20-alpine
+FROM node:24-alpine
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json* ./
@@ -459,7 +459,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 **Client (React/Vite SPA):**
 ```dockerfile
-FROM node:20-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
@@ -505,9 +505,9 @@ For other languages (.NET, Java, Go, etc.), follow the same multi-stage pattern:
 5. azd down --force --purge when lab is done
 ```
 
-If the frontend bakes in a backend URL at build time (e.g., Vite `VITE_API_URL`), **always** generate `infra/hooks/postdeploy.sh` from the `container-apps-deployment` skill. Manual rebuild is fallback only. API-only apps skip postdeploy.
+If the frontend bakes in a backend URL at build time, always generate `infra/hooks/postdeploy.mjs` from the `container-apps-deployment` skill and reference it directly from `azure.yaml`. A filtered service deployment may skip project-level hooks, so document direct `node infra/hooks/postdeploy.mjs` execution. API-only apps skip postdeploy.
 
-**Apple Silicon (M1/M2/M3):** Always add `--platform linux/amd64` to `docker build`.
+**Any ARM64 host:** Prefer an ACR remote build targeting `linux/amd64`. If a local cross-build is required, verify Buildx and emulation during preflight, keep static builder stages on `$BUILDPLATFORM`, and never install privileged QEMU/binfmt automatically.
 
 ### Pre-Deployment Requirements (once per subscription)
 
@@ -549,27 +549,17 @@ AKS-specific infrastructure needs:
 - **kubectl verification**: `kubectl get pods`, `kubectl logs`, `kubectl port-forward`
 - **Init containers**: for database migrations (e.g., `superset db upgrade`)
 
-### Post-Provision Hooks
+### Cross-Platform Post-Provision Hooks
 
-Use when configuration needs a value only available after deployment (circular dependency). Place scripts in `infra/hooks/`:
+Use a hook when configuration needs a value available only after provisioning. Place JavaScript or TypeScript hooks in `infra/hooks/` and reference them directly from `azure.yaml`:
 
 ```yaml
-# azure.yaml
 hooks:
   postprovision:
-    - shell: sh
-      run: ./infra/hooks/postprovision.sh
+    run: ./infra/hooks/postprovision.mjs
 ```
 
-Example — n8n's `WEBHOOK_URL` needs the Container App URL, which isn't known until after provisioning:
-
-```bash
-#!/bin/bash
-# infra/hooks/postprovision.sh
-CONTAINER_APP_URL=$(azd env get-value CONTAINER_APP_URL)
-az containerapp update --name "$APP_NAME" --resource-group "$RG_NAME" \
-  --set-env-vars "WEBHOOK_URL=$CONTAINER_APP_URL"
-```
+For example, n8n's `WEBHOOK_URL` depends on the Container App URL. The `.mjs` hook resolves paths with `import.meta.url`, reads outputs with `azd env get-value`, and invokes Azure CLI through `execFileSync()` or `spawnSync()` argument arrays. It must not use Bash variables, PowerShell variables, `chmod`, pipelines, or interpolated shell strings.
 
 ---
 
@@ -605,40 +595,16 @@ Always use Azure Verified Modules from `br/public:avm/...`. Common modules:
 
 Browse the full AVM catalog: https://azure.github.io/Azure-Verified-Modules/indexes/bicep/
 
-### Wrapper Module Pattern (Critical)
+### Managed-Identity ACR Pattern
 
-At subscription scope, `existing` resource refs can't use `dependsOn`, so `listKeys()` / `listCredentials()` fail. Solution: create wrapper modules scoped at resource group level.
+Don't enable the ACR admin account or pass registry passwords to Container Apps. Use the registry login server as a normal output, then use a two-phase deployment:
 
-```bicep
-// infra/modules/container-registry.bicep (resource group scope)
-param name string
-param location string
-param tags object
+1. Provision each Container App with a public placeholder image and system-assigned identity.
+2. Assign `AcrPull` on the registry to that identity.
+3. Configure the Container App registry entry with the ACR login server and `identity: 'system'`.
+4. Deploy the private image only after the role and registry configuration exist.
 
-module registry 'br/public:avm/res/container-registry/registry:0.9.3' = {
-  name: 'acrModule'
-  params: { name: name, location: location, tags: tags, acrSku: 'Basic', acrAdminUserEnabled: true }
-}
-
-resource acrRef 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
-  name: name
-  dependsOn: [registry]   // This works at resource group scope!
-}
-
-output loginServer string = '${name}.azurecr.io'
-output username string = acrRef.listCredentials().username
-output password string = acrRef.listCredentials().passwords[0].value
-```
-
-Main template calls the wrapper and reads keys from outputs:
-```bicep
-module containerRegistry './modules/container-registry.bicep' = {
-  name: 'containerRegistry'
-  scope: rg
-  params: { name: acrName, location: location, tags: tags }
-}
-// Use: containerRegistry.outputs.password
-```
+Some `azd` versions perform the registry step automatically and others don't. Verification must inspect the live Container App registry configuration before declaring success. Use resource-group-scoped wrapper modules only for services that genuinely require `listKeys()`; ACR image pulls don't require admin credentials.
 
 ### Required Bicep Settings
 
@@ -680,12 +646,13 @@ Open the order creation route. Look for:
 human review. GitHub Copilot gets CRUD right but often misses multi-step validation.
 ```
 
-**🧪 Try it yourself** — manual verification with curl:
-```markdown
+**🧪 Try it yourself** — portable verification with a generated Node.js script:
+````markdown
 **🧪 Test it yourself:**
-```bash
-curl -X POST http://localhost:3000/api/orders ...
+```text
+node scripts/verify-api.mjs
 ```
+````
 
 ---
 
@@ -785,6 +752,10 @@ Before considering a journey complete:
 - [ ] VITE_API_URL handled via **postdeploy hook** (if React frontend) — not manual-only first success
 - [ ] Soft-deleted Cognitive Services warning (if using AI services)
 - [ ] Platform flag `--platform linux/amd64` documented (if Docker builds)
+- [ ] Windows, macOS, and Linux prerequisite and command paths reviewed
+- [ ] Stateful verification uses portable scripts or paired Bash and PowerShell examples
+- [ ] Browser verification uses Playwright's bundled Chromium
+- [ ] Required lifecycle hooks are `.mjs`/`.ts`, not `.sh`/`.ps1`
 - [ ] Wrapper module pattern used for resources needing `listKeys()` (if subscription-scoped)
 - [ ] Health probe timing tested with actual startup time
 
@@ -793,4 +764,3 @@ Before considering a journey complete:
 - [ ] Journey added to root README journey table
 - [ ] AGENTS.md updated (project structure + skills table)
 - [ ] Additional prerequisites in journey README (not root)
-- [ ] Journey numbered sequentially

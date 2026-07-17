@@ -13,16 +13,18 @@ Deploy Grafana OSS to Azure Container Apps using Bicep and Azure Developer CLI (
 
 Grafana is an open-source observability platform for metrics, logs, and traces visualization. This skill deploys Grafana OSS (not Azure Managed Grafana) to Azure Container Apps.
 
+## Prerequisites and Portability
+
+Require Azure CLI, Azure Developer CLI 1.28.0 or later, and Node.js 24 LTS or later for portable verification. Don't require OpenSSL, Bash command substitution, or host-specific shell scripts. See `../../../docs/tool-installation.md`.
+
 ## Critical: Infrastructure Generation
 
 This skill provides Grafana-specific configuration only. Infrastructure (Bicep, azure.yaml) should be generated fresh each time by the official `azure-prepare` → `azure-validate` → `azure-deploy` pipeline. Do NOT rely on pre-existing infra code.
 
 ## Critical: Subscription Context
 
-**ALWAYS set AZURE_SUBSCRIPTION_ID explicitly before running `azd up`:**
-```bash
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
-```
+**ALWAYS set AZURE_SUBSCRIPTION_ID explicitly before running `azd up`.** Read it with `az account show --query id -o tsv`, then pass the returned value to `azd env set AZURE_SUBSCRIPTION_ID <subscription-id>`.
+
 Without this, azd and Azure MCP tools will fail silently or produce incomplete deployments. The `azure_deploy_app_logs` tool also requires subscription context.
 
 ## Critical: Bicep Output Naming
@@ -45,7 +47,7 @@ graph TB
 
 ## Quick Start (Verified)
 
-```bash
+```text
 # 1. Register providers (one-time per subscription)
 az provider register --namespace Microsoft.App
 az provider register --namespace Microsoft.OperationalInsights
@@ -53,10 +55,10 @@ az provider register --namespace Microsoft.OperationalInsights
 # 2. Create environment
 azd env new my-grafana-env
 
-# 3. Set required variables
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+# 3. Set required variables (replace placeholders)
+azd env set AZURE_SUBSCRIPTION_ID "<subscription-id>"
 azd env set AZURE_LOCATION "westus"
-azd env set GRAFANA_ADMIN_PASSWORD "$(openssl rand -base64 16)"
+azd env set GRAFANA_ADMIN_PASSWORD "<securely-generated-secret>"
 
 # 4. Deploy (~2 minutes)
 azd up
@@ -104,13 +106,7 @@ After deployment:
 
 ## Verification
 
-```bash
-# Health check
-curl https://<GRAFANA_FQDN>/api/health
-
-# Admin login test
-curl -u admin:YourPassword https://<GRAFANA_FQDN>/api/org
-```
+Generate a portable `scripts/verify-grafana.mjs` that reads `GRAFANA_URL` and the admin password through `azd`, requires HTTP 200 from `/api/health`, asserts `database: "ok"`, then verifies authenticated access to `/api/org`. Invoke it with `node scripts/verify-grafana.mjs` and never print the password.
 
 ## Scaling
 

@@ -96,9 +96,13 @@ The Azure MCP plugin provides these tools for use throughout the deployment life
 
 ## Commands
 
-```bash
-# Deploy infrastructure (always set subscription first)
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+These commands must work from PowerShell, Windows Terminal, macOS, and Linux. Don't use shell command substitution for stateful operations.
+
+```text
+# Read the subscription ID, then pass the returned value to azd
+az account show --query id -o tsv
+azd env set AZURE_SUBSCRIPTION_ID <subscription-id>
+azd config set auth.useAzCliAuth true
 azd up
 
 # Tear down all resources (prefer purge for AI soft-delete)
@@ -107,18 +111,33 @@ azd down --force --purge
 # View deployment outputs
 azd env get-value <OUTPUT_NAME>
 
-# View container logs
-az containerapp logs show --name $(azd env get-value CONTAINER_APP_NAME) \
-  --resource-group $(azd env get-value RESOURCE_GROUP_NAME) --follow
+# Read these two values, then pass them to Azure CLI
+azd env get-value CONTAINER_APP_NAME
+azd env get-value RESOURCE_GROUP_NAME
+az containerapp logs show --name <container-app-name> --resource-group <resource-group-name> --follow
 ```
 
 **Pre-deployment requirement** (run once per subscription):
-```bash
+```text
 az provider register --namespace Microsoft.App
 az provider register --namespace Microsoft.DBforPostgreSQL
 az provider register --namespace Microsoft.OperationalInsights
 az provider register --namespace Microsoft.ContainerService  # AKS only
 ```
+
+### Cross-platform verification helpers
+
+The repository smoke checks are Node.js scripts and require Node.js 24 LTS or later. Select the correct `azd` environment before running one:
+
+```text
+node .github/scripts/verify-grafana.mjs
+node .github/scripts/verify-n8n.mjs
+node .github/scripts/verify-superset.mjs
+node .github/scripts/verify-aimarket.mjs
+node .github/scripts/verify-smart-todo.mjs
+```
+
+Configure the journey E2E repository variables and secrets interactively with `node .github/scripts/setup-journey-tests.mjs`. The script asks before creating or rotating a service-principal credential. Never print or commit secret values.
 
 ---
 

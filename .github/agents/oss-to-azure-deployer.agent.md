@@ -40,7 +40,7 @@ For ANY deployment targeting Azure Container Apps (n8n, Grafana, or full-stack j
 - **`zoneRedundant: false`** — required for Container Apps Environment in many regions (westus, etc.)
 - **azure.yaml `language` field** — required even with Docker services
 - **SPA frontend deployment** — postdeploy hook to rebuild frontend with `VITE_API_URL`
-- **Apple Silicon cross-compile** — `--platform linux/amd64`
+- **Any ARM64 host** — prefer a remote ACR build for `linux/amd64`; if local cross-building is necessary, validate Buildx/emulation and keep static frontend builders on `$BUILDPLATFORM`
 - **SCREAMING_SNAKE_CASE outputs** — required for `azd env get-value`
 
 For ACR authentication, follow the `azure-prepare` plugin's two-phase pattern in `references/services/container-apps/bicep.md` (managed identity + AcrPull role assignment). Do not use admin credentials.
@@ -51,7 +51,7 @@ This skill is NOT needed for AKS deployments (Superset).
 
 Generate ALL infrastructure from scratch. Never reuse existing infra code.
 
-**Outputs:** `azure.yaml`, `infra-<app>/main.bicep`, `infra-<app>/main.parameters.json`, `infra-<app>/hooks/postprovision.sh` (use the app-specific directory from the Deployment Matrix below, e.g. `infra-grafana/`)
+**Outputs:** `azure.yaml`, `infra-<app>/main.bicep`, `infra-<app>/main.parameters.json`, and any required cross-platform `infra-<app>/hooks/postprovision.mjs` hook. Reference JavaScript or TypeScript hooks directly from `azure.yaml`; never require `.sh`, `shell: sh`, command substitution, or `chmod` for lifecycle behavior.
 
 **References to read:**
 - `azure-prepare/references/recipes/azd/azure-yaml.md` — azure.yaml structure
@@ -62,10 +62,12 @@ Generate ALL infrastructure from scratch. Never reuse existing infra code.
 
 ### Step 3: Set Environment (CRITICAL)
 
-Before ANY deployment command, always run:
+Before any deployment command, read the subscription ID and pass the returned value to `azd`:
 
-```bash
-azd env set AZURE_SUBSCRIPTION_ID "$(az account show --query id -o tsv)"
+```text
+az account show --query id -o tsv
+azd env set AZURE_SUBSCRIPTION_ID <subscription-id>
+azd config set auth.useAzCliAuth true
 ```
 
 Without this, azd and Azure MCP tools fail silently.
@@ -74,7 +76,7 @@ Without this, azd and Azure MCP tools fail silently.
 
 Validate generated infrastructure before deploying:
 
-```bash
+```text
 az bicep build --file infra-<app>/main.bicep
 azd provision --preview --no-prompt
 ```
@@ -87,12 +89,12 @@ azd provision --preview --no-prompt
 
 Deploy to Azure:
 
-```bash
+```text
 azd up --no-prompt
 ```
 
 If `azd up` fails, fall back to direct deployment:
-```bash
+```text
 az deployment group create --resource-group <rg> --template-file infra-<app>/main.bicep --parameters ...
 ```
 
@@ -104,7 +106,7 @@ az deployment group create --resource-group <rg> --template-file infra-<app>/mai
 ### Step 6: Verify & Output
 
 After deployment:
-```bash
+```text
 azd env get-value <APP_URL>
 ```
 

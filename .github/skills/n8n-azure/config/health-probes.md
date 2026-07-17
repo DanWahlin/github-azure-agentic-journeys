@@ -138,30 +138,13 @@ startup_probe {
 
 ## Verifying Health Probe Configuration
 
-After deployment, check container status, logs, and the dedicated health endpoint:
+After deployment, run the generated portable verifier:
 
-```bash
-APP_NAME=$(azd env get-value N8N_CONTAINER_APP_NAME)
-RG=$(azd env get-value RESOURCE_GROUP_NAME)
-N8N_URL=$(azd env get-value N8N_URL)
-
-az containerapp show --name "$APP_NAME" --resource-group "$RG" \
-  --query "{runningStatus:properties.runningStatus,provisioningState:properties.provisioningState,fqdn:properties.configuration.ingress.fqdn,minReplicas:properties.template.scale.minReplicas}"
-
-az containerapp revision list --name "$APP_NAME" --resource-group "$RG" \
-  --query "[].{name:name,active:properties.active,replicas:properties.replicas,health:properties.healthState}" -o table
-
-for i in {1..30}; do
-  code=$(curl -k -sS -o /tmp/n8n-health.txt -w "%{http_code}" --max-time 20 "$N8N_URL/healthz" || true)
-  if [ "$code" = "200" ]; then
-    echo "n8n health check passed"
-    break
-  fi
-  echo "Waiting for n8n /healthz, attempt $i/30, status=$code"
-  az containerapp logs show --name "$APP_NAME" --resource-group "$RG" --tail 20 || true
-  sleep 10
-done
+```text
+node scripts/verify-n8n.mjs
 ```
+
+It must read `N8N_CONTAINER_APP_NAME`, `RESOURCE_GROUP_NAME`, and `N8N_URL` through `azd`; inspect the live Container App and active revisions through Azure CLI argument arrays; poll `/healthz` for up to five minutes; and fail nonzero unless the endpoint returns HTTP 200. Browser verification must then assert the rendered owner-setup or login page with bundled Playwright Chromium.
 
 ## Common Health Probe Issues
 

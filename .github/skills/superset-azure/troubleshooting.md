@@ -56,13 +56,8 @@ containers:
 ```
 
 ### Verification
-```bash
-# Should output "PostgresqlImpl"
-kubectl logs -n superset <pod> -c superset-init | grep -i impl
 
-# Should not error
-kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"
-```
+Run `node .github/scripts/verify-superset.mjs`, then isolate the import if needed with `kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"`.
 
 ---
 
@@ -103,10 +98,8 @@ volumeMounts:
 ```
 
 ### Verification
-```bash
-# Should show "Loaded your LOCAL configuration"
-kubectl logs -n superset <pod> -c superset | grep -i "loaded.*config"
-```
+
+Retrieve the main-container logs with `kubectl logs -n superset <pod> -c superset` and inspect the returned text for `Loaded your LOCAL configuration`. Don't pipe required verification through host-specific `grep` commands.
 
 ---
 
@@ -140,16 +133,15 @@ See Issue 1 - install psycopg2-binary.
 
 ### Debugging Steps
 
-```bash
+```text
 # Check init container logs
 kubectl logs -n superset <pod> -c superset-init
 
 # Describe pod for events
 kubectl describe pod -n superset <pod>
 
-# Check if PostgreSQL is reachable from inside the cluster
-kubectl run -it --rm debug-pg --image=postgres:15 --restart=Never -- \
-  psql "postgresql://USER:PASS@HOST:5432/superset?sslmode=require" -c "SELECT 1;"
+# Check PostgreSQL from an approved temporary pod without printing credentials in shared logs
+kubectl run -it --rm debug-pg --image=postgres:15 --restart=Never -- psql <redacted-connection-string> -c "SELECT 1;"
 ```
 
 ---
@@ -169,20 +161,12 @@ kubectl run -it --rm debug-pg --image=postgres:15 --restart=Never -- \
 
 ### Debugging Steps
 
-```bash
-# Check main container logs
+```text
+# Check main container logs, then inspect the returned text for pending migrations or errors
 kubectl logs -n superset <pod> -c superset
 
-# Look for "Pending database migrations"
-kubectl logs -n superset <pod> -c superset | grep -i "pending\|migration\|error"
-
 # Verify database connection
-kubectl exec -n superset <pod> -c superset -- python -c "
-import os
-from sqlalchemy import create_engine
-engine = create_engine(os.environ['SQLALCHEMY_DATABASE_URI'])
-print(engine.connect())
-"
+kubectl exec -n superset <pod> -c superset -- python -c "import os; from sqlalchemy import create_engine; print(create_engine(os.environ['SQLALCHEMY_DATABASE_URI']).connect())"
 ```
 
 ---
@@ -235,7 +219,7 @@ readinessProbe:
 
 ## Diagnostic Commands Reference
 
-```bash
+```text
 # Get all resources in superset namespace
 kubectl get all -n superset
 
@@ -248,7 +232,7 @@ kubectl logs -n superset <pod> -c superset-init
 # Check main container logs
 kubectl logs -n superset <pod> -c superset
 
-# Check previous container logs (after restart)
+# Check previous container logs after a restart
 kubectl logs -n superset <pod> -c superset --previous
 
 # Describe pod for events
@@ -260,40 +244,15 @@ kubectl exec -n superset <pod> -c superset -- <command>
 # Get ingress IP
 kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 
-# Test health endpoint
-curl http://<IP>/health
-
-# Test login page
-curl -I http://<IP>/login/
+# Run the portable deployment checks
+node .github/scripts/verify-superset.mjs
 ```
 
 ---
 
 ## Quick Verification Checklist
 
-Run these commands to verify a healthy deployment:
-
-```bash
-# 1. Pod is running
-kubectl get pods -n superset
-# Expected: 1/1 Running
-
-# 2. Using PostgreSQL not SQLite
-kubectl logs -n superset <pod> -c superset-init | grep -i "PostgresqlImpl"
-# Expected: "Context impl PostgresqlImpl"
-
-# 3. Config file loaded
-kubectl logs -n superset <pod> -c superset | grep -i "Loaded"
-# Expected: "Loaded your LOCAL configuration"
-
-# 4. No pending migrations
-kubectl logs -n superset <pod> -c superset | grep -i "pending"
-# Expected: Empty (no pending migrations)
-
-# 5. HTTP 200 on login page
-curl -I http://<IP>/login/
-# Expected: HTTP/1.1 200 OK
-```
+Run `node .github/scripts/verify-superset.mjs`. A passing result requires every pod to be Ready/Running, PostgreSQL evidence with no SQLite fallback, and HTTP 200 from `/health`. Browser acceptance additionally uses bundled Playwright Chromium and the selectors documented in `SKILL.md`.
 
 ---
 

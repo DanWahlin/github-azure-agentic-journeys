@@ -22,11 +22,15 @@
 >
 > 💰 **Estimated Cost**: ~$200–215/month **if left running** (AKS nodes are the main cost; see [Cost Breakdown](#cost-breakdown)). **Tear down immediately with `azd down --force --purge`.**
 >
-> 📋 **Prerequisites**: See [prerequisites](../../README.md#prerequisites) for standard installation links.
+> 📋 **Prerequisites**
 >
-> **Additional prerequisites for this journey:**
-> - [`kubectl`](https://kubernetes.io/docs/tasks/tools/): needed for AKS cluster management
-> - Subscription quota: at least **4 vCPUs** in the target region for the default node pool
+> - Azure CLI, Azure Developer CLI 1.28.0+, and an agentic coding tool
+> - Node.js 24 LTS or later for the cross-platform post-provision hook
+> - `kubectl` for AKS management
+> - Helm 3 for the NGINX Ingress Controller
+> - Subscription quota of at least **4 vCPUs** in the target region
+>
+> Run `node --version`, `kubectl version --client`, and `helm version` before starting. See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, macOS, and Linux options.
 
 > [!NOTE]
 > Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
@@ -145,8 +149,10 @@ Tell the agent what you want in a single prompt (OSS shared recipe: location + s
 
 ```
 > Deploy Apache Superset to Azure using Bicep and azd. Set the location to westus,
-  generate secure passwords for all credentials, use AKS (not Container Apps),
-  resolve any issues that come up, and log problems to issues.md.
+> generate secure passwords for all credentials, use AKS (not Container Apps),
+> generate infra-superset/hooks/postprovision.mjs for az aks get-credentials,
+> Helm, kubectl apply, and load-balancer polling without shell-specific syntax,
+> resolve any issues that come up, and log problems to issues.md.
 ```
 
 The agent handles the entire deployment:
@@ -156,14 +162,14 @@ The agent handles the entire deployment:
 3. Generates Bicep (Azure's infrastructure-as-code language) + Kubernetes infrastructure in `infra-superset/`
 4. Updates `azure.yaml`, registers Azure providers, sets environment variables
 5. Runs `azd up`
-6. Runs post-provision hooks (`kubectl apply` for Kubernetes manifests, waits for external IP)
+6. Runs `infra-superset/hooks/postprovision.mjs`, a cross-platform Node.js hook that calls Helm and `kubectl` with argument arrays, applies the Kubernetes manifests, and waits for the external IP
 
 > ⏳ **While you wait:** This deployment can take awhile. AKS cluster creation alone takes several minutes. Put the time to good use:
 >
 > 1. Watch your resources appear in real-time. Open the [Azure Portal](https://portal.azure.com) → search for your resource group, or run `az resource list --resource-group rg-<env-name> --output table` in a separate terminal.
 > 2. Read the [init container pattern](#psycopg2-installation-critical) below. Why can't you just `pip install psycopg2-binary` in the main container? (Hint: read-only filesystem.)
 > 3. **Cost comparison:** This AKS deployment costs ~$200/month vs. ~$25 for n8n and ~$10 for Grafana. Open the [Cost Breakdown](#cost-breakdown) and think about when AKS is worth the premium. Always use the right tool for the right job.
-> 4. Explore the [Superset demo gallery](https://superset.apache.org/gallery) to see what kinds of dashboards you can build after deployment.
+> 4. Explore Superset's [creating your first dashboard guide](https://superset.apache.org/user-docs/using-superset/creating-your-first-dashboard) to see what you can build after deployment.
 
 You can ask follow-up questions anytime:
 
@@ -180,27 +186,7 @@ Ask the agent to confirm everything is working:
 > Verify the Superset deployment is working. Check that it's using PostgreSQL not SQLite.
 ```
 
-You can also verify manually. Open a new terminal and run the following commands to check the health endpoint:
-
-```bash
-# Check pod status
-kubectl get pods -n superset
-# Expected output:
-# NAME                        READY   STATUS    RESTARTS   AGE
-# superset-xxxxxxxxx-xxxxx   1/1     Running   0          5m
-
-# Verify PostgreSQL is being used (not SQLite)
-POD=$(kubectl get pods -n superset -o jsonpath='{.items[0].metadata.name}')
-kubectl logs -n superset $POD -c superset-init | grep -i "PostgresqlImpl"
-# Expected output:
-# INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
-
-# Get the external URL
-SUPERSET_URL=$(azd env get-value SUPERSET_URL)
-curl -I "$SUPERSET_URL/health"
-# Expected output:
-# HTTP/1.1 200 OK
-```
+Generate `scripts/verify-superset.mjs` and run `node scripts/verify-superset.mjs`. It must read deployment values through `azd`, use `kubectl` argument arrays to require a `1/1 Running` pod and PostgreSQL migration logs containing `PostgresqlImpl`, require HTTP 200 from `/health`, then use bundled Playwright Chromium to log in with `#username`, `#password`, and `button:has-text("Sign in")` and wait for `/superset/welcome/`.
 
 If the pod is stuck, just ask. You're still in the same session:
 
@@ -210,18 +196,15 @@ If the pod is stuck, just ask. You're still in the same session:
 
 ### Step 4: Open Superset
 
-Get your Superset URL and open it in the browser:
+Get the URL with `azd env get-value SUPERSET_URL` and open the returned value in a browser.
 
-```bash
-SUPERSET_URL=$(azd env get-value SUPERSET_URL)
-echo "Open in browser: $SUPERSET_URL"
-```
+Log in with username `admin`. Retrieve the password with:
 
-Log in with the username `admin` and the password set during deployment. To retrieve it, run:
-
-```bash
+```text
 azd env get-value SUPERSET_ADMIN_PASSWORD
 ```
+
+Automated browser verification must target `#username`, `#password`, and `button:has-text("Sign in")`; the React form doesn't expose `name="username"`. After signing in, verify the browser reaches `/superset/welcome/`.
 
 You should see the Superset home page with options to create charts and dashboards.
 
@@ -344,12 +327,7 @@ Health endpoint: `GET /health` → `{"status": "OK"}` (HTTP 200)
 
 > 💡 **Pausing instead of deleting:** Want to come back tomorrow without paying for idle nodes? Stop the cluster — compute billing stops while it's stopped (you keep paying only for disks and the load balancer IP):
 >
-> ```bash
-> RG=$(azd env get-value RESOURCE_GROUP_NAME)
-> AKS=$(az aks list --resource-group "$RG" --query "[0].name" -o tsv)
-> az aks stop --name "$AKS" --resource-group "$RG"    # pause
-> az aks start --name "$AKS" --resource-group "$RG"   # resume
-> ```
+> Ask GitHub Copilot to generate `scripts/set-aks-state.mjs`, which reads the owned resource group through `azd`, locates that run's AKS cluster, and accepts `stop` or `start`. Invoke it with `node scripts/set-aks-state.mjs stop` or `node scripts/set-aks-state.mjs start`.
 >
 > This is a useful AKS operations skill in its own right. For multi-day breaks, still prefer a full `azd down --force --purge`.
 
