@@ -84,7 +84,7 @@ WEBHOOK_URL cannot be set during initial deployment because:
 1. It depends on the Container App FQDN
 2. FQDN isn't known until after the Container App is created
 
-**Solution:** Generate `infra-n8n/hooks/postprovision.mjs`. The hook reads the Container App and resource-group values through `azd`, obtains the FQDN with Azure CLI, and updates `WEBHOOK_URL` by invoking Azure CLI with argument arrays. Reference the `.mjs` file directly from `azure.yaml`; don't use shell variables or `shell: sh`.
+**Solution:** Generate `infra-n8n/hooks/postprovision.js` as CommonJS. The hook reads the Container App and resource-group values through `azd`, obtains the FQDN with Azure CLI, and updates `WEBHOOK_URL` by invoking Azure CLI with argument arrays. Because that update creates a replacement revision, require `/healthz` and `/` to return HTTP 200 for six consecutive probes over 30 seconds before the hook exits. Reference the `.js` file directly from `azure.yaml`; don't use shell variables or `shell: sh`.
 
 ## Secrets Management
 

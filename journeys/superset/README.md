@@ -150,7 +150,7 @@ Tell the agent what you want in a single prompt (OSS shared recipe: location + s
 ```
 > Deploy Apache Superset to Azure using Bicep and azd. Set the location to westus,
 > generate secure passwords for all credentials, use AKS (not Container Apps),
-> generate infra-superset/hooks/postprovision.mjs for az aks get-credentials,
+> generate infra-superset/hooks/postprovision.js for az aks get-credentials,
 > Helm, kubectl apply, and load-balancer polling without shell-specific syntax,
 > resolve any issues that come up, and log problems to issues.md.
 ```
@@ -162,7 +162,7 @@ The agent handles the entire deployment:
 3. Generates Bicep (Azure's infrastructure-as-code language) + Kubernetes infrastructure in `infra-superset/`
 4. Updates `azure.yaml`, registers Azure providers, sets environment variables
 5. Runs `azd up`
-6. Runs `infra-superset/hooks/postprovision.mjs`, a cross-platform Node.js hook that calls Helm and `kubectl` with argument arrays, applies the Kubernetes manifests, and waits for the external IP
+6. Runs `infra-superset/hooks/postprovision.js`, a cross-platform Node.js hook that securely generates and persists missing `SUPERSET_SECRET_KEY` and `SUPERSET_ADMIN_PASSWORD` values, calls Helm and `kubectl` with argument arrays, applies the Kubernetes manifests, and waits for the external IP. Existing secret values are reused and never printed.
 
 > ⏳ **While you wait:** This deployment can take awhile. AKS cluster creation alone takes several minutes. Put the time to good use:
 >
@@ -186,7 +186,7 @@ Ask the agent to confirm everything is working:
 > Verify the Superset deployment is working. Check that it's using PostgreSQL not SQLite.
 ```
 
-Generate `scripts/verify-superset.mjs` and run `node scripts/verify-superset.mjs`. It must read deployment values through `azd`, use `kubectl` argument arrays to require a `1/1 Running` pod and PostgreSQL migration logs containing `PostgresqlImpl`, require HTTP 200 from `/health`, then use bundled Playwright Chromium to log in with `#username`, `#password`, and `button:has-text("Sign in")` and wait for `/superset/welcome/`.
+Generate `scripts/verify-superset.mjs` and run `node scripts/verify-superset.mjs`. It must read deployment values through `azd`, use `kubectl` argument arrays to require a `1/1 Running` pod and PostgreSQL migration logs containing `PostgresqlImpl`, require HTTP 200 from `/health`, then use bundled Playwright Chromium to log in with `#username`, `#password`, and the resilient submit selector `input[type="submit"], button[type="submit"]`, and wait for `/superset/welcome/`.
 
 If the pod is stuck, just ask. You're still in the same session:
 
@@ -204,7 +204,7 @@ Log in with username `admin`. Retrieve the password with:
 azd env get-value SUPERSET_ADMIN_PASSWORD
 ```
 
-Automated browser verification must target `#username`, `#password`, and `button:has-text("Sign in")`; the React form doesn't expose `name="username"`. After signing in, verify the browser reaches `/superset/welcome/`.
+Automated browser verification must target `#username`, `#password`, and `input[type="submit"], button[type="submit"]`. Superset 4.1.1 renders a Flask-AppBuilder submit input, while other versions may render a button. After signing in, verify the browser reaches `/superset/welcome/`.
 
 You should see the Superset home page with options to create charts and dashboards.
 

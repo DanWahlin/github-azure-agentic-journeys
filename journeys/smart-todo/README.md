@@ -27,6 +27,7 @@ You'll build SmartTodo: an iPhone app where you type a todo like "Prepare Confer
 > - Node.js 24 LTS or later for the cross-platform post-provision hook and default API stack
 > - Azure Functions Core Tools v4 for local Functions execution
 > - Azurite as a project-local development dependency for local Functions storage when `UseDevelopmentStorage=true`
+> - An authenticated Azure principal that can be resolved before deployment. Set the complete `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` group; use `User` for an interactive account or `ServicePrincipal` for automation.
 > - The current Go-based `sqlcmd` for managed-identity database setup
 > - Docker if you want to run SQL Server locally in Phase 1
 > - The selected API runtime if you choose Python 3.10+, .NET 8+, or Java 17+ instead of Node.js
@@ -411,15 +412,16 @@ If the Simulator says `Application failed preflight checks` or `SBMainWorkspace 
   - Azure SQL Server with br/public:avm/res/sql/server
   - Azure SQL Database as a child resource (Basic, zoneRedundant: false, maxSizeBytes 2GB)
   - Microsoft Foundry with br/public:avm/ptn/ai-ml/ai-foundry (gpt-5-mini deployment)
+  - If raw Microsoft.CognitiveServices resources are required, deploy the model from a nested Bicep module after the parent account reaches a terminal state
   - Monitoring with br/public:avm/ptn/azd/monitoring
   - Storage Account with br/public:avm/res/storage/storage-account
   - System-assigned managed identity on the Function App
-  - Azure SQL: Entra admin = deploying user; firewall allow Azure services
+  - Azure SQL: Entra admin = deploying user; firewall allow Azure services with a neutral rule name such as AllowAzureServices (do not use reserved words such as WINDOWS)
   - Function app settings for AZURE_AI_ENDPOINT, AZURE_AI_DEPLOYMENT, AZURE_AI_KEY,
     AZURE_SQL_SERVER (full FQDN), AZURE_SQL_DATABASE
   - Outputs in SCREAMING_SNAKE_CASE: API_URL, SQL_SERVER_NAME, etc.
   - azd-service-name: 'api' tag on the Function App
-  - cross-platform postprovision hook: generate infra/hooks/postprovision.mjs and
+  - cross-platform postprovision hook: generate infra/hooks/postprovision.js and
     infra/hooks/postprovision-schema.sql exactly as specified in the
     Post-Provision and Database Schema Initialization sections of PLAN.md,
     referenced directly as hooks.postprovision in azure.yaml without shell: sh
@@ -434,6 +436,8 @@ If the Simulator says `Application failed preflight checks` or `SBMainWorkspace 
 3. Does the SQL server have a firewall rule allowing Azure services (`0.0.0.0` start/end IP)?
 4. Does `AZURE_SQL_SERVER` use the full SQL FQDN output, not just the short server name?
 5. Are outputs in SCREAMING_SNAKE_CASE? (`API_URL`, not `apiUrl`)
+6. Are `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` all populated before `azd up`?
+7. If Foundry uses raw resources, is the model deployment in a nested module that runs after the parent account?
 
 **💡 What you're learning:** Managed identity lets the Function App authenticate to Azure SQL without passwords. The AI call uses the plain `openai` SDK with an OpenAI-compatible `/openai/v1/` base URL and an app setting for `AZURE_AI_KEY`.
 
@@ -450,7 +454,7 @@ az provider register --namespace Microsoft.OperationalInsights
 
 Set subscription and deploy:
 
-Read the subscription ID with `az account show --query id -o tsv`, pass the returned value to `azd env set AZURE_SUBSCRIPTION_ID <subscription-id>`, then run `azd up`. This sequence is the same on Windows, macOS, and Linux.
+Read the subscription ID with `az account show --query id -o tsv`, then pass the returned value to `azd env set AZURE_SUBSCRIPTION_ID <subscription-id>`. Resolve the current account's login and object ID before provisioning: interactive users use `az account show --query user.name -o tsv` plus `az ad signed-in-user show --query id -o tsv` and principal type `User`; automation uses the service-principal login/object ID and principal type `ServicePrincipal`. Set `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE`, fail before creating resources if any value is unavailable, then run `azd up`. This sequence is the same on Windows, macOS, and Linux.
 
 > ⏳ **While you wait:** Azure is provisioning your Function App, SQL Database, and Microsoft Foundry. Here's how to use the time:
 >
@@ -467,12 +471,12 @@ Deployment may take several minutes. If it fails, ask GitHub Copilot to help dia
 
 ##### Step 3: Confirm the post-provision SQL setup
 
-Bicep creates the Function App identity, but Azure SQL needs a separate database user and schema step. The generated `infra/hooks/postprovision.mjs` runs automatically after provisioning and works on Windows, macOS, and Linux. It invokes `sqlcmd` through Node.js, temporarily opens only the current client IP, handles Azure SQL Redirect/Proxy connectivity, applies the schema and seed data, and restores the firewall rule and original connection policy in `finally`.
+Bicep creates the Function App identity, but Azure SQL needs a separate database user and schema step. The generated `infra/hooks/postprovision.js` runs automatically after provisioning and works on Windows, macOS, and Linux. It invokes `sqlcmd` through Node.js, temporarily opens only the current client IP, handles Azure SQL Redirect/Proxy connectivity, applies the schema and seed data, and restores the firewall rule and original connection policy in `finally`.
 
 Check `azd up` for `Post-provision SQL setup complete.` If the hook reports a missing prerequisite, use the [cross-platform installation guide](../../docs/tool-installation.md), verify `node --version` and `sqlcmd --version`, then rerun:
 
 ```text
-node infra/hooks/postprovision.mjs
+node infra/hooks/postprovision.js
 ```
 
 Do not reproduce the setup as ad hoc shell commands. The portable hook owns identifier escaping, argument quoting, temporary firewall cleanup, and connection-policy restoration. If it fails, fix the reported prerequisite or Azure permission and rerun the same idempotent hook.
@@ -600,7 +604,7 @@ Functions and Microsoft Foundry scale to zero when idle, so you pay almost nothi
 
 **Cause:** Managed identity not granted access to Azure SQL. The identity needs to be added as a database user with the right roles.
 
-**Fix:** Run `node infra/hooks/postprovision.mjs` while authenticated as the configured Microsoft Entra administrator. The idempotent hook handles the managed-identity user, roles, temporary firewall rule, Proxy/Redirect policy, and cleanup.
+**Fix:** Run `node infra/hooks/postprovision.js` while authenticated as the configured Microsoft Entra administrator. The idempotent hook handles the managed-identity user, roles, temporary firewall rule, Proxy/Redirect policy, and cleanup.
 
 If logs show `getaddrinfo ENOTFOUND <sql-name>`, set `AZURE_SQL_SERVER` to the full FQDN: `<sql-name>.database.windows.net`.
 

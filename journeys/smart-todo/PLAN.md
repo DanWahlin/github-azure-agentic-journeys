@@ -461,7 +461,7 @@ infra:
   path: ./infra
 hooks:
   postprovision:
-    run: ./infra/hooks/postprovision.mjs
+    run: ./infra/hooks/postprovision.js
 ```
 
 Single service only — no `web` service. The iOS app runs on device, not in Azure.
@@ -479,10 +479,11 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 - AI access: default path uses `AZURE_AI_KEY` with the plain `openai` SDK. Add `Cognitive Services User` only if you later switch to managed identity for AI.
 - Role assignment: `Storage Blob Data Owner` (`b7e6dc6d-f1e8-4753-8033-0f276bb0955b`) for Function App identity → Storage Account (required for Flex Consumption deployment)
 - Role assignment: `Storage Blob Data Contributor` (`ba92f5b4-2d11-453d-a403-e96b0029c9fe`) for the deploying user → Storage Account (required for `azd deploy` to upload the zip package)
-- Azure SQL: set the deploying user as Microsoft Entra admin, add a firewall rule allowing Azure services (`0.0.0.0`), then create a database user for the Function App identity in post-provision
+- Azure SQL: set the deploying user as Microsoft Entra admin, add a firewall rule named `AllowAzureServices` with `0.0.0.0` start/end addresses, then create a database user for the Function App identity in post-provision. Do not generate names containing Azure reserved words such as `WINDOWS`.
 - Azure SQL Database: set `maxSizeBytes: 2147483648` (2 GB) when using Basic tier (default 32 GB exceeds the limit)
 - **Azure SQL Database: set `zoneRedundant: false`** — Basic tier does not support zone redundancy. AVM module may default to true, causing "ProvisioningDisabled: Provisioning of zone redundant database/pool is not supported."
 - Microsoft Foundry: use `br/public:avm/ptn/ai-ml/ai-foundry` with `baseName` (max 12 chars), `aiModelDeployments` array for gpt-5-mini, `aiFoundryConfiguration.disableLocalAuth: false`, and system-assigned managed identity
+- If AVM parameter drift requires raw `Microsoft.CognitiveServices` resources, create the account first and deploy the model from a separate nested Bicep module that receives the created account name. Do not issue the account and model child operations concurrently; Azure can reject the child with `RequestConflict` while the parent is non-terminal.
 - **AI model version is region-specific** — use `az cognitiveservices model list --location <region> --query "[?model.name=='gpt-5-mini']"` to find the correct version before generating Bicep. For example, `westus` requires `2025-08-07` (not `2025-02-27`).
 - Outputs in SCREAMING_SNAKE_CASE: `API_URL`, `SQL_SERVER_NAME`, `SQL_DATABASE_NAME`, `FUNCTION_APP_NAME`, `AZURE_AI_ENDPOINT`, `AZURE_AI_DEPLOYMENT`, `RESOURCE_GROUP_NAME`
 - `azd-service-name: 'api'` tag on the Function App
@@ -499,7 +500,9 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 
 ### Post-Provision: Managed Identity SQL Access
 
-Azure SQL requires a post-provision step to add the Function App's managed identity as a database user. Generate `infra/hooks/postprovision.mjs` and reference it directly from `azure.yaml`. This repository requires Node.js 24 LTS or later, `azd` 1.28.0+, Azure CLI, and the current Go-based `sqlcmd`; Windows, macOS, and Linux installation options are in [`../../docs/tool-installation.md`](../../docs/tool-installation.md).
+Azure SQL requires a post-provision step to add the Function App's managed identity as a database user. Generate `infra/hooks/postprovision.js` and reference it directly from `azure.yaml`. This repository requires Node.js 24 LTS or later, `azd` 1.28.0+, Azure CLI, and the current Go-based `sqlcmd`; Windows, macOS, and Linux installation options are in [`../../docs/tool-installation.md`](../../docs/tool-installation.md).
+
+Before provisioning, resolve and set the complete Entra administrator contract: `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE`. Interactive accounts use type `User`; non-interactive automation uses `ServicePrincipal`. Stop before Azure changes and report all missing values together.
 
 The JavaScript hook must use `execFileSync()` or `spawnSync()` argument arrays, not interpolated shell commands. It must:
 

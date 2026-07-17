@@ -1,25 +1,68 @@
-# n8n Journey — Issues Log
+# n8n Journey — Issues Found During Run (`rr-n8n-0717`, 2026-07-17)
 
-## 2026-07-16 — Screenshot capture: Playwright browser not available
+## Issue 1 (NEW): azd 1.28.0 rejects `.mjs` lifecycle-hook extension prescribed by the skills
 
-- **Phase:** Verification / screenshot capture
-- **Observed error:** Playwright MCP browser failed with `Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome`. A standalone Node script in `/tmp` also failed with `Cannot find module 'playwright'`.
-- **Diagnosis:** MCP browser was set to launch system Chrome (not installed; bundled Chromium builds exist under `~/.cache/ms-playwright`). Node also cannot resolve `node_modules` for a script outside the project tree.
-- **Fix/workaround:** Installed `playwright` in the working directory and ran a screenshot script from that directory using bundled Chromium, navigating to `N8N_URL` with `waitUntil: 'networkidle'`. Saved `screenshot-n8n.png`; removed temp npm artifacts afterward.
-- **Final status:** Resolved — screenshot captured (n8n owner-setup page, title "n8n.io - Workflow Automation").
+**Severity:** Medium — breaks `azd up` at the `postprovision` step after a full (~5 min)
+successful provision, unless the hook is renamed.
 
-## 2026-07-16 — Note: n8n ignores legacy N8N_BASIC_AUTH_* variables
+**Status:** Resolved in the working tree. Journey and shared skill guidance now prescribes a CommonJS `.js` hook or `.ts`, both accepted by `azd` 1.28.0.
 
-- **Phase:** Verification
-- **Observed:** With `N8N_BASIC_AUTH_ACTIVE/USER/PASSWORD` set, the live UI shows the "Set up owner account" page rather than HTTP basic auth.
-- **Diagnosis:** Current `n8nio/n8n:latest` uses built-in user management and no longer honors the deprecated basic-auth env vars. Expected upstream behavior, not a deployment defect.
-- **Fix/workaround:** None required. Health endpoint and UI both return HTTP 200 and the page title contains "n8n", satisfying all success criteria.
-- **Final status:** Informational — no impact on success criteria.
+**Where the guidance says `.mjs`:**
+- `.github/skills/n8n-azure/SKILL.md` → "Generate `infra-n8n/hooks/postprovision.mjs`"
+- `.github/skills/n8n-azure/config/environment-variables.md` → "Generate `infra-n8n/hooks/postprovision.mjs`"
+- `.github/skills/container-apps-deployment/SKILL.md` → `run: infra/hooks/postprovision.mjs`
+- `.github/skills/journey-runner/SKILL.md` → "Generated `azd` lifecycle hooks must be `.mjs` or `.ts` files"
 
-## 2026-07-17 — Repository remediation
+**What actually happens** with `azure.yaml`:
+```yaml
+hooks:
+  postprovision:
+    run: ./infra-n8n/hooks/postprovision.mjs
+```
+`azd up` provisions all resources successfully, then fails:
+```
+ERROR: step "cmdhook-postprovision" failed: ... hook configuration for 'postprovision'
+is invalid, script with file extension '.mjs' is not valid. script type is not valid.
+Supported extensions: .sh, .ps1, .py, .js, .ts, .cs. Alternatively, set 'kind'
+(e.g. kind: python) or 'shell' (e.g. shell: sh).
+```
 
-- Legacy `N8N_BASIC_AUTH_*` variables and their secret were removed from the README and associated skill references.
-- The first-run owner-account flow is now an explicit browser acceptance criterion; HTTP 401 is no longer accepted as proof.
-- The image is pinned to `n8nio/n8n:2.30.6`, locally verified on Linux ARM64 with `/healthz` HTTP 200 and a rendered n8n UI.
-- The post-provision hook path is consistently `infra-n8n/hooks/postprovision.mjs`.
-- **Status:** Documentation and skill defects resolved.
+azd 1.28.0's hook runner does **not** accept `.mjs`. Supported node extension is `.js`.
+
+**Fix applied in this run (works, stays cross-platform):**
+- Renamed hook to `infra-n8n/hooks/postprovision.js` and wrote it as **CommonJS**
+  (`const { execFileSync } = require('node:child_process')`) so `node` runs it
+  regardless of any `package.json` `type` field.
+- Updated `azure.yaml` to `run: ./infra-n8n/hooks/postprovision.js`.
+- Re-ran via `azd hooks run postprovision` → `WEBHOOK_URL` set successfully.
+- Hook still uses only `execFileSync` with argument arrays — no shell strings,
+  `chmod`, command substitution, or pipes — so it remains Windows/macOS/Linux portable.
+
+**Resolution:** The n8n README and skill, container-apps-deployment skill,
+journey-runner skill, journey template, Superset guidance, SmartTodo guidance, and
+AIMarket guidance now prescribe CommonJS `.js` or `.ts` lifecycle hooks instead of
+bare `.mjs` hook paths.
+
+---
+
+## Issue 2 (NEW): post-provision returned before the replacement revision was browser-ready
+
+**Severity:** Medium — `azd up` can return success while immediate browser verification receives HTTP 404.
+
+**Status:** Resolved, integrated into source guidance, and verified from a brand-new solution environment.
+
+**Observed behavior:** After `WEBHOOK_URL` was applied, `/healthz` and a plain HTTP verifier passed, but an immediate Playwright navigation rendered `Cannot GET /`. A retry after the replacement revision settled rendered the owner setup page normally.
+
+**Source integration:** Generated post-provision hooks now poll both `/healthz` and `/` after `az containerapp update` and require six consecutive HTTP 200 results over 30 seconds before exiting.
+
+---
+
+## Non-issues (expected behavior, recorded to avoid future false alarms)
+
+- **`GET /rest/login` → HTTP 401 on a fresh instance.** The n8n SPA probes login state
+  before rendering the owner-setup screen. This is expected auth behavior, not a broken
+  resource. The screenshot helper (`scripts/capture-screenshot.mjs`) classifies this
+  specific 401 as benign.
+- **Bicep `BCP334` warnings** on resource names using `uniqueString` are false positives when
+  the module parameter omits the known token length. The proven solution fix declares
+  `@minLength(13)` and `@maxLength(13)`; that contract is now integrated into the n8n and shared Bicep guidance.

@@ -31,7 +31,7 @@ Read the app-specific skill FIRST to understand requirements before generating a
 |-----|-------|-----------------|
 | n8n | `n8n-azure` | Port 5678, PostgreSQL required, 60s+ startup probe, WEBHOOK_URL via post-provision hook, SSL_REJECT_UNAUTHORIZED=false |
 | Grafana | `grafana-azure` | Port 3000, SQLite default (no DB needed), /api/health probe, GF_* env vars |
-| Superset | `superset-azure` | AKS (not Container Apps), PostgreSQL required, psycopg2 custom Docker image, K8s manifests |
+| Superset | `superset-azure` | AKS (not Container Apps), PostgreSQL required, psycopg2 custom Docker image, K8s manifests, hook-generated Superset secrets on clean environments |
 
 ### Step 1b: Load Container Apps Deployment Skill
 
@@ -51,7 +51,7 @@ This skill is NOT needed for AKS deployments (Superset).
 
 Generate ALL infrastructure from scratch. Never reuse existing infra code.
 
-**Outputs:** `azure.yaml`, `infra-<app>/main.bicep`, `infra-<app>/main.parameters.json`, and any required cross-platform `infra-<app>/hooks/postprovision.mjs` hook. Reference JavaScript or TypeScript hooks directly from `azure.yaml`; never require `.sh`, `shell: sh`, command substitution, or `chmod` for lifecycle behavior.
+**Outputs:** `azure.yaml`, `infra-<app>/main.bicep`, `infra-<app>/main.parameters.json`, and any required cross-platform `infra-<app>/hooks/postprovision.js` hook. Reference JavaScript or TypeScript hooks directly from `azure.yaml`; never require `.sh`, `shell: sh`, command substitution, or `chmod` for lifecycle behavior.
 
 **References to read:**
 - `azure-prepare/references/recipes/azd/azure-yaml.md` — azure.yaml structure
@@ -152,7 +152,7 @@ az provider register --namespace Microsoft.ContainerService  # AKS only
 Container Apps default to min replicas 0. After deployment, the app may take 60-90 seconds to respond on first request (cold start + image pull). Set `minReplicas: 1` for CI/dev verification, then scale down after validation.
 
 ### Shared OSS Deploy Recipe
-When the learner gives a short request, expand it to include: location, generated secure secrets, app-specific health probe path, `minReplicas: 1` for verification when useful, “resolve any issues,” and log problems to `issues.md`.
+When the learner gives a short request, expand it to include: location, generated secure secrets, app-specific health probe path, `minReplicas: 1` for verification when useful, “resolve any issues,” and log problems to `issues.md`. For Superset, the generated cross-platform hook must create and persist missing `SUPERSET_SECRET_KEY` and `SUPERSET_ADMIN_PASSWORD` values without printing them, then reuse them on reruns.
 
 ## Deployment Matrix
 

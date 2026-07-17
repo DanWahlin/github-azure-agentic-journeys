@@ -23,8 +23,9 @@ main(async () => {
     await jsonRequest(`${api}/api/todos/${todoId}/steps/${step.id}`, {
       method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ isCompleted: true }),
     });
-    const loaded = await jsonRequest(`${api}/api/todos/${todoId}`);
-    if (!loaded.data) throw new Error('Created todo could not be fetched');
+    const { data: loadedList } = await jsonRequest(listUrl);
+    const loaded = asArray(loadedList).find((todo) => todo.id === todoId);
+    if (!loaded) throw new Error('Created todo could not be fetched from the user list');
   } finally {
     if (todoId) {
       const deletion = await request(`${api}/api/todos/${todoId}`, { method: 'DELETE', timeoutMs: 60000 });

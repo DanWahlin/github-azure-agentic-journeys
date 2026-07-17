@@ -13,7 +13,9 @@ Deploy Apache Superset data visualization platform on Azure Kubernetes Service.
 
 Require Azure CLI, Azure Developer CLI 1.28.0 or later, Node.js 24 LTS or later, `kubectl`, and Helm 3. Verify `node --version`, `kubectl version --client`, and `helm version` before generating infrastructure. Stop before provisioning if any required tool is missing. Installation options for Windows, macOS, and Linux are in `../../../docs/tool-installation.md`.
 
-Generate the AKS post-provision workflow as `infra-superset/hooks/postprovision.mjs` and reference it directly from `azure.yaml`. The hook must call Helm, Azure CLI, and `kubectl` with `execFileSync()` or `spawnSync()` argument arrays. Do not generate a Bash-only `.sh` hook.
+Generate the AKS post-provision workflow as `infra-superset/hooks/postprovision.js` and reference it directly from `azure.yaml`. The hook must call Helm, Azure CLI, and `kubectl` with `execFileSync()` or `spawnSync()` argument arrays. Do not generate a Bash-only `.sh` hook.
+
+The hook owns `SUPERSET_SECRET_KEY` and `SUPERSET_ADMIN_PASSWORD`. On a clean environment, generate cryptographically random values for either missing setting, persist each with `azd env set`, never print the values, and reuse existing values on reruns. A first deployment must not depend on undocumented manual secret setup.
 
 ## Critical: Infrastructure Generation
 
@@ -221,4 +223,4 @@ curl -I http://<external-ip>/health
 curl -I http://<external-ip>/login/
 ```
 
-For automated browser login, use selectors `#username`, `#password`, and `button:has-text("Sign in")`. Do not use `input[name="username"]`; the React-rendered form exposes IDs. Verify successful navigation to `/superset/welcome/`.
+For automated browser login, use `#username`, `#password`, and the resilient submit selector `input[type="submit"], button[type="submit"]`. Superset 4.1.1 renders a Flask-AppBuilder submit input; other versions may render a button. Verify successful navigation to `/superset/welcome/`.

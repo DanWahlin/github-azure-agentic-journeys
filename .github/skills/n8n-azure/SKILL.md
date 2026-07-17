@@ -131,15 +131,17 @@ After `azd up`, run the verification commands in [troubleshooting.md](troublesho
 
 ## Cross-Platform Post-Provision Hook
 
-Generate `infra-n8n/hooks/postprovision.mjs` and reference it directly from `azure.yaml`:
+Generate `infra-n8n/hooks/postprovision.js` and reference it directly from `azure.yaml`:
 
 ```yaml
 hooks:
   postprovision:
-    run: ./infra-n8n/hooks/postprovision.mjs
+    run: ./infra-n8n/hooks/postprovision.js
 ```
 
-The hook must use `child_process.execFileSync()` or `spawnSync()` with argument arrays to call `azd` and `az`; it must not assemble shell command strings. Read the Container App FQDN, set `WEBHOOK_URL=https://<fqdn>`, and fail with a nonzero exit code if either CLI call fails. This works natively on Windows, macOS, and Linux.
+The hook must use `child_process.execFileSync()` or `spawnSync()` with argument arrays to call `azd` and `az`; it must not assemble shell command strings. Read the Container App FQDN, set `WEBHOOK_URL=https://<fqdn>`, and fail with a nonzero exit code if either CLI call fails. The update creates a replacement revision, so poll both `/healthz` and `/` for up to five minutes and require six consecutive HTTP 200 results over 30 seconds before returning. One successful probe is insufficient while Azure is deprovisioning the old revision. This works natively on Windows, macOS, and Linux.
+
+When a module parameter receives `uniqueString()` output, declare its exact contract with `@minLength(13)` and `@maxLength(13)`. This prevents false `BCP334` name-length warnings in downstream resources.
 
 ## Tear Down
 

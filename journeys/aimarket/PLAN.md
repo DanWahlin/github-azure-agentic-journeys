@@ -637,6 +637,6 @@ Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resourc
 ### Deployment
 
 1. Read the subscription with `az account show --query id -o tsv`, set `AZURE_SUBSCRIPTION_ID` to that value, then run `azd up`.
-2. **Required postdeploy hook:** Generate `infra/hooks/postdeploy.mjs` and reference it directly from `azure.yaml` without `shell: sh`. The JavaScript hook uses `child_process` argument arrays to rebuild the web image with `VITE_API_URL=<API_URL>/api`, target `linux/amd64`, push to ACR, and update the web Container App. First-time success must not require a manual rebuild.
+2. **Required postdeploy hook:** Generate `infra/hooks/postdeploy.js` and reference it directly from `azure.yaml` without `shell: sh`. The JavaScript hook uses `child_process` argument arrays to rebuild the web image with `VITE_API_URL=<API_URL>/api`, target `linux/amd64`, push to ACR, and update the web Container App. First-time success must not require a manual rebuild.
 3. **Any ARM64 host:** Prefer a remote ACR AMD64 build. If building locally, verify emulation during preflight and use `$BUILDPLATFORM` for the static frontend build stage. Never install privileged binfmt/QEMU handlers automatically.
 4. Set `DATA_PROVIDER=cosmos` or `DATA_PROVIDER=postgres` to switch from SQLite to a cloud database

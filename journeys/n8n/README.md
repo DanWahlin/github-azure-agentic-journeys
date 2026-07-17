@@ -141,7 +141,7 @@ The agent handles the entire deployment:
 3. Generates modular Bicep infrastructure in `infra-n8n/`
 4. Updates `azure.yaml`, registers Azure providers, sets environment variables
 5. Runs `azd up`
-6. Configures `WEBHOOK_URL` with `infra-n8n/hooks/postprovision.mjs`, referenced directly from `azure.yaml`. The JavaScript hook uses Node.js and works on Windows, macOS, and Linux without Bash or PowerShell-specific syntax.
+6. Configures `WEBHOOK_URL` with `infra-n8n/hooks/postprovision.js`, referenced directly from `azure.yaml`. The JavaScript hook uses Node.js and works on Windows, macOS, and Linux without Bash or PowerShell-specific syntax. Because the update creates a replacement Container App revision, the hook must require both `/healthz` and `/` to return HTTP 200 for six consecutive probes over 30 seconds before it exits.
 
 You can ask follow-up questions anytime during or after generation:
 

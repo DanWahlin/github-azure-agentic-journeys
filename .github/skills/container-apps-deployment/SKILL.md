@@ -60,9 +60,9 @@ This repository requires `azd` 1.28.0 or later and Node.js 24 LTS or later. Use 
 ```yaml
 hooks:
   postprovision:
-    run: infra/hooks/postprovision.mjs
+    run: infra/hooks/postprovision.js
   postdeploy:
-    run: infra/hooks/postdeploy.mjs
+    run: infra/hooks/postdeploy.js
 ```
 
 Use `postprovision` for steps that need infrastructure outputs, such as setting `WEBHOOK_URL`. Use `postdeploy` for steps that need deployed services, such as rebuilding a frontend with its API URL. Hook code must invoke `az`, `azd`, and Docker through `execFileSync()` or `spawnSync()` argument arrays, never interpolated shell command strings.
@@ -81,12 +81,12 @@ When deploying a React/Vite frontend and API as **separate Container Apps**, the
 
 ### Solution: Cross-platform post-deploy hook
 
-**Do not leave this as a manual learner step on first success.** Generate `infra/hooks/postdeploy.mjs` and reference it directly from `azure.yaml`:
+**Do not leave this as a manual learner step on first success.** Generate `infra/hooks/postdeploy.js` and reference it directly from `azure.yaml`:
 
 ```yaml
 hooks:
   postdeploy:
-    run: infra/hooks/postdeploy.mjs
+    run: infra/hooks/postdeploy.js
 ```
 
 The JavaScript hook must:
@@ -101,7 +101,7 @@ The JavaScript hook must:
 
 Call external tools with `execFileSync()` or `spawnSync()` and argument arrays. Do not concatenate a shell command, use `chmod`, or depend on Bash, PowerShell, `cut`, `grep`, or `date`. Use JavaScript for path handling, timestamps, retries, and JSON parsing.
 
-A filtered command such as `azd deploy web` can skip project-level hooks. After any filtered web deployment, run `node infra/hooks/postdeploy.mjs` explicitly and verify production product loading.
+A filtered command such as `azd deploy web` can skip project-level hooks. After any filtered web deployment, run `node infra/hooks/postdeploy.js` explicitly and verify production product loading.
 
 **After the first green deploy**, explain why the hook exists. Don't make the learner discover a blank product grid first.
 
@@ -160,6 +160,10 @@ Azure Container Apps runs Linux AMD64. This applies to Apple Silicon, Windows AR
 Prefer remote ACR builds targeting `linux/amd64`. If the journey builds locally, preflight must verify Docker Buildx and AMD64 emulation before deployment. Never install privileged QEMU/binfmt handlers automatically. On a managed Linux host, stop and ask for approval or use the remote build path.
 
 Without an AMD64 target, the container crashes with `exec format error`. Building native tools such as esbuild entirely under emulation can also crash, which is why static frontend builder stages use `$BUILDPLATFORM`.
+
+## Bicep `uniqueString()` Length Contracts
+
+Azure's `uniqueString()` always returns 13 characters. When passing that value into a module, declare the module parameter with both `@minLength(13)` and `@maxLength(13)`. Otherwise Bicep can emit false `BCP334` warnings when the parameter is used in constrained resource names.
 
 ## Bicep Output Naming Convention
 

@@ -138,9 +138,9 @@ param n8nEncryptionKey string = newGuid()  // ✅ Works
    ```yaml
    hooks:
      postprovision:
-       run: ./infra-n8n/hooks/postprovision.mjs
+       run: ./infra-n8n/hooks/postprovision.js
    ```
-   Run `node --version` and execute the `.mjs` file directly to see its full error. JavaScript hooks do not need `chmod` and work on Windows, macOS, and Linux.
+   Run `node --version` and execute the CommonJS `.js` file directly to see its full error. JavaScript hooks do not need `chmod` and work on Windows, macOS, and Linux.
 
 ---
 
@@ -169,7 +169,7 @@ This is safe for Azure PostgreSQL (Azure manages the certificates, connection is
 
 **Root Cause:** WEBHOOK_URL wasn't configured after deployment.
 
-**Solution:** Run `node infra-n8n/hooks/postprovision.mjs`. The idempotent portable hook reads the required values, discovers the FQDN, updates `WEBHOOK_URL`, and exits nonzero when Azure CLI fails.
+**Solution:** Run `node infra-n8n/hooks/postprovision.js`. The idempotent portable hook reads the required values, discovers the FQDN, updates `WEBHOOK_URL`, and then requires `/healthz` and `/` to return HTTP 200 for six consecutive probes over 30 seconds. It exits nonzero if Azure CLI fails or stable readiness is not reached within five minutes.
 
 ---
 

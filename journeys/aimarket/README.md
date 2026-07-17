@@ -535,7 +535,7 @@ The Phase 4 spec in PLAN.md and the `container-apps-deployment` skill already co
 6. Open `api/.dockerignore`. Make sure it does NOT exclude build config files like `tsconfig.json`. The Docker build needs them to compile.
 7. Open `client/Dockerfile`. Does the builder use `$BUILDPLATFORM`, and are `ARG VITE_API_URL` and `ENV VITE_API_URL=$VITE_API_URL` **before** `npm run build`?
 8. Do both Container Apps use system-assigned identity, an `AcrPull` assignment, and an explicit ACR registry entry using `identity: system` before a private image is deployed?
-9. Does `azure.yaml` define `hooks.postdeploy` → `infra/hooks/postdeploy.mjs` without `shell: sh`? Without this, the storefront will load HTML but products will fail.
+9. Does `azure.yaml` define `hooks.postdeploy` → `infra/hooks/postdeploy.js` without `shell: sh`? Without this, the storefront will load HTML but products will fail.
 
 **💡 What you're learning:** Deployment infrastructure has sharp edges that break silently. Missing service tags = deployment succeeds but app doesn't update. Missing `.dockerignore` = disk space errors. Wrong nginx config = container crashes on startup. The postdeploy hook exists because Vite bakes `VITE_API_URL` at **build** time—the API FQDN is only known **after** provision.
 
@@ -546,7 +546,7 @@ Read the subscription ID with `az account show --query id -o tsv`, pass the retu
 > ⏳ **While you wait:** Azure is building your Docker images and provisioning Container Apps, AI Search, and Foundry. While it runs:
 >
 > 1. Watch resources in the [Azure Portal](https://portal.azure.com) or `az resource list --resource-group rg-<env-name> --output table`.
-> 2. Open `infra/hooks/postdeploy.mjs` and trace how `VITE_API_URL` is set after deploy.
+> 2. Open `infra/hooks/postdeploy.js` and trace how `VITE_API_URL` is set after deploy.
 > 3. Think about why the API and frontend are *separate* Container Apps. What are the scaling implications?
 
 Deployment may take several minutes. If it fails, ask GitHub Copilot to help diagnose:
@@ -560,7 +560,7 @@ Deployment may take several minutes. If it fails, ask GitHub Copilot to help dia
 The **postdeploy hook** should have rebuilt the web image with `VITE_API_URL=<API_URL>/api`. Confirm products load at `WEB_URL`. If they do not:
 
 ```
-> The frontend can't reach the API. Run or fix infra/hooks/postdeploy.mjs.
+> The frontend can't reach the API. Run or fix infra/hooks/postdeploy.js.
   It must read API_URL with azd, rebuild the client with API_URL + "/api",
   target linux/amd64, push to ACR, and update the web Container App without
   relying on Bash or PowerShell-specific syntax.
@@ -572,7 +572,7 @@ The **postdeploy hook** should have rebuilt the web image with `VITE_API_URL=<AP
 A filtered `azd deploy web` can skip project-level postdeploy hooks. Run the JavaScript hook directly instead:
 
 ```text
-node infra/hooks/postdeploy.mjs
+node infra/hooks/postdeploy.js
 ```
 
 The hook must read all dynamic values through `azd env get-value`, call Docker and Azure CLI with argument arrays, and verify that the updated Container App reaches `Running` before exiting.

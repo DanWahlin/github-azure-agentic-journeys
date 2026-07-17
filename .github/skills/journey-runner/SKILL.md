@@ -137,10 +137,10 @@ Copilot CLI accepts prompt text with `-p`; it does not accept a `--prompt-file` 
 Write each prompt to a UTF-8 file, then use the cross-platform helper:
 
 ```text
-node scripts/run-copilot-prompt.mjs --prompt-file <prompt-path> --cwd <workspace>
+node scripts/run-copilot-prompt.mjs --prompt-file <prompt-path> --cwd <workspace> --allow-dir <repository-root> --allow-all-tools --allow-all-urls
 ```
 
-The helper reads the file and calls `copilot -p <prompt>` with `shell: false`, avoiding Bash and PowerShell quoting differences.
+The helper reads the file and calls `copilot -p <prompt>` with `shell: false`, avoiding Bash and PowerShell quoting differences. Non-interactive runs must explicitly opt into the tools and URLs required by the journey, and must add the repository root when the workspace is a child directory; otherwise Copilot cannot request approval and silently loses access to commands or parent skills.
 
 Before launching a batch, run `copilot --help` and one harmless prompt smoke test. If that fails, do not start parallel or background journey processes.
 
@@ -157,7 +157,13 @@ Priority order:
 3. Use a journey-provided PowerShell or Bash variant that matches the host.
 4. If only an OS-specific command exists, stop and log a documentation defect rather than inventing a translation after resources exist.
 
-Generated `azd` lifecycle hooks must be `.mjs` or `.ts` files referenced directly from `azure.yaml`. Do not generate `.sh` hooks, `shell: sh`, `chmod`, shell traps, command substitution, or pipelines for required deployment behavior.
+Generated `azd` lifecycle hooks must be CommonJS `.js` or `.ts` files referenced directly from `azure.yaml`; `azd` 1.28.0 rejects `.mjs` hook paths. Do not generate `.sh` hooks, `shell: sh`, `chmod`, shell traps, command substitution, or pipelines for required deployment behavior.
+
+For n8n, setting `WEBHOOK_URL` creates a replacement Container App revision. The generated post-provision hook must poll both `/healthz` and `/` for up to five minutes and require six consecutive HTTP 200 results over 30 seconds. Do not accept one successful probe while the old revision is still deprovisioning. When `uniqueString()` output crosses a Bicep module boundary, constrain that parameter to exactly 13 characters.
+
+For Superset, a clean environment may not contain `SUPERSET_SECRET_KEY` or `SUPERSET_ADMIN_PASSWORD`. The generated Node hook must create cryptographically random values when absent, persist them with `azd env set`, never print them, and reuse existing values on reruns before creating Kubernetes secrets.
+
+For SmartTodo, resolve and persist `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` before `azd up`; handle interactive users and service principals separately and fail before provisioning if any value is unavailable. If raw Foundry resources are generated, put the model child in a nested Bicep module that runs after account creation. Name the Azure-services SQL firewall rule `AllowAzureServices` or another neutral name, never one containing the reserved word `WINDOWS`.
 
 For development servers:
 
@@ -236,7 +242,7 @@ node scripts/capture-screenshot.mjs --url <url> --output <png> --fail-on-resourc
 For Superset login, additionally pass:
 
 ```text
---username admin --password <secret> --username-selector #username --password-selector #password --submit-selector "button:has-text('Sign in')" --success-path /superset/welcome/
+--username admin --password <secret> --username-selector #username --password-selector #password --submit-selector "input[type='submit'], button[type='submit']" --success-path /superset/welcome/
 ```
 
 Never print credentials. Visually inspect the saved image and review failed document, script, XHR, fetch, and image requests. A broken product image fails AIMarket acceptance.
