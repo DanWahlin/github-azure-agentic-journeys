@@ -134,6 +134,32 @@ SmartTodo is built in three phases that map directly to `PLAN.md`. Phase 1 build
 
 > **💡 Tip: Track issues as you go.** Add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed"* to your prompt. This keeps generation and deployment problems in one place while you iterate.
 
+> [!IMPORTANT]
+> **When something fails**
+>
+> 1. Stay in the same AI coding session so it retains the journey context.
+> 2. Paste the exact command and relevant error output. Don't paraphrase the error.
+> 3. Include your operating system, shell, current phase, and last successful step.
+> 4. Remove passwords, tokens, connection strings, keys, cookies, and `.env` values before pasting.
+> 5. Ask the agent to inspect the relevant application and Azure logs, explain the root cause, make the smallest safe fix, rerun the failed step, and run the journey verifier.
+> 6. Record the problem and resolution in `issues.md`.
+>
+> Use this prompt:
+>
+> ```text
+> The following command failed during <journey phase> on <OS and shell>:
+>
+> <exact command>
+>
+> Relevant error output:
+>
+> <redacted error output>
+>
+> Inspect the relevant application and Azure logs, explain the root cause,
+> make the smallest safe fix, rerun the failed step, and run the journey
+> verifier. Record the issue and resolution in issues.md. Do not print secrets.
+> ```
+
 > **Note on the iOS app:** The SwiftUI app runs on your Mac (Simulator) or iPhone. It is NOT deployed by `azd`. Only the Azure backend is. The app points at the deployed API URL via a `Config.swift` file.
 
 ### Phase 1: Build the API (~60–90 min first time)

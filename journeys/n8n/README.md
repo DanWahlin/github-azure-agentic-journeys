@@ -79,6 +79,32 @@ You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) with Gi
 
 > **💡 Tip: Track issues as you go.** Add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed"* to your prompt. This keeps generation and deployment problems in one place while you iterate.
 
+> [!IMPORTANT]
+> **When something fails**
+>
+> 1. Stay in the same AI coding session so it retains the journey context.
+> 2. Paste the exact command and relevant error output. Don't paraphrase the error.
+> 3. Include your operating system, shell, current phase, and last successful step.
+> 4. Remove passwords, tokens, connection strings, keys, cookies, and `.env` values before pasting.
+> 5. Ask the agent to inspect the relevant application and Azure logs, explain the root cause, make the smallest safe fix, rerun the failed step, and run the journey verifier.
+> 6. Record the problem and resolution in `issues.md`.
+>
+> Use this prompt:
+>
+> ```text
+> The following command failed during <journey phase> on <OS and shell>:
+>
+> <exact command>
+>
+> Relevant error output:
+>
+> <redacted error output>
+>
+> Inspect the relevant application and Azure logs, explain the root cause,
+> make the smallest safe fix, rerun the failed step, and run the journey
+> verifier. Record the issue and resolution in issues.md. Do not print secrets.
+> ```
+
 ### Step 1: Setup
 
 Make sure you're in the repo root first:
