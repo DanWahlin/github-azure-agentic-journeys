@@ -18,24 +18,44 @@ You'll deploy [Grafana OSS](https://grafana.com/oss/grafana/), an open-source ob
 
 > ⏱️ **Estimated Time**: ~15–20 minutes first run
 >
-> 💰 **Estimated Cost**: ~$10–20/month **if left running** (see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
->
-> 📋 **Prerequisites**
->
-> - Azure CLI, Azure Developer CLI 1.28.0+, and an agentic coding tool
-> - Node.js 24 LTS or later for portable verification scripts
-> - An Azure subscription with permission to create resource groups and Container Apps
->
-> See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, macOS, and Linux setup and verification commands.
+> 💰 **Estimated Cost**: ~$10–20/month while the resources exist (see [Cost Breakdown](#cost-breakdown)). Complete the [Cleanup](#cleanup) procedure when you finish the journey.
+
+## Prerequisites
+
+This journey supports Windows PowerShell, macOS, and Linux.
+
+| Host tool | Requirement | Purpose | Validation |
+| --- | --- | --- | --- |
+| Azure CLI | Required | Authenticate and manage Azure resources | `az version` |
+| Azure Developer CLI (`azd`) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
+| Node.js 24 LTS or later | Required | Run the portable verifier | `node --version` |
+| GitHub Copilot CLI | Required for the documented CLI path | Run the deployment agent | `copilot --version` |
+
+The signed-in Azure account must have permission to create resource groups, Container Apps, managed identities, and Log Analytics resources.
+
+Run these read-only checks on the host machine before you create Azure resources:
+
+```text
+az version
+az account show --output table
+azd version
+node --version
+copilot --version
+```
+
+Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix the prerequisite if a command fails or a required version is too old. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
 
 > [!NOTE]
-> Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+> GitHub Copilot CLI is the documented and validated command-line path. You may adapt the deployment prompt for another agentic coding tool by copying or adapting this repository's `.github/skills` into that tool's supported skills or instructions location and reporting anything unsupported.
 
-### Done when
+### Acceptance criteria
 
-- [ ] `$GRAFANA_URL/api/health` returns JSON with `"database":"ok"`
-- [ ] Browser login works with admin credentials from the deployment
-- [ ] `azd down --force --purge` completed
+The deployment is complete when:
+
+- [ ] `<grafana-url>/api/health` returns HTTP 200 with `"database":"ok"`.
+- [ ] The browser login succeeds with the deployed admin credentials.
+
+The journey is complete after the [Cleanup](#cleanup) procedure removes the Azure resources.
 
 ---
 
@@ -105,15 +125,23 @@ In GitHub Copilot, use the repository's `oss-to-azure-deployer` agent to generat
 
 ### Step 1: Setup
 
-Make sure you're in the repo root first:
+If the current directory is not the repository root, run this command from the parent directory:
 
-```bash
+```text
 cd github-azure-agentic-journeys
 ```
 
-Then start GitHub Copilot. The examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started). The same prompts work in the app and VS Code agent chat; omit the leading `>` there.
+Configure `azd` to reuse the signed-in Azure CLI session:
 
-```bash
+```text
+azd config set auth.useAzCliAuth true
+```
+
+The command must exit successfully.
+
+Start the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+
+```text
 copilot
 ```
 
@@ -142,8 +170,10 @@ Give the agent one prompt that covers the location, secrets, and issue handling:
 
 ```
 > Deploy Grafana to Azure using Bicep and azd. Set the location to westus,
-  generate a secure admin password, use /api/health for probes, resolve any
-  issues that come up, and log problems to issues.md.
+  generate a secure admin password, and use /api/health for probes.
+  If a deployment step fails, inspect the relevant logs, make the smallest
+  safe correction, rerun the failed step, and record the problem and
+  resolution in issues.md. Do not print secrets.
 ```
 
 The agent handles the entire deployment:
@@ -165,17 +195,21 @@ A useful answer should explain that SQLite is suitable for development and testi
 
 ### Step 3: Verify
 
-Ask the agent to confirm everything is working:
+Ask the agent to check the health endpoint and Container App logs:
 
+```text
+> Verify the Grafana deployment. Report each acceptance criterion as pass or fail.
 ```
-> Verify the Grafana deployment is working. Check the health endpoint.
+
+Run the checked-in verifier from the repository root on the host machine:
+
+```text
+node .github/scripts/verify-grafana.mjs
 ```
 
-For repeatable verification on Windows, macOS, and Linux, have the agent generate `scripts/verify-grafana.mjs`. It must read `GRAFANA_URL` through `azd`, require HTTP 200 from `/api/health`, and assert `database: "ok"`. Run it with `node scripts/verify-grafana.mjs`.
+The verifier must print `PASS: <grafana-url>/api/health returned HTTP 200 and database=ok` and the deployed URL. Open that URL in a browser and log in with the deployed admin credentials. Retrieve a generated password only in a private terminal, and do not paste it into the agent session or shared logs.
 
-Open the value returned by `azd env get-value GRAFANA_URL` in your browser. Log in with the admin username and the password set during deployment. If you're not sure what password was generated, ask the agent to retrieve it from the deployment environment without printing it in shared logs.
-
-If verification fails, describe the symptom in the same session so the agent can inspect the deployment context:
+If verification fails, report the failed criterion, exact command, redacted error output, and last successful step in the same agent session:
 
 ```
 > Grafana is returning 502 errors
@@ -361,11 +395,16 @@ resources: {
 
 ## Cleanup
 
-```bash
+> [!CAUTION]
+> This command permanently deletes the Azure deployment. Export any dashboard definitions that you want to keep before you continue.
+
+Run the cleanup from the repository root on the host machine:
+
+```text
 azd down --force --purge
 ```
 
-Teardown takes 3-5 minutes because deleting the Container Apps environment can be slow.
+Deleting the Container Apps environment can take 3–5 minutes. The command must exit successfully. If it fails, use the **When something fails** procedure in [Deploy with the Agent](#deploy-with-the-agent) and do not assume that Azure stopped billing the resources.
 
 ---
 

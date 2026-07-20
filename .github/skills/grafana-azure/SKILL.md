@@ -106,7 +106,13 @@ After deployment:
 
 ## Verification
 
-Generate a portable `scripts/verify-grafana.mjs` that reads `GRAFANA_URL` and the admin password through `azd`, requires HTTP 200 from `/api/health`, asserts `database: "ok"`, then verifies authenticated access to `/api/org`. Invoke it with `node scripts/verify-grafana.mjs` and never print the password.
+Run the checked-in verifier from the repository root:
+
+```text
+node .github/scripts/verify-grafana.mjs
+```
+
+The verifier reads `GRAFANA_URL` through `azd`, requires HTTP 200 from `/api/health`, asserts `database: "ok"`, and prints the deployment URL. Verify authenticated browser login separately with the deployed admin credentials. Retrieve a generated password only in a private terminal, and never print or paste it into the agent session or shared logs.
 
 ## Scaling
 
