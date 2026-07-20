@@ -570,10 +570,10 @@ Do not reproduce the setup as ad hoc shell commands. The portable hook owns iden
 
 ##### Step 4: Verify the live deployment
 
-Run the checked-in verifier from the repository root on the host machine:
+Run the checked-in verifier from the SmartTodo journey directory on the host machine:
 
 ```text
-node .github/scripts/verify-smart-todo.mjs
+node ../../.github/scripts/verify-smart-todo.mjs
 ```
 
 The verifier must print `PASS: seed, create, AI steps, step completion, fetch, delete, and final absence`. It reads `API_URL` through `azd`, exercises the deployed backend, removes its temporary todo in `finally`, and exits nonzero on a failed assertion or cleanup error.
@@ -758,10 +758,10 @@ Make sure the URL uses `https://` and includes no trailing slash.
 
 ## Verification Checklist
 
-Run the checked-in verifier from the repository root:
+Run the checked-in verifier from the SmartTodo journey directory:
 
 ```text
-node .github/scripts/verify-smart-todo.mjs
+node ../../.github/scripts/verify-smart-todo.mjs
 ```
 
 It must prove seed reads, create, AI step generation, step completion, deletion, and final absence. A passing process exits `0`; any failed HTTP status, malformed payload, or cleanup failure exits nonzero.

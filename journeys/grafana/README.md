@@ -398,13 +398,25 @@ resources: {
 > [!CAUTION]
 > This command permanently deletes the Azure deployment. Export any dashboard definitions that you want to keep before you continue.
 
+Read and save the generated resource group name:
+
+```text
+azd env get-value RESOURCE_GROUP_NAME
+```
+
 Run the cleanup from the repository root on the host machine:
 
 ```text
 azd down --force --purge
 ```
 
-Deleting the Container Apps environment can take 3–5 minutes. The command must exit successfully. If it fails, use the **When something fails** procedure in [Deploy with the Agent](#deploy-with-the-agent) and do not assume that Azure stopped billing the resources.
+Deleting the Container Apps environment can take 3–5 minutes. The command must exit successfully. Verify that the generated resource group is gone:
+
+```text
+az group exists --name <resource-group-name>
+```
+
+The command must return `false`. If cleanup fails or the resource group still exists, use the **When something fails** procedure in [Deploy with the Agent](#deploy-with-the-agent) and do not assume that Azure stopped billing the resources.
 
 ---
 

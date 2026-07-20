@@ -497,13 +497,25 @@ Ask the agent:
 > [!CAUTION]
 > This command permanently deletes the AKS cluster, PostgreSQL database, and other journey resources. Export any Superset content that you want to keep before you continue.
 
+Read and save the generated resource group name:
+
+```text
+azd env get-value RESOURCE_GROUP_NAME
+```
+
 Run the cleanup from the repository root on the host machine:
 
 ```text
 azd down --force --purge
 ```
 
-AKS and PostgreSQL deletion can take 5–10 minutes. The command must exit successfully. If it fails, use the **When something fails** procedure in [Deploy with the Agent](#deploy-with-the-agent) and do not assume that Azure stopped billing the resources.
+AKS and PostgreSQL deletion can take 5–10 minutes. The command must exit successfully. Verify that the generated resource group is gone:
+
+```text
+az group exists --name <resource-group-name>
+```
+
+The command must return `false`. If cleanup fails or the resource group still exists, use the **When something fails** procedure in [Deploy with the Agent](#deploy-with-the-agent) and do not assume that Azure stopped billing the resources.
 
 ---
 

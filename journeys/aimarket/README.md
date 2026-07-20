@@ -668,10 +668,10 @@ The hook must read all dynamic values through `azd env get-value`, call Docker a
 
 #### Step 4: Verify the live deployment
 
-Run the checked-in verifier from the repository root on the host machine:
+Run the checked-in verifier from the AIMarket journey directory on the host machine:
 
 ```text
-node .github/scripts/verify-aimarket.mjs
+node ../../.github/scripts/verify-aimarket.mjs
 ```
 
 The verifier must print `PASS: health, 10 products, images, search, chat, storefront, and API integration`. It checks the deployed health endpoint, product count, image responses, semantic-search results, an assistant-shaped chat response that mentions **UltraBook Pro 15**, the storefront response, and the production API host embedded in the frontend assets.
@@ -820,7 +820,7 @@ The `ARG VITE_API_URL` line must come BEFORE the `npm run build` step in `client
 
 ## Verification Checklist
 
-Use the acceptance contract in [Phase 4, Step 4](#step-4-verify-the-live-deployment), then run `node .github/scripts/verify-aimarket.mjs` from the repository root.
+Use the acceptance contract in [Phase 4, Step 4](#step-4-verify-the-live-deployment), then run `node ../../.github/scripts/verify-aimarket.mjs` from the AIMarket journey directory.
 
 </details>
 
