@@ -19,35 +19,62 @@ You'll build SmartTodo, an iPhone app that turns a todo such as "Prepare confere
 
 > ⏱️ **Estimated Time**: **3–5 hours for a first run** (about 2.5 hours if you're familiar with Azure Functions and SQL). This includes the build, test, deployment, and post-provision SQL steps.
 >
-> 💰 **Estimated Cost**: ~$10–30/month **if left running** (Functions Flex + SQL Basic + AI pay-per-token; see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
->
-> 📋 **Prerequisites**
->
-> - Azure CLI, Azure Developer CLI 1.28.0+, and an agentic coding tool
-> - Node.js 24 LTS or later for the cross-platform post-provision hook and default API stack
-> - Azure Functions Core Tools v4 for local Functions execution
-> - Azurite as a project-local development dependency for local Functions storage when `UseDevelopmentStorage=true`
-> - An authenticated Azure principal that can be resolved before deployment. Set the complete `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` group; use `User` for an interactive account or `ServicePrincipal` for automation.
-> - The current Go-based `sqlcmd` for managed-identity database setup
-> - Docker if you want to run SQL Server locally in Phase 1
-> - The selected API runtime if you choose Python 3.10+, .NET 8+, or Java 17+ instead of Node.js
-> - Xcode for the iOS simulator on macOS only
->
-> Run `node --version`, `func --version`, and `sqlcmd --version` before starting. The [cross-platform installation guide](../../docs/tool-installation.md) includes Windows, macOS, and Linux options for Functions Core Tools and `sqlcmd`.
->
-> ⚠️ **Platform gate:** The full journey, including Phase 2 simulator testing, requires macOS and Xcode. On Windows or Linux, generate and statically verify the SwiftUI source, then complete Phase 1 and Phase 3 and verify the deployed API with HTTP calls. That counts as finishing the Azure path.
+> 💰 **Estimated Cost**: ~$10–30/month while the resources exist (Functions Flex, SQL Basic, and AI usage; see [Cost Breakdown](#cost-breakdown)). Complete the [Cleanup](#cleanup) procedure when you finish the journey.
+
+## Prerequisites
+
+The backend phases support Windows PowerShell, macOS, and Linux. Phase 2 simulator testing requires macOS and Xcode.
+
+| Host tool | Requirement | Purpose | Validation |
+| --- | --- | --- | --- |
+| Azure CLI | Required | Authenticate and manage Azure resources | `az version` |
+| Azure Developer CLI (`azd`) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
+| Node.js 24 LTS or later | Required | Run hooks, the verifier, and the default API stack | `node --version` |
+| Azure Functions Core Tools v4 | Required for local API execution | Run the Functions host | `func --version` |
+| Azurite | Required when local settings use `UseDevelopmentStorage=true` | Emulate Functions storage locally | `npx azurite --version` |
+| Go-based `sqlcmd` | Required for Phase 3 | Configure managed-identity database access and apply the schema | `sqlcmd --version` |
+| GitHub Copilot CLI | Required for the documented CLI path | Run the coding agent | `copilot --version` |
+| Docker | Optional | Run SQL Server locally instead of using Azure SQL | `docker version` |
+| Python 3.10+, .NET 8+, or Java 17+ | Required only when selected instead of the default Node.js API | Run the selected API stack | `python --version`, `dotnet --version`, or `java --version` |
+| Xcode | Required only for Phase 2 simulator testing | Build and run the SwiftUI client | `xcodebuild -version` |
+
+Run these read-only checks on the host machine before Phase 1:
+
+```text
+az version
+az account show --output table
+azd version
+node --version
+func --version
+npx azurite --version
+copilot --version
+```
+
+Before Phase 3, also run `sqlcmd --version`. Run `docker version` only when you select local SQL Server. Run the validation command for the selected alternative API runtime before generating that API. On macOS, run `xcodebuild -version` before Phase 2.
+
+Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, Node.js is version 24 or later, and Functions Core Tools reports major version 4. Stop and fix the prerequisite if a required check fails. The [cross-platform installation guide](../../docs/tool-installation.md) provides Windows, macOS, and Linux installation options.
+
+Before Phase 3, resolve the complete `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` group. Use `User` for an interactive account and `ServicePrincipal` for automation.
+
+> [!IMPORTANT]
+> **Platform gate:** The full journey, including Phase 2 simulator testing, requires macOS and Xcode. On Windows or Linux, generate and statically verify the SwiftUI source, then complete Phase 1 and Phase 3 and verify the deployed API with HTTP calls. That completes the Azure path.
 
 > [!NOTE]
-> Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+> GitHub Copilot CLI is the documented and validated command-line path. You may adapt the prompts for another agentic coding tool by copying or adapting this repository's `.github/skills` into that tool's supported skills or instructions location and reporting anything unsupported.
 
-### Done when
+### Acceptance criteria
 
-- [ ] Local API lists seed todos for `userId=user-1`
-- [ ] Create todo + `generate-steps` returns 3–7 steps (with AI credentials)
-- [ ] Completing all steps marks the todo `completed` (if tested)
-- [ ] Deployed `API_URL` responds; AI generate works in Azure
-- [ ] (macOS) Simulator talks to local or Azure API
-- [ ] `azd down --force --purge` completed
+The backend is complete when:
+
+- [ ] The local or deployed API lists the three seed todos for `userId=user-1`.
+- [ ] Creating a todo returns HTTP 201.
+- [ ] `generate-steps` returns 3–7 steps when AI credentials are configured.
+- [ ] Completing a step persists `isCompleted: true`.
+- [ ] Deleting the temporary todo returns HTTP 204 and removes it from the final list.
+
+On macOS, the client phase is complete when the simulator performs the create, generate, and complete flow against the selected API. On Windows or Linux, generated SwiftUI source inspection plus a passing deployed-backend verifier completes the Azure path.
+
+The journey is complete after the [Cleanup](#cleanup) procedure removes the Azure resources.
 
 ---
 
@@ -182,13 +209,21 @@ You'll build the API in stages, not all at once. Each step teaches a different a
 
 Create a project directory inside the repo so GitHub Copilot can access the skills and agent definitions in `.github/`:
 
-```bash
+```text
 cd github-azure-agentic-journeys/journeys/smart-todo
 ```
 
-Start GitHub Copilot. The examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started). The same prompts work in the app and VS Code agent chat; omit the leading `>` there.
+Configure `azd` to reuse the signed-in Azure CLI session:
 
-```bash
+```text
+azd config set auth.useAzCliAuth true
+```
+
+The command must exit successfully.
+
+Start the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+
+```text
 copilot
 ```
 
@@ -331,7 +366,7 @@ Change to `src/api`, start Azurite when using development storage, then run the 
 > **⚠️ Node.js note:** If Functions fails to find any functions, check that `"main"` in `package.json` is `"dist/functions/*.js"` (not `"dist/src/functions/*.js"`). Since `tsconfig.json` sets `rootDir: "src"`, the `src/` prefix is stripped from the output path.
 > For `azd` remote builds, do not exclude `src/` or `tsconfig.json` in `.funcignore`; Azure needs them to compile TypeScript.
 
-Generate `scripts/verify-api.mjs`, point it at the selected local port, and run `node scripts/verify-api.mjs`. It must verify seed reads, create, status update, AI step generation when credentials are configured, step completion, delete, cascade behavior, and final absence. Temporary records must be removed in `finally`, and any failed status or assertion must exit nonzero.
+Generate `scripts/verify-api.mjs`, point it at the selected local port, and run `node scripts/verify-api.mjs`. This generated local verifier is separate from the checked-in deployment verifier used in Phase 3. It must verify seed reads, create, status update, AI step generation when credentials are configured, step completion, delete, cascade behavior, and final absence. Temporary records must be removed in `finally`, and any failed status or assertion must exit nonzero.
 
 If any test fails, describe the failure to GitHub Copilot and let it fix it:
 
@@ -471,7 +506,7 @@ If the Simulator says `Application failed preflight checks` or `SBMainWorkspace 
 
 Azure requires each resource type to be registered in your subscription before first use. Run these once per subscription:
 
-```bash
+```text
 az provider register --namespace Microsoft.Web
 az provider register --namespace Microsoft.Sql
 az provider register --namespace Microsoft.CognitiveServices
@@ -480,7 +515,33 @@ az provider register --namespace Microsoft.OperationalInsights
 
 Set subscription and deploy:
 
-Read the subscription ID with `az account show --query id -o tsv`, then pass the returned value to `azd env set AZURE_SUBSCRIPTION_ID <subscription-id>`. Resolve the current account's login and object ID before provisioning: interactive users use `az account show --query user.name -o tsv` plus `az ad signed-in-user show --query id -o tsv` and principal type `User`; automation uses the service-principal login/object ID and principal type `ServicePrincipal`. Set `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE`, fail before creating resources if any value is unavailable, then run `azd up`. This sequence is the same on Windows, macOS, and Linux.
+Read the subscription ID, account login, and object ID for an interactive user:
+
+```text
+az account show --query id --output tsv
+az account show --query user.name --output tsv
+az ad signed-in-user show --query id --output tsv
+```
+
+Set each returned value in the selected `azd` environment:
+
+```text
+azd env set AZURE_SUBSCRIPTION_ID <subscription-id>
+azd env set AZURE_PRINCIPAL_LOGIN <account-login>
+azd env set AZURE_PRINCIPAL_ID <principal-object-id>
+azd env set AZURE_PRINCIPAL_TYPE User
+```
+
+For automation, use the service-principal login and object ID, and set `AZURE_PRINCIPAL_TYPE` to `ServicePrincipal`. Stop before provisioning if any required value is unavailable.
+
+Start the deployment from the SmartTodo journey directory:
+
+```text
+azd up
+```
+
+Do not continue until `azd up` and the post-provision hook exit successfully.
+
 
 > ⏳ **While you wait:** Azure is provisioning your Function App, SQL Database, and Microsoft Foundry. Here's how to use the time:
 >
@@ -509,23 +570,13 @@ Do not reproduce the setup as ad hoc shell commands. The portable hook owns iden
 
 ##### Step 4: Verify the live deployment
 
-Generate `scripts/verify-deployment.mjs` and run it from Windows, macOS, or Linux:
+Run the checked-in verifier from the SmartTodo journey directory on the host machine:
 
 ```text
-node scripts/verify-deployment.mjs
+node ../../.github/scripts/verify-smart-todo.mjs
 ```
 
-The script must read `API_URL` through `azd`, then prove the full backend flow with Node.js `fetch`:
-
-1. List the three seed todos.
-2. Create a temporary todo and require HTTP 201.
-3. Generate 3–7 AI steps and require HTTP 200.
-4. Fetch the todo and first step.
-5. Complete that step and verify `isCompleted: true`.
-6. Delete the temporary todo and require HTTP 204.
-7. Fetch the list again and verify the temporary todo is absent.
-
-The verifier must clean up its temporary todo in `finally` and exit nonzero on any failed assertion.
+The verifier must print `PASS: seed, create, AI steps, step completion, fetch, delete, and final absence`. It reads `API_URL` through `azd`, exercises the deployed backend, removes its temporary todo in `finally`, and exits nonzero on a failed assertion or cleanup error.
 
 ##### Step 5: Point the iOS app at Azure
 
@@ -540,7 +591,7 @@ enum Config {
 
 Get the actual URL:
 
-```bash
+```text
 azd env get-value API_URL
 ```
 
@@ -650,7 +701,7 @@ When using the plain `openai` SDK, normalize the endpoint to include `/openai/v1
 
 **Fix:**
 
-```bash
+```text
 az cognitiveservices account list-deleted
 az cognitiveservices account purge --name <name> --resource-group <rg> --location <location>
 ```
@@ -659,7 +710,7 @@ az cognitiveservices account purge --name <name> --resource-group <rg> --locatio
 
 **Fix:** Register Azure providers before deploying:
 
-```bash
+```text
 az provider register --namespace Microsoft.Web
 az provider register --namespace Microsoft.Sql
 az provider register --namespace Microsoft.CognitiveServices
@@ -680,7 +731,7 @@ az provider register --namespace Microsoft.OperationalInsights
 
 **Fix:** Get the correct URL and update `Config.swift`:
 
-```bash
+```text
 azd env get-value API_URL
 ```
 
@@ -707,10 +758,10 @@ Make sure the URL uses `https://` and includes no trailing slash.
 
 ## Verification Checklist
 
-Run the same portable verifier used in Phase 3:
+Run the checked-in verifier from the SmartTodo journey directory:
 
 ```text
-node scripts/verify-deployment.mjs
+node ../../.github/scripts/verify-smart-todo.mjs
 ```
 
 It must prove seed reads, create, AI step generation, step completion, deletion, and final absence. A passing process exits `0`; any failed HTTP status, malformed payload, or cleanup failure exits nonzero.
@@ -739,11 +790,28 @@ It must prove seed reads, create, AI step generation, step completion, deletion,
 
 ## Cleanup
 
-```bash
+> [!CAUTION]
+> This procedure permanently deletes the Function App, SQL database, Microsoft Foundry resource, and all journey data. Save anything that you want to keep before you continue.
+
+Read and save the generated resource group name:
+
+```text
+azd env get-value RESOURCE_GROUP_NAME
+```
+
+Run the cleanup from the SmartTodo journey directory:
+
+```text
 azd down --force --purge
 ```
 
-Teardown takes 2-3 minutes and deletes all Azure resources, including the SQL database. If you see soft-delete warnings for Cognitive Services, purge them manually as described in Troubleshooting.
+The command must exit successfully. Verify that the generated resource group is gone:
+
+```text
+az group exists --name <resource-group-name>
+```
+
+The command must return `false`. If cleanup reports a soft-deleted Cognitive Services resource, purge it with the procedure in [Troubleshooting](#soft-deleted-cognitive-services-blocks-redeployment).
 
 ---
 

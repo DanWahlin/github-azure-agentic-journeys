@@ -20,28 +20,51 @@
 
 > ⏱️ **Estimated Time**: ~30–45 minutes first run (AKS creation takes most of that time)
 >
-> 💰 **Estimated Cost**: ~$200–215/month **if left running** (AKS nodes are the main cost; see [Cost Breakdown](#cost-breakdown)). **Tear down immediately with `azd down --force --purge`.**
->
-> 📋 **Prerequisites**
->
-> - Azure CLI, Azure Developer CLI 1.28.0+, and an agentic coding tool
-> - Node.js 24 LTS or later for the cross-platform post-provision hook
-> - `kubectl` for AKS management
-> - Helm 3 for the NGINX Ingress Controller
-> - Subscription quota of at least **4 vCPUs** in the target region
->
-> Run `node --version`, `kubectl version --client`, and `helm version` before starting. See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, macOS, and Linux options.
+> 💰 **Estimated Cost**: ~$200–215/month while the resources exist (AKS nodes are the main cost; see [Cost Breakdown](#cost-breakdown)). Complete the [Cleanup](#cleanup) procedure immediately after the journey.
+
+## Prerequisites
+
+This journey supports Windows PowerShell, macOS, and Linux.
+
+| Host tool | Requirement | Purpose | Validation |
+| --- | --- | --- | --- |
+| Azure CLI | Required | Authenticate and manage Azure resources | `az version` |
+| Azure Developer CLI (`azd`) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
+| Node.js 24 LTS or later | Required | Run the post-provision hook and verifier | `node --version` |
+| `kubectl` | Required | Inspect and manage the AKS workload | `kubectl version --client` |
+| Helm 3 | Required | Install the NGINX Ingress Controller | `helm version` |
+| GitHub Copilot CLI | Required for the documented CLI path | Run the deployment agent | `copilot --version` |
+
+The signed-in Azure account must have permission to create AKS, PostgreSQL Flexible Server, Load Balancer, managed identity, and Log Analytics resources. The target region must have quota for at least four vCPUs.
+
+Run these read-only checks on the host machine before you create Azure resources:
+
+```text
+az version
+az account show --output table
+az vm list-usage --location westus --output table
+azd version
+node --version
+kubectl version --client
+helm version
+copilot --version
+```
+
+Confirm that `az account show` identifies the intended subscription, the target region has at least four available vCPUs, `azd` is version 1.28.0 or later, Node.js is version 24 or later, and Helm reports major version 3. Stop and fix the prerequisite if any check fails. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
 
 > [!NOTE]
-> Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+> GitHub Copilot CLI is the documented and validated command-line path. You may adapt the deployment prompt for another agentic coding tool by copying or adapting this repository's `.github/skills` into that tool's supported skills or instructions location and reporting anything unsupported.
 
-### Done when
+### Acceptance criteria
 
-- [ ] `kubectl get pods -n superset` shows Ready 1/1
-- [ ] Init logs show `PostgresqlImpl` (not SQLite)
-- [ ] `$SUPERSET_URL/health` returns HTTP 200
-- [ ] Browser login works
-- [ ] `azd down --force --purge` completed
+The deployment is complete when:
+
+- [ ] `kubectl get pods -n superset` reports each Superset pod as Ready and Running.
+- [ ] Superset logs contain `PostgresqlImpl` and do not contain `SQLiteImpl`.
+- [ ] `<superset-url>/health` returns HTTP 200.
+- [ ] Browser login reaches `/superset/welcome/`.
+
+The journey is complete after the [Cleanup](#cleanup) procedure removes the Azure resources.
 
 ---
 
@@ -136,15 +159,23 @@ In GitHub Copilot, use the repository's `oss-to-azure-deployer` agent to generat
 
 ### Step 1: Setup
 
-Make sure you're in the repo root first:
+If the current directory is not the repository root, run this command from the parent directory:
 
-```bash
+```text
 cd github-azure-agentic-journeys
 ```
 
-Then start GitHub Copilot. The examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started). The same prompts work in the app and VS Code agent chat; omit the leading `>` there.
+Configure `azd` to reuse the signed-in Azure CLI session:
 
-```bash
+```text
+azd config set auth.useAzCliAuth true
+```
+
+The command must exit successfully.
+
+Start the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+
+```text
 copilot
 ```
 
@@ -174,9 +205,11 @@ Give the agent one prompt that covers the location, secrets, target platform, an
 ```
 > Deploy Apache Superset to Azure using Bicep and azd. Set the location to westus,
 > generate secure passwords for all credentials, use AKS (not Container Apps),
-> generate infra-superset/hooks/postprovision.js for az aks get-credentials,
-> Helm, kubectl apply, and load-balancer polling without shell-specific syntax,
-> resolve any issues that come up, and log problems to issues.md.
+> and generate infra-superset/hooks/postprovision.js for az aks get-credentials,
+> Helm, kubectl apply, and load-balancer polling without shell-specific syntax.
+> If a deployment step fails, inspect the relevant logs, make the smallest safe
+> correction, rerun the failed step, and record the problem and resolution in
+> issues.md. Do not print secrets.
 ```
 
 The agent handles the entire deployment:
@@ -204,15 +237,21 @@ You can ask follow-up questions anytime:
 
 ### Step 3: Verify
 
-Ask the agent to confirm everything is working:
+Ask the agent to check the pod state, PostgreSQL evidence, health endpoint, and logs:
 
+```text
+> Verify the Superset deployment. Report each acceptance criterion as pass or fail.
 ```
-> Verify the Superset deployment is working. Check that it's using PostgreSQL not SQLite.
+
+Run the checked-in verifier from the repository root on the host machine:
+
+```text
+node .github/scripts/verify-superset.mjs
 ```
 
-Generate `scripts/verify-superset.mjs` and run `node scripts/verify-superset.mjs`. It must read deployment values through `azd`, use `kubectl` argument arrays to require a `1/1 Running` pod and PostgreSQL migration logs containing `PostgresqlImpl`, require HTTP 200 from `/health`, then use bundled Playwright Chromium to log in with `#username`, `#password`, and the resilient submit selector `input[type="submit"], button[type="submit"]`, and wait for `/superset/welcome/`.
+The verifier must print `PASS: <count> pod(s) Ready/Running, PostgreSQL confirmed, /health HTTP 200` and the deployed URL. Browser login is a separate check in Step 4.
 
-If the pod is stuck, describe its state in the same session so the agent can inspect the deployment context:
+If verification fails, report the failed criterion, exact command, redacted error output, and last successful step in the same agent session:
 
 ```
 > My Superset pod is stuck in Init:0/1
@@ -220,17 +259,16 @@ If the pod is stuck, describe its state in the same session so the agent can ins
 
 ### Step 4: Open Superset
 
-Get the URL with `azd env get-value SUPERSET_URL` and open the returned value in a browser.
-
-Log in with username `admin`. Retrieve the password with:
+Read the deployment URL and admin password in a private terminal:
 
 ```text
+azd env get-value SUPERSET_URL
 azd env get-value SUPERSET_ADMIN_PASSWORD
 ```
 
-Automated browser verification must target `#username`, `#password`, and `input[type="submit"], button[type="submit"]`. Superset 4.1.1 renders a Flask-AppBuilder submit input, while other versions may render a button. After signing in, verify the browser reaches `/superset/welcome/`.
+Do not paste the password into the agent session or shared logs. Open the URL and sign in with username `admin`.
 
-You should see the Superset home page with options to create charts and dashboards.
+Automated browser verification must target `#username`, `#password`, and `input[type="submit"], button[type="submit"]`. After signing in, confirm that the browser reaches `/superset/welcome/` and displays the Superset home page.
 
 ---
 
@@ -456,11 +494,28 @@ Ask the agent:
 
 ## Cleanup
 
-```bash
+> [!CAUTION]
+> This command permanently deletes the AKS cluster, PostgreSQL database, and other journey resources. Export any Superset content that you want to keep before you continue.
+
+Read and save the generated resource group name:
+
+```text
+azd env get-value RESOURCE_GROUP_NAME
+```
+
+Run the cleanup from the repository root on the host machine:
+
+```text
 azd down --force --purge
 ```
 
-Teardown takes 5-10 minutes because deleting AKS and PostgreSQL can be slow.
+AKS and PostgreSQL deletion can take 5–10 minutes. The command must exit successfully. Verify that the generated resource group is gone:
+
+```text
+az group exists --name <resource-group-name>
+```
+
+The command must return `false`. If cleanup fails or the resource group still exists, use the **When something fails** procedure in [Deploy with the Agent](#deploy-with-the-agent) and do not assume that Azure stopped billing the resources.
 
 ---
 

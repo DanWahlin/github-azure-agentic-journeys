@@ -24,9 +24,15 @@ main(async () => {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query: 'budget friendly electronics' }),
   });
   if (asArray(searchPayload, ['data', 'items', 'products', 'results']).length === 0) throw new Error('Semantic search returned no products');
-  await jsonRequest(`${api}/api/chat`, {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: 'What are your best sellers?' }] }), timeoutMs: 120000,
+  const { data: chatPayload } = await jsonRequest(`${api}/api/chat`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: 'What laptops do you have?' }] }), timeoutMs: 120000,
   });
+  if (chatPayload?.role !== 'assistant' || typeof chatPayload?.content !== 'string') {
+    throw new Error('Chat response did not match the required assistant message shape');
+  }
+  if (!chatPayload.content.toLowerCase().includes('ultrabook pro 15')) {
+    throw new Error('Chat response did not mention the catalog product UltraBook Pro 15');
+  }
   const page = await request(web, { timeoutMs: 60000 });
   const html = await page.text();
   if (page.status !== 200) throw new Error(`Storefront returned HTTP ${page.status}`);

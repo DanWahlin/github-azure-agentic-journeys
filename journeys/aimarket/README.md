@@ -19,32 +19,57 @@ In this journey, you'll build AIMarket, a lightweight marketplace with semantic 
 
 > ⏱️ **Estimated Time**: **3–5 hours for a first run** (about 2–3 hours if you've completed an OSS journey and already know Container Apps). The phase estimates below cover hands-on work; the total also includes time to test, debug, and revise.
 >
-> 💰 **Estimated Cost**: ~$100–115/month **if left running** (AI Search Basic is ~$75 of that; see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
->
-> 📋 **Prerequisites**
->
-> - Azure CLI, Azure Developer CLI 1.28.0+, and an agentic coding tool
-> - Node.js 24 LTS or later for the frontend, cross-platform hooks, and default API stack
-> - Docker with a running daemon and Buildx for image builds
-> - GitHub CLI (`gh`) for the repository and issue workflow in Phases 2–3
-> - The selected API runtime if you choose Python 3.10+, .NET 8+, or Java 17+ instead of Node.js
->
-> Run `node --version`, `docker version`, `docker buildx version`, and `gh auth status` before starting. See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, macOS, and Linux options.
+> 💰 **Estimated Cost**: ~$100–115/month while the resources exist (AI Search Basic is approximately $75 of that cost; see [Cost Breakdown](#cost-breakdown)). Complete the [Cleanup](#cleanup) procedure when you finish the journey.
+
+## Prerequisites
+
+This journey supports Windows PowerShell, macOS, and Linux.
+
+| Host tool | Requirement | Purpose | Validation |
+| --- | --- | --- | --- |
+| Azure CLI | Required | Authenticate and manage Azure resources | `az version` |
+| Azure Developer CLI (`azd`) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
+| Node.js 24 LTS or later | Required | Build the frontend, run hooks, and provide the default API runtime | `node --version` |
+| Docker with a running daemon and Buildx | Required for Phase 4 | Build deployment images | `docker version` and `docker buildx version` |
+| GitHub Copilot CLI | Required for the documented CLI path | Run the coding agent | `copilot --version` |
+| GitHub CLI (`gh`) | Required only for the cloud-agent issue and pull-request path | Create issues and manage pull requests | `gh auth status` |
+| Python 3.10+, .NET 8+, or Java 17+ | Required only when selected instead of the default Node.js API | Run the selected API stack | `python --version`, `dotnet --version`, or `java --version` |
+
+Run these read-only checks on the host machine before Phase 1:
+
+```text
+az version
+az account show --output table
+azd version
+node --version
+copilot --version
+```
+
+Before Phase 4, also run:
+
+```text
+docker version
+docker buildx version
+```
+
+Run `gh auth status` before the cloud-agent path. Run the validation command for the selected alternative API runtime before generating that API. Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix the prerequisite if a required check fails. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
 
 > [!NOTE]
-> Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+> GitHub Copilot CLI is the documented and validated command-line path. You may adapt the prompts for another agentic coding tool by copying or adapting this repository's `.github/skills` into that tool's supported skills or instructions location and reporting anything unsupported.
 
-### Done when
+### Acceptance criteria
 
-Use this checklist to confirm the journey is complete:
+The local application is complete when:
 
-- [ ] `GET /api/health` returns OK locally
-- [ ] Product grid shows seed products in the browser
-- [ ] Place order decrements inventory
-- [ ] Semantic search returns relevant products (or SQLite fallback documented)
-- [ ] Chat assistant mentions a real catalog product
-- [ ] Deployed API + web URLs work; products load in production browser
-- [ ] `azd down --force --purge` completed (or scheduled immediately)
+- [ ] `GET /api/health` returns HTTP 200.
+- [ ] The product grid shows all 10 seed products and every product image loads.
+- [ ] Placing an order decrements inventory.
+- [ ] Semantic search returns relevant catalog products.
+- [ ] The chat assistant mentions a real catalog product and does not invent products.
+
+The Azure deployment is complete when the checked-in verifier passes against the deployed API and storefront.
+
+The journey is complete after the [Cleanup](#cleanup) procedure removes the Azure resources.
 
 ---
 
@@ -174,13 +199,21 @@ You'll build the API in stages, not all at once. Each step teaches a different a
 
 Change to the existing journey directory so GitHub Copilot can access the skills and agent definitions in `.github/`:
 
-```bash
+```text
 cd github-azure-agentic-journeys/journeys/aimarket
 ```
 
-Start GitHub Copilot. The examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started). The same prompts work in the app and VS Code agent chat; omit the leading `>` there.
+Configure `azd` to reuse the signed-in Azure CLI session:
 
-```bash
+```text
+azd config set auth.useAzCliAuth true
+```
+
+The command must exit successfully.
+
+Start the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+
+```text
 copilot
 ```
 
@@ -290,7 +323,7 @@ Don't ask GitHub Copilot to claim it tested the API. Generate a reusable cross-p
 
 1. Check that the preferred API port is free. If it is already in use, select another port instead of stopping the unrelated process.
 2. Start the API with its documented `PORT` or equivalent setting.
-3. Generate `scripts/verify-api.mjs` using Node.js `fetch`. The script must read `API_URL` and default to the selected local URL.
+3. Generate `scripts/verify-api.mjs` using Node.js `fetch`. The script must read `API_URL` and default to the selected local URL. This generated local verifier is separate from the checked-in deployment verifier used in Phase 4.
 4. Run:
 
 ```text
@@ -497,7 +530,7 @@ Then assign it to the GitHub Copilot cloud agent. Navigate to the issue on GitHu
 
 While the cloud agent works, take a break or read ahead to Phase 4. Don't deploy yet; the chat endpoint is part of the live acceptance criteria. When the agent opens a PR:
 
-```bash
+```text
 gh pr checkout <PR_NUMBER>
 # start both API and frontend, then test the chat endpoint and widget locally
 ```
@@ -511,7 +544,7 @@ gh pr checkout <PR_NUMBER>
 
 If something's off, comment on the PR and let the agent fix it. Then merge:
 
-```bash
+```text
 gh pr merge <PR_NUMBER>
 ```
 
@@ -527,18 +560,22 @@ gh pr merge <PR_NUMBER>
   <img src="./images/azure-deployment.webp" alt="Phase 4: Deploy to Azure" width="800" />
 </p>
 
-Before starting, verify Docker is installed and running. You'll need it to build container images:
+Before starting, confirm that the Docker daemon and Buildx are available:
 
-```bash
-docker --version  # Need Docker Desktop or Docker Engine
+```text
+docker version
+docker buildx version
 ```
 
-Before generating Bicep, confirm the model exists in your region:
+Both commands must exit successfully.
 
-```bash
-az cognitiveservices model list --location westus \
-  --query "[?model.name=='gpt-5-mini' || model.name=='gpt-4.1'].{name:model.name, version:model.version}" -o table
+Before generating Bicep, confirm that a supported model exists in `westus`:
+
+```text
+az cognitiveservices model list --location westus --query "[?model.name=='gpt-5-mini' || model.name=='gpt-4.1'].{name:model.name, version:model.version}" --output table
 ```
+
+The command must list at least one supported model. Stop before provisioning if the result is empty.
 
 #### Step 1: Generate infrastructure
 
@@ -571,7 +608,25 @@ The Phase 4 section in PLAN.md and the `container-apps-deployment` skill contain
 
 #### Step 2: Deploy
 
-Read the subscription ID with `az account show --query id -o tsv`, pass the returned value to `azd env set AZURE_SUBSCRIPTION_ID <subscription-id>`, then run `azd up`.
+Read the subscription ID on the host machine:
+
+```text
+az account show --query id --output tsv
+```
+
+Set the returned value in the selected `azd` environment:
+
+```text
+azd env set AZURE_SUBSCRIPTION_ID <subscription-id>
+```
+
+Start the deployment from the AIMarket journey directory:
+
+```text
+azd up
+```
+
+Do not continue until `azd up` and the required `postdeploy` hook exit successfully.
 
 > ⏳ **While you wait:** While `azd` builds and publishes the application images and Azure provisions Container Apps, AI Search, and Foundry:
 >
@@ -613,17 +668,17 @@ The hook must read all dynamic values through `azd env get-value`, call Docker a
 
 #### Step 4: Verify the live deployment
 
-Generate `scripts/verify-deployment.mjs` and run it from Windows, macOS, or Linux:
+Run the checked-in verifier from the AIMarket journey directory on the host machine:
 
 ```text
-node scripts/verify-deployment.mjs
+node ../../.github/scripts/verify-aimarket.mjs
 ```
 
-The script must read `API_URL` and `WEB_URL` with `azd`, then fail unless it verifies HTTP 200 from `/api/health`, all 10 products, semantic search results, a catalog-grounded chat response, HTTP 200 from the storefront, the production API URL in the built frontend, and successful loading of every product image.
+The verifier must print `PASS: health, 10 products, images, search, chat, storefront, and API integration`. It checks the deployed health endpoint, product count, image responses, semantic-search results, an assistant-shaped chat response that mentions **UltraBook Pro 15**, the storefront response, and the production API host embedded in the frontend assets.
 
-Open the value returned by `azd env get-value WEB_URL` in your browser. You should see the product grid with 10 products. If you see "Failed to load products," the `VITE_API_URL` isn't set correctly. Go back to Step 3.
+Open the value returned by `azd env get-value WEB_URL` in your browser and confirm that the product grid displays 10 products. If the page reports `Failed to load products`, return to Step 3.
 
-Also check the browser dev tools Network tab. Product requests should go to `https://ca-api-xxx.../api/products`, not `/api/products` (the relative path means the fix didn't take).
+In the browser Network panel, confirm that product requests target `https://<api-host>/api/products`, not the storefront-relative `/api/products` path.
 
 #### 🧪 Try it yourself: Add an endpoint
 
@@ -688,7 +743,7 @@ Scale-to-zero on Container Apps keeps compute low when idle. **Azure AI Search B
 
 **Check:** Your runtime version and dependencies.
 
-```bash
+```text
 node --version    # Node.js (need LTS)
 python --version  # Python (need 3.10+)
 dotnet --version  # .NET (need 8+)
@@ -724,7 +779,7 @@ java --version    # Java (need 17+)
 
 **Fix:** Rebuild the frontend image with `VITE_API_URL` including `/api`:
 
-```bash
+```text
 docker build --build-arg VITE_API_URL="https://<api-fqdn>/api" ...
 ```
 
@@ -732,7 +787,7 @@ docker build --build-arg VITE_API_URL="https://<api-fqdn>/api" ...
 
 **Fix:** Register Azure providers before deploying:
 
-```bash
+```text
 az provider register --namespace Microsoft.App
 az provider register --namespace Microsoft.Search
 az provider register --namespace Microsoft.CognitiveServices
@@ -765,7 +820,7 @@ The `ARG VITE_API_URL` line must come BEFORE the `npm run build` step in `client
 
 ## Verification Checklist
 
-Use the canonical acceptance contract in [Phase 4, Step 4](#step-4-verify-the-live-deployment), then run `node scripts/verify-deployment.mjs`.
+Use the acceptance contract in [Phase 4, Step 4](#step-4-verify-the-live-deployment), then run `node ../../.github/scripts/verify-aimarket.mjs` from the AIMarket journey directory.
 
 </details>
 
@@ -791,11 +846,37 @@ Use the canonical acceptance contract in [Phase 4, Step 4](#step-4-verify-the-li
 
 ## Cleanup
 
-```bash
+> [!CAUTION]
+> This procedure permanently deletes the AIMarket Azure resources and any data stored inside the API container. Record any data or deployment details that you want to keep before you continue.
+
+Read and save the generated resource group name:
+
+```text
+azd env get-value RESOURCE_GROUP_NAME
+```
+
+Run the cleanup from the AIMarket journey directory:
+
+```text
 azd down --force --purge
 ```
 
-Teardown takes 3-5 minutes and deletes the resources tracked by the selected `azd` environment. If you created a separate temporary AI resource group, delete only its recorded exact name with `az group delete --name <temporary-ai-resource-group> --yes --no-wait`, then verify that the group is gone.
+The command must exit successfully. Verify that the generated resource group is gone:
+
+```text
+az group exists --name <resource-group-name>
+```
+
+The command must return `false`.
+
+If you created a separate temporary AI resource group, delete only its recorded exact name and verify its deletion:
+
+```text
+az group delete --name <temporary-ai-resource-group> --yes
+az group exists --name <temporary-ai-resource-group>
+```
+
+The final command must return `false`.
 
 ---
 

@@ -18,25 +18,45 @@ In this journey, you'll deploy [n8n](https://n8n.io), an open-source, self-hoste
 
 > ⏱️ **Estimated Time**: ~20–30 minutes first run (PostgreSQL provisioning takes most of that time)
 >
-> 💰 **Estimated Cost**: ~$25–35/month **if left running** (see [Cost Breakdown](#cost-breakdown)). **Tear down the same day with `azd down --force --purge`.**
->
-> 📋 **Prerequisites**
->
-> - Azure CLI, Azure Developer CLI 1.28.0+, and an agentic coding tool
-> - Node.js 24 LTS or later for the cross-platform post-provision hook
-> - An Azure subscription with permission to create Container Apps and PostgreSQL Flexible Server
->
-> See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, macOS, and Linux installation and verification commands.
+> 💰 **Estimated Cost**: ~$25–35/month while the resources exist (see [Cost Breakdown](#cost-breakdown)). Complete the [Cleanup](#cleanup) procedure when you finish the journey.
+
+## Prerequisites
+
+This journey supports Windows PowerShell, macOS, and Linux.
+
+| Host tool | Requirement | Purpose | Validation |
+| --- | --- | --- | --- |
+| Azure CLI | Required | Authenticate and manage Azure resources | `az version` |
+| Azure Developer CLI (`azd`) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
+| Node.js 24 LTS or later | Required | Run the cross-platform hook and verifier | `node --version` |
+| GitHub Copilot CLI | Required for the documented CLI path | Run the deployment agent | `copilot --version` |
+
+The signed-in Azure account must have permission to create Container Apps, PostgreSQL Flexible Server, Log Analytics, and managed identity resources.
+
+Run these read-only checks on the host machine before you create Azure resources:
+
+```text
+az version
+az account show --output table
+azd version
+node --version
+copilot --version
+```
+
+Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix the prerequisite if a command fails or a required version is too old. See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, macOS, and Linux installation instructions.
 
 > [!NOTE]
-> Use [GitHub Copilot CLI](https://github.com/features/copilot/cli), the [GitHub Copilot app](https://github.com/features/ai/github-app), or another agentic coding tool. For other tools, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
+> GitHub Copilot CLI is the documented and validated command-line path. You may adapt the deployment prompt for the GitHub Copilot app, VS Code agent chat, or another agentic coding tool. For another tool, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
 
-### Done when
+### Acceptance criteria
 
-- [ ] `$N8N_URL/healthz` returns HTTP 200
-- [ ] UI loads (HTTP 200); title contains n8n and the owner-setup or login page renders
-- [ ] `WEBHOOK_URL` set on the container (agent or post-provision hook)
-- [ ] `azd down --force --purge` completed
+The deployment is complete when:
+
+- [ ] `<n8n-url>/healthz` returns HTTP 200.
+- [ ] The n8n UI returns HTTP 200 and renders either **Set up owner account** or the normal login page.
+- [ ] The Container App has a `WEBHOOK_URL` value that uses the deployed HTTPS URL.
+
+The journey is complete after the [Cleanup](#cleanup) procedure removes the Azure resource group.
 
 ---
 
@@ -107,15 +127,23 @@ You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) with Gi
 
 ### Step 1: Setup
 
-Make sure you're in the repo root first:
+If the current directory is not the repository root, run this command from the parent directory:
 
-```bash
+```text
 cd github-azure-agentic-journeys
 ```
 
-Then start GitHub Copilot. The examples use the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started). The same prompts work in the app and VS Code agent chat; omit the leading `>` there.
+Configure `azd` to reuse the signed-in Azure CLI session:
 
-```bash
+```text
+azd config set auth.useAzCliAuth true
+```
+
+The command must exit successfully.
+
+Start the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+
+```text
 copilot
 ```
 
@@ -146,8 +174,10 @@ Give the agent one prompt that covers the location, secrets, health probes, and 
 > Deploy n8n to Azure using Bicep and azd. Set the location to westus,
   generate secure passwords for all credentials, set the Container App
   minReplicas to 1 so I can verify it right away without a cold start,
-  use n8n's /healthz endpoint for startup/readiness/liveness probes,
-  resolve any issues that come up, and log problems to issues.md.
+  and use n8n's /healthz endpoint for startup/readiness/liveness probes.
+  If a deployment step fails, inspect the relevant logs, make the smallest
+  safe correction, rerun the failed step, and record the problem and
+  resolution in issues.md. Do not print secrets.
 ```
 
 The agent handles the entire deployment:
@@ -158,6 +188,8 @@ The agent handles the entire deployment:
 4. Updates `azure.yaml`, registers Azure providers, sets environment variables
 5. Runs `azd up`
 6. Configures `WEBHOOK_URL` with `infra-n8n/hooks/postprovision.js`, referenced directly from `azure.yaml`. This cross-platform Node.js hook avoids Bash- or PowerShell-specific syntax. Because the update creates a replacement Container App revision, the hook must not exit until both `/healthz` and `/` return HTTP 200 for six consecutive probes over 30 seconds.
+
+Do not start verification until `azd up` and the `postprovision` hook exit successfully.
 
 The deployment takes several minutes. You'll see the agent generating Bicep files, registering Azure providers, and running `azd up`. It may prompt you to confirm your Azure subscription.
 
@@ -178,17 +210,21 @@ You can ask follow-up questions anytime during or after generation:
 
 ### Step 3: Verify
 
-Ask the agent to confirm everything is working:
+Ask the agent to check the health endpoint, `WEBHOOK_URL`, and Container App logs:
 
+```text
+> Verify the n8n deployment. Report each acceptance criterion as pass or fail.
 ```
-> Verify the n8n deployment is working. Check the health endpoint and container logs.
+
+Run the checked-in verifier from the repository root on the host machine:
+
+```text
+node .github/scripts/verify-n8n.mjs
 ```
 
-The agent uses `azure_deploy_app_logs` (an Azure MCP tool that fetches container logs) to confirm the deployment is healthy.
+The verifier must print `PASS: /healthz and UI returned HTTP 200` and the deployed n8n URL. Open that URL in a browser and confirm that the rendered page shows either **Set up owner account** or the normal login page. HTTP 401 is not a successful UI check.
 
-Generate `scripts/verify-n8n.mjs` and run it with `node scripts/verify-n8n.mjs`. The portable verifier must read `N8N_URL` through `azd`, poll `/healthz` for HTTP 200, require HTTP 200 from the UI, and use Playwright's bundled Chromium to assert the rendered page is either **Set up owner account** or the normal n8n login screen. HTTP 401 is not an acceptable substitute for this check.
-
-If verification fails, describe the symptom in the same session so the agent can inspect the deployment context:
+If verification fails, report the failed criterion, exact command, redacted error output, and last successful step in the same agent session:
 
 ```
 > The container is in CrashLoopBackOff, what's happening?
@@ -297,28 +333,33 @@ The agent uses `azure_deploy_app_logs` to pull logs and identify the issue.
 **Symptom:** n8n logs show `ECONNREFUSED` or SSL handshake errors.
 
 **Fix:**
-1. Always use PostgreSQL **FQDN** (not internal hostname)
-2. Enable SSL: `DB_POSTGRESDB_SSL_ENABLED=true`
-3. Set `DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED=false` (Azure cert compatibility)
-4. Increase connection timeout to 60s for cold starts
+
+1. Set `DB_POSTGRESDB_HOST` to the PostgreSQL fully qualified domain name (FQDN).
+2. Set `DB_POSTGRESDB_SSL_ENABLED=true`.
+3. Set `DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED=false` for Azure certificate compatibility.
+4. Set `DB_POSTGRESDB_CONNECTION_TIMEOUT=60000` for cold starts.
+5. Restart the Container App revision.
+6. Confirm that the logs no longer contain `ECONNREFUSED` or SSL handshake errors.
 
 ### WEBHOOK_URL Not Set
 
-**Symptom:** Webhooks don't work, static assets fail to load.
+**Symptom:** Webhooks don't work or n8n displays an incorrect webhook URL.
 
-**Cause:** Circular dependency: the FQDN isn't known until Container App is created.
+**Cause:** The Container App FQDN isn't available until after deployment.
 
-**Fix:** The post-provision hook handles this automatically. If it wasn't set, ask the agent:
+**Fix:** Run the idempotent post-provision hook from the repository root on the host machine:
 
+```text
+node infra-n8n/hooks/postprovision.js
 ```
-> The WEBHOOK_URL isn't set on my n8n container. Fix it using the container's FQDN.
-```
+
+The hook must exit successfully after `/healthz` and `/` return HTTP 200 for six consecutive probes over 30 seconds. If it exits nonzero, use the **When something fails** procedure in [Deploy with the Agent](#deploy-with-the-agent).
 
 ### Resource Provider 409 Conflicts
 
 **Fix:** Register providers before deployment:
 
-```bash
+```text
 az provider register --namespace Microsoft.App
 az provider register --namespace Microsoft.DBforPostgreSQL
 az provider register --namespace Microsoft.OperationalInsights
@@ -360,11 +401,28 @@ param n8nEncryptionKey string = newGuid()
 
 ## Cleanup
 
-```bash
+> [!CAUTION]
+> This command permanently deletes the deployment and its PostgreSQL data. Export each workflow that you want to keep before you continue.
+
+Read and save the resource group name before deletion:
+
+```text
+azd env get-value RESOURCE_GROUP_NAME
+```
+
+Run the cleanup from the repository root on the host machine:
+
+```text
 azd down --force --purge
 ```
 
-Teardown takes 3-5 minutes because PostgreSQL deletion can be slow. This permanently deletes all data, so export your workflows first.
+PostgreSQL deletion can take 3–5 minutes. After the command exits successfully, verify the deletion:
+
+```text
+az group exists --name <resource-group-name>
+```
+
+The command must return `false`.
 
 ---
 

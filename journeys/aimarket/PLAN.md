@@ -646,4 +646,4 @@ Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resourc
 
 ### Deployment Acceptance Criteria
 
-Deployment is complete only when `scripts/verify-deployment.mjs` reads `API_URL` and `WEB_URL` through `azd` and passes every required check: `/api/health`, all 10 products, semantic search, a catalog-grounded chat response, storefront HTTP 200, the production API URL in the built frontend, and every product image. After completing the README assignment, run `azd down --force --purge`.
+Deployment is complete only when every required check passes: `/api/health`, exactly 10 products, successful product images, non-empty semantic search, an assistant-shaped chat response to **What laptops do you have?** that mentions **UltraBook Pro 15**, storefront HTTP 200, and the production API host in the built frontend assets. The journey README owns the command that executes these deployment checks. After completing the README assignment, run `azd down --force --purge`.
