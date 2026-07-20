@@ -29,8 +29,6 @@ on:
         required: false
         type: string
         default: westus
-  reaction: "rocket"
-  status-comment: true
 
 description: "End-to-end test harness that deploys one selected journey to Azure, verifies, screenshots, and tears down."
 labels: ["testing", "azure", "journeys"]
@@ -56,7 +54,6 @@ sandbox:
 permissions:
   contents: read
   actions: read
-  issues: read
   id-token: write
 
 tools:
@@ -65,7 +62,7 @@ tools:
   playwright:
   web-fetch:
   github:
-    toolsets: [repos, issues]
+    toolsets: [repos]
 
 network:
   allowed:
@@ -74,15 +71,6 @@ network:
     - node
     - azure
 
-safe-outputs:
-  threat-detection: false
-  create-issue:
-    title-prefix: "[Journey E2E] "
-    labels: [test-report, automated]
-    close-older-issues: false
-    max: 1
-  add-comment:
-    max: 1
 ---
 
 # Journey End-to-End Test Harness
