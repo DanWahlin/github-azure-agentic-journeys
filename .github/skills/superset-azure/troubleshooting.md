@@ -63,7 +63,7 @@ containers:
 
 ### Verification
 
-Run `node .github/scripts/verify-superset.mjs`, then isolate the import if needed with `kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"`.
+Run `node .github/scripts/verify-superset.mjs`. To isolate the import, pass `kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"` through the host-side `az aks command invoke` wrapper at the top of this guide.
 
 ---
 
@@ -105,7 +105,7 @@ volumeMounts:
 
 ### Verification
 
-Retrieve the main-container logs with `kubectl logs -n superset <pod> -c superset` and inspect the returned text for `Loaded your LOCAL configuration`. Don't pipe required verification through host-specific `grep` commands.
+Pass `kubectl logs -n superset <pod> -c superset` through the host-side `az aks command invoke` wrapper and inspect the returned text for `Loaded your LOCAL configuration`. Don't pipe required verification through host-specific `grep` commands.
 
 ---
 
@@ -139,6 +139,8 @@ See Issue 1 - install psycopg2-binary.
 
 ### Debugging Steps
 
+Each `kubectl` line below is a remote command payload for the wrapper at the top of this guide, not a host command.
+
 ```text
 # Check init container logs
 kubectl logs -n superset <pod> -c superset-init
@@ -166,6 +168,8 @@ kubectl run -it --rm debug-pg --image=postgres:15 --restart=Never -- psql <redac
 3. **Database migrations incomplete** - Init container may have failed silently
 
 ### Debugging Steps
+
+Each `kubectl` line below is a remote command payload for the wrapper at the top of this guide, not a host command.
 
 ```text
 # Check main container logs, then inspect the returned text for pending migrations or errors
@@ -225,6 +229,8 @@ readinessProbe:
 
 ## Diagnostic Commands Reference
 
+Pass each `kubectl` line below through the host-side `az aks command invoke` wrapper. Do not run this block directly on the host.
+
 ```text
 # Get all resources in superset namespace
 kubectl get all -n superset
@@ -249,8 +255,11 @@ kubectl exec -n superset <pod> -c superset -- <command>
 
 # Get ingress IP
 kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
 
-# Run the portable deployment checks
+After remote diagnostics, run the portable deployment checks separately from the repository root:
+
+```text
 node .github/scripts/verify-superset.mjs
 ```
 

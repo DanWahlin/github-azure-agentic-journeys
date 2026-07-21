@@ -165,7 +165,9 @@ Run `node ../../.github/scripts/verify-superset.mjs` from `journeys/superset`. F
 
 ## Debugging Commands
 
-```bash
+Each `kubectl` line below is command text to pass through `az aks command invoke`, as described above. Do not run the block directly on the host.
+
+```text
 # Watch pod status
 kubectl get pods -n superset -w
 
