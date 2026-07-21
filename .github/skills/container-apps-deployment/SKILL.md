@@ -43,15 +43,17 @@ services:
     docker:
       path: api/Dockerfile
       context: api
+      remoteBuild: true
   web:
     host: containerapp
     language: ts
     docker:
       path: client/Dockerfile
       context: client
+      remoteBuild: true
 ```
 
-**Without `language`:** `azd up` fails with "must specify language or image".
+**Without `language`:** `azd up` fails with "must specify language or image". **Without `remoteBuild: true`:** `azd` can require a local Docker daemon.
 
 ### Cross-platform hooks
 
@@ -65,7 +67,7 @@ hooks:
     run: infra/hooks/postdeploy.js
 ```
 
-Use `postprovision` for steps that need infrastructure outputs, such as setting `WEBHOOK_URL`. Use `postdeploy` for steps that need deployed services, such as rebuilding a frontend with its API URL. Hook code must invoke `az` and `azd` through `execFileSync()` or `spawnSync()` argument arrays, never interpolated shell command strings. Build deployment images in Azure Container Registry so the host does not need Docker or Buildx.
+Use `postprovision` for steps that need infrastructure outputs, such as setting `WEBHOOK_URL`. Use `postdeploy` for steps that need deployed services, such as rebuilding a frontend with its API URL. Hook code must invoke `az` and `azd` through `execFileSync()` or `spawnSync()` argument arrays, never interpolated shell command strings. On Windows, invoke `az.cmd` and `azd.cmd`; on macOS and Linux, invoke `az` and `azd`. Build deployment images in Azure Container Registry so the host does not need Docker or Buildx.
 
 ## SPA Frontend Deployment (React/Vite)
 
