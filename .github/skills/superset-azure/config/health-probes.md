@@ -168,8 +168,8 @@ Run `node ../../.github/scripts/verify-superset.mjs` from `journeys/superset`. F
 Each `kubectl` line below is command text to pass through the checked-in runner, as described above. Do not run the block directly on the host.
 
 ```text
-# Watch pod status
-kubectl get pods -n superset -w
+# Get a pod-status snapshot
+kubectl get pods -n superset
 
 # Check all events
 kubectl get events -n superset --sort-by='.lastTimestamp'

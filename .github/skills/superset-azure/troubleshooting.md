@@ -150,8 +150,8 @@ kubectl logs -n superset <pod> -c superset-init
 # Describe pod for events
 kubectl describe pod -n superset <pod>
 
-# Check PostgreSQL from an approved temporary pod without printing credentials in shared logs
-kubectl run -it --rm debug-pg --image=postgres:15 --restart=Never -- psql <redacted-connection-string> -c "SELECT 1;"
+# Check PostgreSQL reachability from a bounded temporary pod without credentials
+kubectl run --rm debug-pg --image=postgres:15 --restart=Never --command -- pg_isready -h <postgres-host> -p 5432
 ```
 
 ---
@@ -237,8 +237,8 @@ Pass each `kubectl` line below through the checked-in runner. Do not run this bl
 # Get all resources in superset namespace
 kubectl get all -n superset
 
-# Watch pod status
-kubectl get pods -n superset -w
+# Get a pod-status snapshot
+kubectl get pods -n superset
 
 # Check init container logs
 kubectl logs -n superset <pod> -c superset-init
