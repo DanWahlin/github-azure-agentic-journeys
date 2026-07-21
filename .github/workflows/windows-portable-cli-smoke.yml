@@ -54,6 +54,8 @@ jobs:
             console.log(input.trim());
           } else if (args[0] === 'echo-args') {
             console.log(JSON.stringify(args.slice(1)));
+          } else if (args[0] === 'cwd') {
+            console.log(process.cwd());
           } else {
             console.error(`unexpected azd args: ${JSON.stringify(args)}`);
             process.exit(2);
@@ -90,6 +92,9 @@ jobs:
           if (JSON.stringify(echoed) !== JSON.stringify(special)) throw new Error(JSON.stringify(echoed));
           const stdin = run('azd', ['stdin'], { input: 'stdin value\n' }).stdout.trim();
           if (stdin !== 'stdin value') throw new Error(stdin);
+          const expectedCwd = new URL('./.github/', import.meta.url);
+          const actualCwd = run('azd', ['cwd'], { cwd: expectedCwd }).stdout.trim();
+          if (!actualCwd.replace(/\\/g, '/').toLowerCase().endsWith('/.github')) throw new Error(actualCwd);
           '@ | node --input-type=module
           node .github/skills/journey-runner/scripts/check-prerequisites.mjs --required node,az,azd
 

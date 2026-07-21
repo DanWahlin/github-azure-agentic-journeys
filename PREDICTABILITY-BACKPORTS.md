@@ -46,7 +46,7 @@ This ledger tracks defects discovered by deploying the generated solutions from 
 - **Observed:** Bicep and Azure provisioning succeeded, then `postprovision` failed with `Missing required azd env value: SUPERSET_SECRET_KEY`. `SUPERSET_ADMIN_PASSWORD` had the same undeclared prerequisite.
 - **Root cause:** The hook required both values, but neither `azure.yaml`, Bicep parameters, nor clean-environment setup generated them.
 - **Proven fix:** In the cross-platform Node hook, generate cryptographically random values when absent, persist them with `azd env set`, never print them, and reuse existing values on reruns. A brand-new environment with neither value preconfigured completed Helm installation, Kubernetes secret creation, Superset rollout, LoadBalancer discovery, PostgreSQL verification, and authenticated browser login.
-- **Solution implementation module:** `superset/infra-superset/hooks/postprovision.mjs`, invoked by `azure.yaml` through the explicit command `node ./infra-superset/hooks/postprovision.mjs`. The unsupported pattern is a bare `.mjs` lifecycle path without an explicit runtime.
+- **Solution implementation module:** `superset/infra-superset/hooks/postprovision.js`, referenced directly from `azure.yaml` as a supported CommonJS lifecycle hook.
 - **Source files updated:**
   - `journeys/superset/README.md`
   - `.github/skills/superset-azure/SKILL.md`
