@@ -65,7 +65,7 @@ hooks:
     run: infra/hooks/postdeploy.js
 ```
 
-Use `postprovision` for steps that need infrastructure outputs, such as setting `WEBHOOK_URL`. Use `postdeploy` for steps that need deployed services, such as rebuilding a frontend with its API URL. Hook code must invoke `az`, `azd`, and Docker through `execFileSync()` or `spawnSync()` argument arrays, never interpolated shell command strings.
+Use `postprovision` for steps that need infrastructure outputs, such as setting `WEBHOOK_URL`. Use `postdeploy` for steps that need deployed services, such as rebuilding a frontend with its API URL. Hook code must invoke `az` and `azd` through `execFileSync()` or `spawnSync()` argument arrays, never interpolated shell command strings. Build deployment images in Azure Container Registry so the host does not need Docker or Buildx.
 
 ## SPA Frontend Deployment (React/Vite)
 
@@ -94,10 +94,9 @@ The JavaScript hook must:
 1. Resolve the application root with `import.meta.url` and `fileURLToPath()` rather than assuming the current working directory.
 2. Read `API_URL`, `AZURE_CONTAINER_REGISTRY_ENDPOINT`, and `RESOURCE_GROUP_NAME` with `azd env get-value`.
 3. Find the web Container App by its `azd-service-name=web` tag.
-4. Log in to ACR through Azure CLI.
-5. Build the frontend with `VITE_API_URL=<API_URL>/api` and target `linux/amd64`.
-6. Push a unique image tag and update the web Container App.
-7. Wait until the new revision is ready, then verify the storefront can load products.
+4. Run `az acr build` with `--platform linux/amd64`, a unique image tag, and `--build-arg VITE_API_URL=<API_URL>/api`.
+5. Update the web Container App to use the cloud-built image.
+6. Wait until the new revision is ready, then verify the storefront can load products.
 
 Call external tools with `execFileSync()` or `spawnSync()` and argument arrays. Do not concatenate a shell command, use `chmod`, or depend on Bash, PowerShell, `cut`, `grep`, or `date`. Use JavaScript for path handling, timestamps, retries, and JSON parsing.
 
@@ -108,7 +107,7 @@ A filtered command such as `azd deploy web` can skip project-level hooks. After 
 ### Frontend Dockerfile Requirements
 
 ```dockerfile
-FROM --platform=$BUILDPLATFORM node:24-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -123,7 +122,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 ```
 
-**Keys:** `ARG` + `ENV` must appear **before** `RUN npm run build` so Vite picks up the URL. `$BUILDPLATFORM` keeps the static Vite/esbuild build native on ARM64 hosts; the final image is still built for the requested `linux/amd64` target.
+**Keys:** `ARG` + `ENV` must appear **before** `RUN npm run build` so Vite picks up the URL. The postdeploy hook sends this Dockerfile to an ACR `linux/amd64` cloud build.
 
 ### nginx.conf — SPA Only
 
@@ -157,9 +156,9 @@ In prod: `VITE_API_URL` is `https://ca-api-xxx.azurecontainerapps.io/api` → ca
 
 Azure Container Apps runs Linux AMD64. This applies to Apple Silicon, Windows ARM64, and Linux ARM64 hosts.
 
-Prefer remote ACR builds targeting `linux/amd64`. If the journey builds locally, preflight must verify Docker Buildx and AMD64 emulation before deployment. Never install privileged QEMU/binfmt handlers automatically. On a managed Linux host, stop and ask for approval or use the remote build path.
+Require ACR cloud builds targeting `linux/amd64`. Do not require Docker, Buildx, AMD64 emulation, or privileged QEMU/binfmt handlers on the host.
 
-Without an AMD64 target, the container crashes with `exec format error`. Building native tools such as esbuild entirely under emulation can also crash, which is why static frontend builder stages use `$BUILDPLATFORM`.
+Without an AMD64 target, the container can crash with `exec format error`. ACR builds remove that host-architecture dependency.
 
 ## Bicep `uniqueString()` Length Contracts
 

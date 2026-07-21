@@ -11,9 +11,13 @@ Deploy Apache Superset data visualization platform on Azure Kubernetes Service.
 
 ## Prerequisites and Portability
 
-Require Azure CLI, Azure Developer CLI 1.28.0 or later, Node.js 24 LTS or later, `kubectl`, and Helm 3. Verify `node --version`, `kubectl version --client`, and `helm version` before generating infrastructure. Stop before provisioning if any required tool is missing. Installation options for Windows, macOS, and Linux are in `../../../docs/tool-installation.md`.
+Require Azure CLI, Azure Developer CLI 1.28.0 or later, and Node.js 24 LTS or later. Verify `az version`, `azd version`, and `node --version` before generating infrastructure. The host must not need `kubectl` or Helm. Installation options for Windows, macOS, and Linux are in `../../../docs/tool-installation.md`.
 
-Generate the AKS post-provision workflow as `infra-superset/hooks/postprovision.js` and reference it directly from `azure.yaml`. The hook must call Helm, Azure CLI, and `kubectl` with `execFileSync()` or `spawnSync()` argument arrays. Do not generate a Bash-only `.sh` hook.
+Generate the AKS post-provision workflow as `infra-superset/hooks/postprovision.js` and reference it directly from `azure.yaml`. The hook must attach the Kubernetes manifests and a remote deployment script to `az aks command invoke`. Run Helm and `kubectl` inside Azure. Invoke `az` and `azd` with `execFileSync()` or `spawnSync()` argument arrays. Do not generate a Bash-only host hook.
+
+Start the long deployment command with `--no-wait`, parse the returned command ID, and poll `az aks command result`. Require `provisioningState` to equal `Succeeded` and `exitCode` to equal `0`. Use a separate short AKS run command to read the ingress IP so URL discovery does not depend on long-command log truncation.
+
+Write generated Kubernetes Secret values to a mode-`0600` temporary manifest as base64 data. Attach the temporary bundle to AKS run command, do not print the values, delete the remote Secret manifest immediately after `kubectl apply`, and remove the local bundle in `finally` after success or failure.
 
 The hook owns `SUPERSET_SECRET_KEY` and `SUPERSET_ADMIN_PASSWORD`. On a clean environment, generate cryptographically random values for either missing setting, persist each with `azd env set`, never print the values, and reuse existing values on reruns. A first deployment must not depend on undocumented manual secret setup.
 
@@ -176,7 +180,7 @@ Use these Azure MCP Server tools for Superset deployments:
 
 ## Deployment Checklist
 
-Before verifying: ensure PostgreSQL has a firewall rule, AKS has kubectl access, Helm installed NGINX Ingress, ConfigMap has `superset_config.py`, K8s secret has `SQLALCHEMY_DATABASE_URI` + `SUPERSET_SECRET_KEY` + `ADMIN_PASSWORD`, and `PYTHONPATH=/psycopg2-lib` is set. See [troubleshooting.md](troubleshooting.md) for the full verification checklist.
+Before verifying: ensure PostgreSQL has a firewall rule, AKS run command is available, remote Helm installed NGINX Ingress, ConfigMap has `superset_config.py`, K8s secret has `SQLALCHEMY_DATABASE_URI` + `SUPERSET_SECRET_KEY` + `ADMIN_PASSWORD`, and `PYTHONPATH=/psycopg2-lib` is set. See [troubleshooting.md](troubleshooting.md) for the full verification checklist.
 
 ## Default Credentials
 
@@ -205,22 +209,12 @@ azd down --force --purge
 
 ## Verification
 
-After deployment completes:
+After deployment completes, run the checked-in verifier from `journeys/superset`:
 
 ```text
-# 1. Check pod status (expected: 1/1 Running)
-kubectl get pods -n superset
-
-# 2. Print init logs and confirm they contain "Context impl PostgresqlImpl"
-kubectl logs -n superset <pod> -c superset-init
-
-# 3. Verify psycopg2 installed
-kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"
-
-# 4. Get the ingress IP, copy it, and test the endpoints
-kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath="{.status.loadBalancer.ingress[0].ip}"
-curl -I http://<external-ip>/health
-curl -I http://<external-ip>/login/
+node ../../.github/scripts/verify-superset.mjs
 ```
+
+The verifier must use `az aks command invoke` for pod status, logs, and in-pod checks. It must not invoke a local `kubectl` or Helm binary.
 
 For automated browser login, use `#username`, `#password`, and the resilient submit selector `input[type="submit"], button[type="submit"]`. Superset 4.1.1 renders a Flask-AppBuilder submit input; other versions may render a button. Verify successful navigation to `/superset/welcome/`.

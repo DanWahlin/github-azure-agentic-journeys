@@ -40,7 +40,7 @@ For ANY deployment targeting Azure Container Apps (n8n, Grafana, or full-stack j
 - **`zoneRedundant: false`** — required for Container Apps Environment in many regions (westus, etc.)
 - **azure.yaml `language` field** — required even with Docker services
 - **SPA frontend deployment** — postdeploy hook to rebuild frontend with `VITE_API_URL`
-- **Any ARM64 host** — prefer a remote ACR build for `linux/amd64`; if local cross-building is necessary, validate Buildx/emulation and keep static frontend builders on `$BUILDPLATFORM`
+- **Any host architecture** — build deployment images in ACR for `linux/amd64`; do not require local Docker, Buildx, or emulation
 - **SCREAMING_SNAKE_CASE outputs** — required for `azd env get-value`
 
 For ACR authentication, follow the `azure-prepare` plugin's two-phase pattern in `references/services/container-apps/bicep.md` (managed identity + AcrPull role assignment). Do not use admin credentials.

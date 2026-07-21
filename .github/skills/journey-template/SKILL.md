@@ -294,7 +294,7 @@ For mobile frontends (iOS/Android), note in the README:
 
 For AKS deployments (e.g., Superset), add:
 - **"Why AKS Instead of Container Apps?"** section after Architecture with architectural justification
-- **kubectl-based verification** commands alongside curl commands
+- **AKS run-command verification** through `az aks command invoke`, not a local `kubectl` dependency
 - **Complexity note** in the opening if deploy time exceeds 15 minutes
 
 For API-only journeys (no frontend):
@@ -507,7 +507,7 @@ For other languages (.NET, Java, Go, etc.), follow the same multi-stage pattern:
 
 If the frontend bakes in a backend URL at build time, always generate `infra/hooks/postdeploy.js` from the `container-apps-deployment` skill and reference it directly from `azure.yaml`. A filtered service deployment may skip project-level hooks, so document direct `node infra/hooks/postdeploy.js` execution. API-only apps skip postdeploy.
 
-**Any ARM64 host:** Prefer an ACR remote build targeting `linux/amd64`. If a local cross-build is required, verify Buildx and emulation during preflight, keep static builder stages on `$BUILDPLATFORM`, and never install privileged QEMU/binfmt automatically.
+**Any host architecture:** Require ACR cloud builds targeting `linux/amd64`. Do not require local Docker, Buildx, emulation, `$BUILDPLATFORM`, or privileged QEMU/binfmt handlers for deployment.
 
 ### Pre-Deployment Requirements (once per subscription)
 
@@ -546,7 +546,7 @@ AKS-specific infrastructure needs:
 - **Node pool sizing**: D2s_v3 (2 vCores, 8GB) is the minimum practical size (~$85/month each)
 - **Standard Load Balancer**: required for public access (~$18/month)
 - **Kubernetes manifests**: Deployment, Service, ConfigMap, Secret
-- **kubectl verification**: `kubectl get pods`, `kubectl logs`, `kubectl port-forward`
+- **AKS run-command verification**: pass `kubectl` commands to `az aks command invoke`; do not require local `kubectl`
 - **Init containers**: for database migrations (e.g., `superset db upgrade`)
 
 ### Cross-Platform Post-Provision Hooks
@@ -560,6 +560,8 @@ hooks:
 ```
 
 For example, n8n's `WEBHOOK_URL` depends on the Container App URL. The CommonJS `.js` hook resolves paths with `__dirname`, reads outputs with `azd env get-value`, and invokes Azure CLI through `execFileSync()` or `spawnSync()` argument arrays. It must not use Bash variables, PowerShell variables, `chmod`, pipelines, or interpolated shell strings.
+
+For AKS, attach manifests and a remote script to `az aks command invoke`. Run Helm and `kubectl` inside Azure. Store generated Secret values in a mode-`0600` temporary manifest, never print them, and remove the temporary bundle in `finally`.
 
 ---
 
@@ -704,7 +706,7 @@ After creating a new journey, update these files:
 
 2. **`AGENTS.md`** — project structure and skills table
 
-3. **Root prerequisites** — only tools common to ALL journeys (Azure CLI, azd, GitHub Copilot, Git). Language runtimes and Docker/kubectl go in the journey's additional prerequisites.
+3. **Root prerequisites** — only tools common to ALL journeys (Azure CLI, azd, GitHub Copilot, Git). Language runtimes and optional local Docker or `kubectl` tooling go in the journey's additional prerequisites.
 
 4. **No journey numbering** — journeys are self-contained with no prescribed order. Do not add "Journey N of M", stage numbers, or path-completion language anywhere.
 
