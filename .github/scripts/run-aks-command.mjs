@@ -17,6 +17,7 @@ function hasUnsafeShellControl(value) {
   let escaped = false;
   for (let index = 0; index < value.length; index += 1) {
     const character = value[index];
+    if (/[\r\n\0]/.test(character)) return true;
     if (escaped) {
       escaped = false;
       continue;
@@ -38,7 +39,7 @@ function hasUnsafeShellControl(value) {
       continue;
     }
     if (character === '`' || (character === '$' && value[index + 1] === '(')) return true;
-    if (quote === null && /[\r\n\0;&|<>]/.test(character)) return true;
+    if (quote === null && /[;&|<>]/.test(character)) return true;
   }
   return quote !== null || escaped;
 }
