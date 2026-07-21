@@ -570,8 +570,9 @@ The Phase 4 section in PLAN.md and the `container-apps-deployment` skill contain
   Containerization, Azure Resources, Bicep Requirements, and Deployment
   sections exactly, create everything needed to deploy AIMarket to Azure
   Container Apps: Bicep in infra/, Dockerfiles with .dockerignore files for
-  api/ and client/, azure.yaml (language: ts), and the required postdeploy
-  hook wired into azure.yaml. Default stack: Node.js API + React client.
+  api/ and client/, azure.yaml with API remoteBuild: true, and the required
+  postdeploy ACR build hook wired into azure.yaml. Default stack: Node.js API
+  + React client. Do not require local Docker or Buildx.
   Set the location to westus. Log issues to issues.md.
 ```
 
@@ -585,7 +586,8 @@ The Phase 4 section in PLAN.md and the `container-apps-deployment` skill contain
 6. Open `api/.dockerignore`. Make sure it does NOT exclude build config files like `tsconfig.json`. The Docker build needs them to compile.
 7. Open `client/Dockerfile`. Is it compatible with an ACR `linux/amd64` cloud build, and are `ARG VITE_API_URL` and `ENV VITE_API_URL=$VITE_API_URL` **before** `npm run build`?
 8. Do both Container Apps use system-assigned identity, an `AcrPull` assignment, and an explicit ACR registry entry using `identity: system` before a private image is deployed?
-9. Does `azure.yaml` define `hooks.postdeploy` → `infra/hooks/postdeploy.js` without `shell: sh`? Without this, the storefront will load HTML but products will fail.
+9. Does the API service in `azure.yaml` set `docker.remoteBuild: true` and `platform: linux/amd64`? Without this, `azd up` can require local Docker.
+10. Does `azure.yaml` define `hooks.postdeploy` → `infra/hooks/postdeploy.js` without `shell: sh`? Without this, the storefront will load HTML but products will fail.
 
 **💡 What you're learning:** Small deployment details can fail in very different ways. Missing service tags prevent `azd` from updating an app, an incomplete `.dockerignore` can overwhelm the build context, and the wrong nginx configuration can stop the container. The postdeploy hook solves a separate timing problem: Vite needs `VITE_API_URL` at build time, but the API FQDN isn't known until after provisioning.
 

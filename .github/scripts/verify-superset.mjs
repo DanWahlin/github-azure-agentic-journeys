@@ -35,7 +35,7 @@ function aksCommand(env, command) {
   } catch {
     throw new Error(`AKS command returned invalid JSON: ${(res.stdout || '').slice(0, 500)}`);
   }
-  if (result.provisioningState !== 'Succeeded' || Number(result.exitCode) !== 0) {
+  if (result.provisioningState !== 'Succeeded' || result.exitCode !== 0) {
     throw new Error(`Remote AKS command failed (${result.exitCode ?? 'unknown'}):\n${result.logs || result.reason || ''}`);
   }
   return result.logs || '';
