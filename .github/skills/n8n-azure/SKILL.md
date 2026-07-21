@@ -9,7 +9,7 @@ Application-specific configuration for deploying n8n to Azure Container Apps wit
 
 ## Prerequisites and Portability
 
-Require Azure CLI, Azure Developer CLI 1.28.0 or later, and Node.js 24 LTS or later. Generated lifecycle hooks must be JavaScript (`.mjs`) or TypeScript (`.ts`) files referenced directly from `azure.yaml`; do not generate Bash-only `.sh` or PowerShell-only `.ps1` hooks. See `../../../docs/tool-installation.md` for Windows, macOS, and Linux installation options.
+Require Azure CLI, Azure Developer CLI 1.28.0 or later, and Node.js 24 LTS or later. Generated lifecycle hooks must be CommonJS JavaScript (`.js`) or TypeScript (`.ts`) files referenced directly from `azure.yaml`; azd 1.28.0 rejects `.mjs` hook paths. Do not generate Bash-only `.sh` or PowerShell-only `.ps1` hooks. See `../../../docs/tool-installation.md` for Windows, macOS, and Linux installation options.
 
 ## Critical: Subscription Context
 
