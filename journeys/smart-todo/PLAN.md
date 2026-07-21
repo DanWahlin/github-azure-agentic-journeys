@@ -253,7 +253,7 @@ Status code mapping:
 
 ### Seed Data
 
-The seed script (`src/api/src/data/seed.ts`) must run before first use so the API returns data immediately. Add an npm script to make this easy: `"seed": "tsx src/data/seed.ts"`. The seed should be idempotent — skip if the database already contains rows. The README test commands (e.g., `curl .../api/todos/todo-1`) assume seed data is present.
+The seed script (`src/api/src/data/seed.ts`) must run before first use so the API returns data immediately. Add an npm script to make this easy: `"seed": "tsx src/data/seed.ts"`. The seed should be idempotent — skip if the database already contains rows. The README test commands (for example, `curl ".../api/todos?userId=user-1"`) assume seed data is present.
 
 **Todos** (all userId: "user-1"):
 

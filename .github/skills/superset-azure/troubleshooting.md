@@ -2,11 +2,13 @@
 
 This guide covers common issues when deploying Apache Superset on Azure Kubernetes Service.
 
-Run every `kubectl` diagnostic in this guide inside Azure. Use this host-side wrapper and replace `<kubectl-command>` with the quoted command. Do not invoke a local `kubectl` binary.
+Run every `kubectl` diagnostic in this guide inside Azure. From the repository root, use the checked-in runner and replace `<kubectl-command>` with the quoted command. Do not invoke a local `kubectl` binary.
 
 ```text
-az aks command invoke --resource-group <resource-group> --name <aks-cluster> --command "<kubectl-command>" --query logs --output tsv
+node .github/scripts/run-aks-command.mjs "<kubectl-command>"
 ```
+
+The runner reads the selected azd environment, invokes the command through AKS run command, and fails unless Azure returns `provisioningState: Succeeded` with an explicitly present numeric `exitCode: 0`.
 
 ## Issue 1: psycopg2 Not Found
 
@@ -63,7 +65,7 @@ containers:
 
 ### Verification
 
-Run `node .github/scripts/verify-superset.mjs`. To isolate the import, pass `kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"` through the host-side `az aks command invoke` wrapper at the top of this guide.
+Run `node .github/scripts/verify-superset.mjs`. To isolate the import, pass `kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"` through the checked-in runner at the top of this guide.
 
 ---
 
@@ -105,7 +107,7 @@ volumeMounts:
 
 ### Verification
 
-Pass `kubectl logs -n superset <pod> -c superset` through the host-side `az aks command invoke` wrapper and inspect the returned text for `Loaded your LOCAL configuration`. Don't pipe required verification through host-specific `grep` commands.
+Pass `kubectl logs -n superset <pod> -c superset` through the checked-in runner and inspect the returned text for `Loaded your LOCAL configuration`. Don't pipe required verification through host-specific `grep` commands.
 
 ---
 
@@ -139,7 +141,7 @@ See Issue 1 - install psycopg2-binary.
 
 ### Debugging Steps
 
-Each `kubectl` line below is a remote command payload for the wrapper at the top of this guide, not a host command.
+Each `kubectl` line below is a remote command payload for the runner at the top of this guide, not a host command.
 
 ```text
 # Check init container logs
@@ -148,8 +150,8 @@ kubectl logs -n superset <pod> -c superset-init
 # Describe pod for events
 kubectl describe pod -n superset <pod>
 
-# Check PostgreSQL from an approved temporary pod without printing credentials in shared logs
-kubectl run -it --rm debug-pg --image=postgres:15 --restart=Never -- psql <redacted-connection-string> -c "SELECT 1;"
+# Check PostgreSQL reachability from a bounded temporary pod without credentials
+kubectl run --rm debug-pg --image=postgres:15 --restart=Never --command -- pg_isready -h <postgres-host> -p 5432
 ```
 
 ---
@@ -169,7 +171,7 @@ kubectl run -it --rm debug-pg --image=postgres:15 --restart=Never -- psql <redac
 
 ### Debugging Steps
 
-Each `kubectl` line below is a remote command payload for the wrapper at the top of this guide, not a host command.
+Each `kubectl` line below is a remote command payload for the runner at the top of this guide, not a host command.
 
 ```text
 # Check main container logs, then inspect the returned text for pending migrations or errors
@@ -229,14 +231,14 @@ readinessProbe:
 
 ## Diagnostic Commands Reference
 
-Pass each `kubectl` line below through the host-side `az aks command invoke` wrapper. Do not run this block directly on the host.
+Pass each `kubectl` line below through the checked-in runner. Do not run this block directly on the host.
 
 ```text
 # Get all resources in superset namespace
 kubectl get all -n superset
 
-# Watch pod status
-kubectl get pods -n superset -w
+# Get a pod-status snapshot
+kubectl get pods -n superset
 
 # Check init container logs
 kubectl logs -n superset <pod> -c superset-init

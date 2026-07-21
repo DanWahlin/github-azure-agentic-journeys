@@ -125,7 +125,7 @@ In GitHub Copilot, use the repository's `oss-to-azure-deployer` agent to generat
 
 ### Step 1: Setup
 
-If the current directory is not the repository root, run this command from the parent directory:
+Run the following steps from the repository root. If you're in the parent directory that contains the clone, enter it first:
 
 ```text
 cd github-azure-agentic-journeys
