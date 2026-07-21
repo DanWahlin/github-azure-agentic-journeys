@@ -52,6 +52,8 @@ jobs:
             let input = '';
             for await (const chunk of process.stdin) input += chunk;
             console.log(input.trim());
+          } else if (args[0] === 'echo-args') {
+            console.log(JSON.stringify(args.slice(1)));
           } else {
             console.error(`unexpected azd args: ${JSON.stringify(args)}`);
             process.exit(2);
@@ -83,6 +85,9 @@ jobs:
           import { run } from './.github/scripts/_utils.mjs';
           const value = run('azd', ['env', 'get-value', 'TEST']).stdout.trim();
           if (value !== 'value with spaces;quotes"()') throw new Error(value);
+          const special = ['space value', 'semi;colon', 'quote"value', 'amp&pipe|percent%bang!', 'paren()'];
+          const echoed = JSON.parse(run('azd', ['echo-args', ...special]).stdout);
+          if (JSON.stringify(echoed) !== JSON.stringify(special)) throw new Error(JSON.stringify(echoed));
           const stdin = run('azd', ['stdin'], { input: 'stdin value\n' }).stdout.trim();
           if (stdin !== 'stdin value') throw new Error(stdin);
           '@ | node --input-type=module
