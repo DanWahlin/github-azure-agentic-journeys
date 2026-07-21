@@ -99,3 +99,12 @@ jobs:
           $output = node .github/scripts/run-aks-command.mjs "kubectl get pods -n superset"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ($output -notmatch "remote diagnostic passed") { throw "Unexpected output: $output" }
+
+          node .github/scripts/run-aks-command.mjs 'kubectl get pods; echo INJECTED'
+          if ($LASTEXITCODE -eq 0) { throw "Shell chaining was accepted" }
+
+          $quoted = @'
+          kubectl exec -n superset pod -c superset -- python -c "import psycopg2; print('OK')"
+          '@.Trim()
+          node .github/scripts/run-aks-command.mjs $quoted
+          if ($LASTEXITCODE -ne 0) { throw "A semicolon inside a quoted argument was rejected" }

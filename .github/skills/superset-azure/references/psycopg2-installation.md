@@ -31,4 +31,4 @@ The official `apache/superset:latest` image does NOT include psycopg2 for Postgr
 
 ### Verification
 
-Run `node ../../.github/scripts/verify-superset.mjs` from `journeys/superset`; it fails if the pod isn't Ready/Running, PostgreSQL evidence is absent, SQLite appears in logs, or `/health` doesn't return HTTP 200. To isolate the package import, pass `kubectl exec -n superset <pod> -c superset -- python -c "import psycopg2; print('OK')"` to `az aks command invoke`. Do not invoke a local `kubectl` binary.
+Run `node ../../.github/scripts/verify-superset.mjs` from `journeys/superset`; it fails if the pod isn't Ready/Running, PostgreSQL evidence is absent, SQLite appears in logs, or `/health` doesn't return HTTP 200. To isolate the package import, run `node .github/scripts/run-aks-command.mjs "kubectl exec -n superset <pod> -c superset -- python -c 'import psycopg2'"` from the repository root. The checked-in runner fails closed on incomplete or unsuccessful AKS results. Do not invoke a local `kubectl` binary.
