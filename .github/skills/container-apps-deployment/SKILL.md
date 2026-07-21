@@ -93,7 +93,7 @@ The JavaScript hook must:
 5. Update the web Container App to use the cloud-built image.
 6. Wait until the new revision is ready, then verify the storefront can load products.
 
-Call external tools with `execFileSync()` or `spawnSync()` and argument arrays. Do not concatenate a shell command, use `chmod`, or depend on Bash, `cut`, `grep`, or `date`. The static Windows PowerShell launcher described above is the only platform-specific exception; all CLI arguments must travel in the JSON environment payload. Use JavaScript for path handling, timestamps, retries, and JSON parsing.
+Call external tools with `execFileSync()` or `spawnSync()` and argument arrays. Do not concatenate a shell command, use `chmod`, or depend on Bash, `cut`, `grep`, or `date`. The static Windows PowerShell launcher described above is the only platform-specific exception; all CLI arguments must travel in the JSON environment payload. Windows PowerShell cannot losslessly pass a literal double quote inside a native argument, so reject it for every Windows target. For `.cmd`/`.bat`, also reject `&`, `|`, `<`, `>`, `^`, `%`, `!`, `(`, `)`, and CR/LF. Rewrite unsafe arguments or use attached files; native `.exe` targets preserve the remaining metacharacters. Use JavaScript for path handling, timestamps, retries, and JSON parsing.
 
 For a storefront-only rebuild, run `node infra/hooks/postdeploy.js` explicitly and verify production product loading. In the AIMarket pattern the web Container App is not an azd service, so `azd deploy web` is not a valid command.
 

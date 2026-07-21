@@ -84,19 +84,37 @@ jobs:
         shell: pwsh
         run: |
           @'
+          import { join } from 'node:path';
           import { run } from './.github/scripts/_utils.mjs';
           const value = run('azd', ['env', 'get-value', 'TEST']).stdout.trim();
           if (value !== 'value with spaces;quotes"()') throw new Error(value);
-          const special = ['space value', 'semi;colon', 'quote"value', 'amp&pipe|percent%bang!', 'paren()'];
-          const echoed = JSON.parse(run('azd', ['echo-args', ...special]).stdout);
-          if (JSON.stringify(echoed) !== JSON.stringify(special)) throw new Error(JSON.stringify(echoed));
+          const cmdSafe = ['space value', 'semi;colon', "single'quote", 'brackets[]', 'equals=value', 'comma,value', 'colon:value', 'slash/value'];
+          const echoed = JSON.parse(run('azd', ['echo-args', ...cmdSafe]).stdout);
+          if (JSON.stringify(echoed) !== JSON.stringify(cmdSafe)) throw new Error(JSON.stringify(echoed));
+          const cmdUnsafe = ['quote"value', 'amp&value', 'pipe|value', 'less<value', 'greater>value', 'caret^value', 'percent%value', 'bang!value', 'paren(value)', 'line\nvalue'];
+          const exeSafe = [...cmdSafe, ...cmdUnsafe.filter((value) => !value.includes('"'))];
+          const echoScript = join(process.env.RUNNER_TEMP, 'fake-azure-cli', 'fake-azd.mjs');
+          const exeEchoed = JSON.parse(run(process.execPath, [echoScript, 'echo-args', ...exeSafe]).stdout);
+          if (JSON.stringify(exeEchoed) !== JSON.stringify(exeSafe)) throw new Error(JSON.stringify(exeEchoed));
+          let exeQuoteRejected = false;
+          try { run(process.execPath, [echoScript, 'echo-args', 'quote"value']); }
+          catch (error) { exeQuoteRejected = /cannot be passed safely/.test(String(error)); }
+          if (!exeQuoteRejected) throw new Error('Quoted native argument was not rejected');
+          for (const value of cmdUnsafe) {
+            let rejected = false;
+            try { run('azd', ['echo-args', value]); }
+            catch (error) { rejected = /cannot be passed safely/.test(String(error)); }
+            if (!rejected) throw new Error(`Unsafe .cmd argument was not rejected: ${JSON.stringify(value)}`);
+          }
           const stdin = run('azd', ['stdin'], { input: 'stdin value\n' }).stdout.trim();
           if (stdin !== 'stdin value') throw new Error(stdin);
           const expectedCwd = new URL('./.github/', import.meta.url);
           const actualCwd = run('azd', ['cwd'], { cwd: expectedCwd }).stdout.trim();
           if (!actualCwd.replace(/\\/g, '/').toLowerCase().endsWith('/.github')) throw new Error(actualCwd);
           '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node .github/skills/journey-runner/scripts/check-prerequisites.mjs --required node,az,azd
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Exercise fail-closed AKS diagnostic runner
         shell: pwsh
@@ -109,7 +127,7 @@ jobs:
           if ($LASTEXITCODE -eq 0) { throw "Shell chaining was accepted" }
 
           $quoted = @'
-          kubectl exec -n superset pod -c superset -- python -c "import psycopg2; print('OK')"
+          kubectl exec -n superset pod -c superset -- python -c 'import psycopg2; x=1'
           '@.Trim()
           node .github/scripts/run-aks-command.mjs $quoted
           if ($LASTEXITCODE -ne 0) { throw "A semicolon inside a quoted argument was rejected" }
