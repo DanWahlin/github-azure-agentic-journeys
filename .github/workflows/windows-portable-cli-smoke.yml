@@ -84,19 +84,30 @@ jobs:
         shell: pwsh
         run: |
           @'
+          import { join } from 'node:path';
           import { run } from './.github/scripts/_utils.mjs';
           const value = run('azd', ['env', 'get-value', 'TEST']).stdout.trim();
           if (value !== 'value with spaces;quotes"()') throw new Error(value);
-          const special = ['space value', 'semi;colon', 'quote"value', 'amp&pipe|percent%bang!', 'paren()'];
-          const echoed = JSON.parse(run('azd', ['echo-args', ...special]).stdout);
-          if (JSON.stringify(echoed) !== JSON.stringify(special)) throw new Error(JSON.stringify(echoed));
+          const cmdSpecial = ['space value', 'semi;colon', 'amp&pipe|percent%bang!', 'paren()'];
+          const echoed = JSON.parse(run('azd', ['echo-args', ...cmdSpecial]).stdout);
+          if (JSON.stringify(echoed) !== JSON.stringify(cmdSpecial)) throw new Error(JSON.stringify(echoed));
+          const exeSpecial = [...cmdSpecial, 'quote"value'];
+          const echoScript = join(process.env.RUNNER_TEMP, 'fake-azure-cli', 'fake-azd.mjs');
+          const exeEchoed = JSON.parse(run(process.execPath, [echoScript, 'echo-args', ...exeSpecial]).stdout);
+          if (JSON.stringify(exeEchoed) !== JSON.stringify(exeSpecial)) throw new Error(JSON.stringify(exeEchoed));
+          let quoteRejected = false;
+          try { run('azd', ['echo-args', 'quote"value']); }
+          catch (error) { quoteRejected = /cannot be passed safely/.test(String(error)); }
+          if (!quoteRejected) throw new Error('Quoted .cmd argument was not rejected');
           const stdin = run('azd', ['stdin'], { input: 'stdin value\n' }).stdout.trim();
           if (stdin !== 'stdin value') throw new Error(stdin);
           const expectedCwd = new URL('./.github/', import.meta.url);
           const actualCwd = run('azd', ['cwd'], { cwd: expectedCwd }).stdout.trim();
           if (!actualCwd.replace(/\\/g, '/').toLowerCase().endsWith('/.github')) throw new Error(actualCwd);
           '@ | node --input-type=module
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node .github/skills/journey-runner/scripts/check-prerequisites.mjs --required node,az,azd
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Exercise fail-closed AKS diagnostic runner
         shell: pwsh

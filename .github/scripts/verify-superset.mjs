@@ -7,7 +7,13 @@ const WINDOWS_CLI_RUNNER = [
   '$payload = ConvertFrom-Json -InputObject $env:AZURE_NATIVE_CLI_PAYLOAD',
   '$command = [string]$payload[0]',
   '$arguments = @($payload | Select-Object -Skip 1)',
-  '& $command @arguments',
+  '$resolved = Get-Command -Name $command -ErrorAction Stop',
+  '$target = [string]$resolved.Source',
+  'if (-not $target) { $target = $command }',
+  'if ($target.EndsWith(".cmd", [System.StringComparison]::OrdinalIgnoreCase) -or $target.EndsWith(".bat", [System.StringComparison]::OrdinalIgnoreCase)) {',
+  '  foreach ($argument in $arguments) { if (([string]$argument).Contains([char]34)) { [Console]::Error.WriteLine("Arguments containing double quotes cannot be passed safely to a Windows .cmd/.bat shim."); exit 2 } }',
+  '}',
+  '& $target @arguments',
   '$ok = $?',
   '$code = $LASTEXITCODE',
   'if ($null -ne $code) { exit $code }',
@@ -110,9 +116,9 @@ async function main() {
 
   const psycopg = aksCommand(
     env,
-    `kubectl exec -n superset ${podName} -c superset -- python -c 'import psycopg2; print("OK")'`
+    `kubectl exec -n superset ${podName} -c superset -- python -c 'import psycopg2; print(1)'`
   );
-  record('psycopg2 importable in main container', /OK/.test(psycopg));
+  record('psycopg2 importable in main container', /^1\s*$/.test(psycopg));
 
   try {
     const response = await fetch(`${url}/health`, { redirect: 'manual' });
