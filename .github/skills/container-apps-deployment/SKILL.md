@@ -44,16 +44,9 @@ services:
       path: api/Dockerfile
       context: api
       remoteBuild: true
-  web:
-    host: containerapp
-    language: ts
-    docker:
-      path: client/Dockerfile
-      context: client
-      remoteBuild: true
 ```
 
-**Without `language`:** `azd up` fails with "must specify language or image". **Without `remoteBuild: true`:** `azd` can require a local Docker daemon.
+Declare each service whose image azd owns this way. AIMarket declares only `api`; Bicep creates its web Container App and the project postdeploy hook owns the storefront ACR build and update. **Without `language`:** `azd up` fails with "must specify language or image". **Without `remoteBuild: true`:** `azd` can require a local Docker daemon.
 
 ### Cross-platform hooks
 
@@ -93,7 +86,7 @@ hooks:
 
 The JavaScript hook must:
 
-1. Resolve the application root with `import.meta.url` and `fileURLToPath()` rather than assuming the current working directory.
+1. Resolve the application root from CommonJS `__dirname` rather than assuming the current working directory.
 2. Read `API_URL`, `AZURE_CONTAINER_REGISTRY_ENDPOINT`, and `RESOURCE_GROUP_NAME` with `azd env get-value`.
 3. Find the web Container App by its `azd-service-name=web` tag.
 4. Run `az acr build` with `--platform linux/amd64`, a unique image tag, and `--build-arg VITE_API_URL=<API_URL>/api`.

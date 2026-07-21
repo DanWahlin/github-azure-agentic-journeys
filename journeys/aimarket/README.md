@@ -189,10 +189,10 @@ You'll build the API in stages, not all at once. Each step teaches a different a
 
 #### Step 1: Set up the project
 
-Change to the existing journey directory so GitHub Copilot can access the skills and agent definitions in `.github/`:
+From the repository root, change to the existing journey directory so GitHub Copilot can access the skills and agent definitions in `.github/`:
 
 ```text
-cd github-azure-agentic-journeys/journeys/aimarket
+cd journeys/aimarket
 ```
 
 Configure `azd` to reuse the signed-in Azure CLI session:
@@ -578,7 +578,7 @@ The Phase 4 section in PLAN.md and the `container-apps-deployment` skill contain
 
 **🔍 Before deploying, review these critical details:**
 
-1. Open `infra/main.bicep`. Do both container apps have `tags: { 'azd-service-name': '...' }`? Without these, `azd deploy` can't find the apps.
+1. Open `infra/main.bicep`. Do both Container Apps have `azd-service-name` tags? The `api` tag lets azd map its declared service; the `web` tag lets the postdeploy hook discover the storefront. The web app is not an azd service.
 2. Is there an Azure Container Registry resource? Without it, there's nowhere to push images.
 3. Open `api/Dockerfile`. Does it use the correct base image for your language? If using Node.js with `better-sqlite3`, it needs native build tools (`python3 make g++`).
 4. Open `client/nginx.conf`. Does it ONLY have `try_files` for SPA routing? No `/api/` proxy block. (With public ingress on Container Apps, each service has its own URL, so nginx proxying to `aimarket-api` will crash because that hostname doesn't resolve.)
@@ -589,7 +589,7 @@ The Phase 4 section in PLAN.md and the `container-apps-deployment` skill contain
 9. Does the API service in `azure.yaml` set `docker.remoteBuild: true` and `platform: linux/amd64`? Without this, `azd up` can require local Docker.
 10. Does `azure.yaml` define `hooks.postdeploy` → `infra/hooks/postdeploy.js` without `shell: sh`? Without this, the storefront will load HTML but products will fail.
 
-**💡 What you're learning:** Small deployment details can fail in very different ways. Missing service tags prevent `azd` from updating an app, an incomplete `.dockerignore` can overwhelm the build context, and the wrong nginx configuration can stop the container. The postdeploy hook solves a separate timing problem: Vite needs `VITE_API_URL` at build time, but the API FQDN isn't known until after provisioning.
+**💡 What you're learning:** Small deployment details can fail in very different ways. A missing API service tag prevents azd from mapping the API, while a missing web tag prevents the hook from finding the storefront. An incomplete `.dockerignore` can overwhelm the build context, and the wrong nginx configuration can stop the container. The postdeploy hook solves a separate timing problem: Vite needs `VITE_API_URL` at build time, but the API FQDN isn't known until after provisioning.
 
 #### Step 2: Deploy
 

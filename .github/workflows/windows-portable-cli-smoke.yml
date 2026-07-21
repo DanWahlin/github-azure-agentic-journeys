@@ -1,0 +1,86 @@
+name: Windows portable CLI smoke test
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/_utils.mjs"
+      - ".github/scripts/run-aks-command.mjs"
+      - ".github/skills/journey-runner/scripts/check-prerequisites.mjs"
+      - ".github/workflows/windows-portable-cli-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-portable-cli:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Create Azure CLI shims
+        shell: pwsh
+        run: |
+          $fake = Join-Path $env:RUNNER_TEMP "fake-azure-cli"
+          New-Item -ItemType Directory -Force -Path $fake | Out-Null
+
+          @'
+          @echo off
+          node "%~dp0fake-azd.mjs" %*
+          '@ | Set-Content -Encoding ascii (Join-Path $fake "azd.cmd")
+
+          @'
+          @echo off
+          node "%~dp0fake-az.mjs" %*
+          '@ | Set-Content -Encoding ascii (Join-Path $fake "az.cmd")
+
+          @'
+          const args = process.argv.slice(2);
+          if (args[0] === 'version') {
+            console.log('azd version 1.28.0');
+          } else if (args[0] === 'env' && args[1] === 'get-value') {
+            console.log('value with spaces;quotes"()');
+          } else if (args[0] === 'env' && args[1] === 'get-values') {
+            console.log(JSON.stringify({
+              AZURE_RESOURCE_GROUP: 'rg-test',
+              AZURE_AKS_CLUSTER_NAME: 'aks-test'
+            }));
+          } else {
+            console.error(`unexpected azd args: ${JSON.stringify(args)}`);
+            process.exit(2);
+          }
+          '@ | Set-Content -Encoding utf8 (Join-Path $fake "fake-azd.mjs")
+
+          @'
+          const args = process.argv.slice(2);
+          if (args[0] === 'version') {
+            console.log('{}');
+          } else if (args.slice(0, 3).join(' ') === 'aks command invoke') {
+            console.log(JSON.stringify({
+              provisioningState: 'Succeeded',
+              exitCode: 0,
+              logs: 'remote diagnostic passed\n'
+            }));
+          } else {
+            console.error(`unexpected az args: ${JSON.stringify(args)}`);
+            process.exit(2);
+          }
+          '@ | Set-Content -Encoding utf8 (Join-Path $fake "fake-az.mjs")
+
+          $fake | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Exercise shared launcher and prerequisite checker
+        shell: pwsh
+        run: |
+          node --input-type=module -e "import { run } from './.github/scripts/_utils.mjs'; const value = run('azd', ['env', 'get-value', 'TEST']).stdout.trim(); if (value !== 'value with spaces;quotes\"()') throw new Error(value);"
+          node .github/skills/journey-runner/scripts/check-prerequisites.mjs --required node,az,azd
+
+      - name: Exercise fail-closed AKS diagnostic runner
+        shell: pwsh
+        run: |
+          $output = node .github/scripts/run-aks-command.mjs "kubectl get pods -n superset"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($output -notmatch "remote diagnostic passed") { throw "Unexpected output: $output" }

@@ -127,7 +127,7 @@ You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) with Gi
 
 ### Step 1: Setup
 
-If the current directory is not the repository root, run this command from the parent directory:
+Run the following steps from the repository root. If you're in the parent directory that contains the clone, enter it first:
 
 ```text
 cd github-azure-agentic-journeys

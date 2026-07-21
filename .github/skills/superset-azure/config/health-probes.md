@@ -151,7 +151,7 @@ initContainers:
 
 ## Verifying Health Probes
 
-Run `node ../../.github/scripts/verify-superset.mjs` from `journeys/superset`. For diagnosis, pass commands such as `kubectl get pods -n superset`, `kubectl describe pod -n superset <pod-name>`, and `kubectl exec -n superset <pod> -- curl -s localhost:8088/health` to `az aks command invoke`. Do not invoke a local `kubectl` binary. Port forwarding is optional direct-cluster work and is not part of the journey.
+Run `node ../../.github/scripts/verify-superset.mjs` from `journeys/superset`. For diagnosis, run `node .github/scripts/run-aks-command.mjs "<kubectl-command>"` from the repository root with commands such as `kubectl get pods -n superset`, `kubectl describe pod -n superset <pod-name>`, or `kubectl exec -n superset <pod> -- curl -s localhost:8088/health`. Do not invoke a local `kubectl` binary. Port forwarding is optional direct-cluster work and is not part of the journey.
 
 ## Common Health Probe Issues
 
@@ -165,7 +165,7 @@ Run `node ../../.github/scripts/verify-superset.mjs` from `journeys/superset`. F
 
 ## Debugging Commands
 
-Each `kubectl` line below is command text to pass through `az aks command invoke`, as described above. Do not run the block directly on the host.
+Each `kubectl` line below is command text to pass through the checked-in runner, as described above. Do not run the block directly on the host.
 
 ```text
 # Watch pod status

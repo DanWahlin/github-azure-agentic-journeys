@@ -1,12 +1,37 @@
 import { spawnSync } from 'node:child_process';
 
+export const WINDOWS_CLI_RUNNER = [
+  "$ErrorActionPreference = 'Stop'",
+  '$payload = ConvertFrom-Json -InputObject $env:AZURE_NATIVE_CLI_PAYLOAD',
+  '$command = [string]$payload[0]',
+  '$arguments = @($payload | Select-Object -Skip 1)',
+  '& $command @arguments',
+  '$ok = $?',
+  '$code = $LASTEXITCODE',
+  'if ($null -ne $code) { exit $code }',
+  'if (-not $ok) { exit 1 }',
+].join('; ');
+
 export function fail(message) {
   throw new Error(message);
 }
 
+export function buildInvocation(command, args = [], platform = process.platform) {
+  if (platform !== 'win32') {
+    return { file: command, args, env: process.env };
+  }
+  return {
+    file: 'powershell.exe',
+    args: ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', WINDOWS_CLI_RUNNER],
+    env: { ...process.env, AZURE_NATIVE_CLI_PAYLOAD: JSON.stringify([command, ...args]) },
+  };
+}
+
 export function run(command, args = [], { allowFailure = false, input, timeout = 120000 } = {}) {
-  const result = spawnSync(command, args, {
+  const invocation = buildInvocation(command, args);
+  const result = spawnSync(invocation.file, invocation.args, {
     encoding: 'utf8',
+    env: invocation.env,
     shell: false,
     input,
     timeout,

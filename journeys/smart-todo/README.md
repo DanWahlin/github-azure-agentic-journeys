@@ -207,10 +207,10 @@ You'll build the API in stages, not all at once. Each step teaches a different a
 
 #### Step 1: Set up the project
 
-Create a project directory inside the repo so GitHub Copilot can access the skills and agent definitions in `.github/`:
+From the repository root, change to the existing journey directory so GitHub Copilot can access the skills and agent definitions in `.github/`:
 
 ```text
-cd github-azure-agentic-journeys/journeys/smart-todo
+cd journeys/smart-todo
 ```
 
 Configure `azd` to reuse the signed-in Azure CLI session:

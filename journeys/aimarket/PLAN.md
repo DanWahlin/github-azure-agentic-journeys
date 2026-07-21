@@ -625,7 +625,7 @@ Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resourc
 
 1. **Prefer AVM modules** for all resources — fall back to raw `Microsoft.*` only where AVM blocks deployment (document why)
 2. **Deterministic naming** — all resources named with `${abbrs.xxx}${resourceToken}` so `existing` refs can resolve
-3. **`azd-service-name` tags** on each container app (azd maps services by tag): `api` and `web` (web serves on port 80)
+3. **`azd-service-name` tags** on each Container App: `api` lets azd map its declared service, while `web` lets the postdeploy hook discover the storefront Container App. The web app serves on port 80 but is not declared as an azd service.
 4. **Output `AZURE_CONTAINER_REGISTRY_ENDPOINT`** (azd reads this for image push)
 5. **Wire Azure AI Search credentials** into API container secrets using `listAdminKeys()`. Configure Foundry with `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT`; do not inject a Foundry API key into the deployed app.
 6. **Azure AI Search** — use `basic` SKU (not `free`), set `disableLocalAuth: false`, and set `semanticSearch: 'free'` to enable the semantic ranker

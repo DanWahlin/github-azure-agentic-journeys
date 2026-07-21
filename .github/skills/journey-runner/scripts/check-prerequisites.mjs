@@ -3,8 +3,8 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
 import os from 'node:os';
+import { run } from '../../../scripts/_utils.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -56,7 +56,7 @@ function runCheck(tool) {
   }
 
   if (tool === 'docker-daemon') {
-    const result = spawnSync('docker', ['info'], { encoding: 'utf8', shell: false });
+    const result = run('docker', ['info'], { allowFailure: true, timeout: 30000 });
     return {
       ok: result.status === 0,
       detail: result.status === 0 ? 'daemon reachable' : (result.stderr || result.error?.message || 'daemon unavailable').trim(),
@@ -66,11 +66,7 @@ function runCheck(tool) {
   const spec = checks[tool];
   if (!spec) return { ok: false, detail: 'unknown prerequisite key' };
 
-  const result = spawnSync(spec[0], spec[1], {
-    encoding: 'utf8',
-    shell: false,
-    timeout: 30000,
-  });
+  const result = run(spec[0], spec[1], { allowFailure: true, timeout: 30000 });
   const text = `${result.stdout ?? ''} ${result.stderr ?? ''}`.trim().replace(/\s+/g, ' ');
   if (result.status === 0) {
     const minimums = { node: [24, 0, 0], azd: [1, 28, 0], func: [4, 0, 0], helm: [3, 0, 0] };
