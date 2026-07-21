@@ -27,10 +27,11 @@ export function buildInvocation(command, args = [], platform = process.platform)
   };
 }
 
-export function run(command, args = [], { allowFailure = false, input, timeout = 120000 } = {}) {
+export function run(command, args = [], { allowFailure = false, input, timeout = 120000, cwd } = {}) {
   const invocation = buildInvocation(command, args);
   const result = spawnSync(invocation.file, invocation.args, {
     encoding: 'utf8',
+    cwd,
     env: invocation.env,
     shell: false,
     input,

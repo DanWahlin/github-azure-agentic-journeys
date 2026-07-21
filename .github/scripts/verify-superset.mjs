@@ -106,7 +106,7 @@ async function main() {
     env,
     `kubectl logs -n superset ${podName} -c superset`
   );
-  record('Main logs have no SQLiteImpl fallback', !/SQLiteImpl/.test(mainLogs));
+  record('Main logs retrieved with no SQLiteImpl fallback', Boolean(mainLogs.trim()) && !/SQLiteImpl/.test(mainLogs));
 
   const psycopg = aksCommand(
     env,
