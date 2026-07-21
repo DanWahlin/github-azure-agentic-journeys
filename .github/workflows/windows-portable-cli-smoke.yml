@@ -75,7 +75,11 @@ jobs:
       - name: Exercise shared launcher and prerequisite checker
         shell: pwsh
         run: |
-          node --input-type=module -e "import { run } from './.github/scripts/_utils.mjs'; const value = run('azd', ['env', 'get-value', 'TEST']).stdout.trim(); if (value !== 'value with spaces;quotes\"()') throw new Error(value);"
+          @'
+          import { run } from './.github/scripts/_utils.mjs';
+          const value = run('azd', ['env', 'get-value', 'TEST']).stdout.trim();
+          if (value !== 'value with spaces;quotes"()') throw new Error(value);
+          '@ | node --input-type=module
           node .github/skills/journey-runner/scripts/check-prerequisites.mjs --required node,az,azd
 
       - name: Exercise fail-closed AKS diagnostic runner
