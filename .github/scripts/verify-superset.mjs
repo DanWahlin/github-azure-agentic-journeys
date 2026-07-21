@@ -2,11 +2,31 @@
 // The host needs only az, azd, and Node.js. The script never prints secrets.
 import { spawnSync } from 'node:child_process';
 
-const azExe = process.platform === 'win32' ? 'az.cmd' : 'az';
-const azdExe = process.platform === 'win32' ? 'azd.cmd' : 'azd';
+const WINDOWS_CLI_RUNNER = [
+  "$ErrorActionPreference = 'Stop'",
+  '$payload = ConvertFrom-Json -InputObject $env:AZURE_NATIVE_CLI_PAYLOAD',
+  '$command = [string]$payload[0]',
+  '$arguments = @($payload | Select-Object -Skip 1)',
+  '& $command @arguments',
+  '$ok = $?',
+  '$code = $LASTEXITCODE',
+  'if ($null -ne $code) { exit $code }',
+  'if (-not $ok) { exit 1 }',
+].join('; ');
 
 function run(cmd, args) {
-  const res = spawnSync(cmd, args, { encoding: 'utf8' });
+  const invocation = process.platform === 'win32'
+    ? {
+        file: 'powershell.exe',
+        args: ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', WINDOWS_CLI_RUNNER],
+        env: { ...process.env, AZURE_NATIVE_CLI_PAYLOAD: JSON.stringify([cmd, ...args]) },
+      }
+    : { file: cmd, args, env: process.env };
+  const res = spawnSync(invocation.file, invocation.args, {
+    encoding: 'utf8',
+    env: invocation.env,
+    windowsHide: true,
+  });
   if (res.error) throw res.error;
   if (res.status !== 0) {
     throw new Error(`Command failed (${res.status}): ${cmd} ${args.join(' ')}\n${res.stderr || ''}`);
@@ -15,12 +35,12 @@ function run(cmd, args) {
 }
 
 function azdEnv() {
-  const res = run(azdExe, ['env', 'get-values', '--output', 'json']);
+  const res = run('azd', ['env', 'get-values', '--output', 'json']);
   return JSON.parse(res.stdout);
 }
 
 function aksCommand(env, command) {
-  const res = run(azExe, [
+  const res = run('az', [
     'aks', 'command', 'invoke',
     '--resource-group', env.AZURE_RESOURCE_GROUP,
     '--name', env.AZURE_AKS_CLUSTER_NAME,

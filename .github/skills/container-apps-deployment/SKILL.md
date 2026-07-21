@@ -67,7 +67,7 @@ hooks:
     run: infra/hooks/postdeploy.js
 ```
 
-Use `postprovision` for steps that need infrastructure outputs, such as setting `WEBHOOK_URL`. Use `postdeploy` for steps that need deployed services, such as rebuilding a frontend with its API URL. Hook code must invoke `az` and `azd` through `execFileSync()` or `spawnSync()` argument arrays, never interpolated shell command strings. On Windows, invoke `az.cmd` and `azd.cmd`; on macOS and Linux, invoke `az` and `azd`. Build deployment images in Azure Container Registry so the host does not need Docker or Buildx.
+Use `postprovision` for steps that need infrastructure outputs, such as setting `WEBHOOK_URL`. Use `postdeploy` for steps that need deployed services, such as rebuilding a frontend with its API URL. Hook code must invoke `az` and `azd` through argument arrays, never interpolated shell command strings. On macOS and Linux, call the CLI executable directly. On Windows, `.cmd` shims cannot be launched with `execFileSync()` or `spawnSync()` alone. Invoke a static, non-interpolated `powershell.exe` runner and pass the command plus arguments as a JSON environment payload, then use PowerShell's call operator with array splatting. This supports both the Azure CLI shim and the `azd.exe` installation without exposing arguments to shell parsing. Build deployment images in Azure Container Registry so the host does not need Docker or Buildx.
 
 ## SPA Frontend Deployment (React/Vite)
 
@@ -100,9 +100,9 @@ The JavaScript hook must:
 5. Update the web Container App to use the cloud-built image.
 6. Wait until the new revision is ready, then verify the storefront can load products.
 
-Call external tools with `execFileSync()` or `spawnSync()` and argument arrays. Do not concatenate a shell command, use `chmod`, or depend on Bash, PowerShell, `cut`, `grep`, or `date`. Use JavaScript for path handling, timestamps, retries, and JSON parsing.
+Call external tools with `execFileSync()` or `spawnSync()` and argument arrays. Do not concatenate a shell command, use `chmod`, or depend on Bash, `cut`, `grep`, or `date`. The static Windows PowerShell launcher described above is the only platform-specific exception; all CLI arguments must travel in the JSON environment payload. Use JavaScript for path handling, timestamps, retries, and JSON parsing.
 
-A filtered command such as `azd deploy web` can skip project-level hooks. After any filtered web deployment, run `node infra/hooks/postdeploy.js` explicitly and verify production product loading.
+For a storefront-only rebuild, run `node infra/hooks/postdeploy.js` explicitly and verify production product loading. In the AIMarket pattern the web Container App is not an azd service, so `azd deploy web` is not a valid command.
 
 **After the first green deploy**, explain why the hook exists. Don't make the learner discover a blank product grid first.
 
