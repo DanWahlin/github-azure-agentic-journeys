@@ -48,6 +48,10 @@ jobs:
               AZURE_RESOURCE_GROUP: 'rg-test',
               AZURE_AKS_CLUSTER_NAME: 'aks-test'
             }));
+          } else if (args[0] === 'stdin') {
+            let input = '';
+            for await (const chunk of process.stdin) input += chunk;
+            console.log(input.trim());
           } else {
             console.error(`unexpected azd args: ${JSON.stringify(args)}`);
             process.exit(2);
@@ -79,6 +83,8 @@ jobs:
           import { run } from './.github/scripts/_utils.mjs';
           const value = run('azd', ['env', 'get-value', 'TEST']).stdout.trim();
           if (value !== 'value with spaces;quotes"()') throw new Error(value);
+          const stdin = run('azd', ['stdin'], { input: 'stdin value\n' }).stdout.trim();
+          if (stdin !== 'stdin value') throw new Error(stdin);
           '@ | node --input-type=module
           node .github/skills/journey-runner/scripts/check-prerequisites.mjs --required node,az,azd
 
