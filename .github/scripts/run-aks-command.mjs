@@ -7,8 +7,44 @@ if (!command) {
   console.error('Usage: node .github/scripts/run-aks-command.mjs "kubectl <arguments>"');
   process.exit(2);
 }
-if (!/^(kubectl|helm)\s/.test(command)) {
+if (!/^(kubectl|helm)(?:\s|$)/.test(command)) {
   console.error('Only kubectl or helm diagnostic commands are allowed.');
+  process.exit(2);
+}
+
+function hasUnsafeShellControl(value) {
+  let quote = null;
+  let escaped = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quote === "'") {
+      if (character === "'") quote = null;
+      continue;
+    }
+    if (character === '"') {
+      quote = quote === '"' ? null : '"';
+      continue;
+    }
+    if (character === '\\' && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (character === "'" && quote === null) {
+      quote = "'";
+      continue;
+    }
+    if (character === '`' || (character === '$' && value[index + 1] === '(')) return true;
+    if (quote === null && /[\r\n\0;&|<>]/.test(character)) return true;
+  }
+  return quote !== null || escaped;
+}
+
+if (hasUnsafeShellControl(command)) {
+  console.error('Shell chaining, redirection, command substitution, control characters, and unbalanced quoting are not allowed.');
   process.exit(2);
 }
 
