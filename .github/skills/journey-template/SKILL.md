@@ -546,7 +546,7 @@ AKS-specific infrastructure needs:
 - **Node pool sizing**: D2s_v3 (2 vCores, 8GB) is the minimum practical size (~$85/month each)
 - **Standard Load Balancer**: required for public access (~$18/month)
 - **Kubernetes manifests**: Deployment, Service, ConfigMap, Secret
-- **AKS run-command verification**: pass `kubectl` commands to `az aks command invoke`; do not require local `kubectl`
+- **AKS run-command verification**: route bounded `kubectl` commands through the checked-in fail-closed `node .github/scripts/run-aks-command.mjs` helper; do not require local `kubectl` or accept incomplete/nonzero remote results
 - **Init containers**: for database migrations (e.g., `superset db upgrade`)
 
 ### Cross-Platform Post-Provision Hooks
