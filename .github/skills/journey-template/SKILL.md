@@ -559,7 +559,7 @@ hooks:
     run: ./infra/hooks/postprovision.js
 ```
 
-For example, n8n's `WEBHOOK_URL` depends on the Container App URL. The CommonJS `.js` hook resolves paths with `__dirname`, reads outputs with `azd env get-value`, and invokes Azure CLI with argument arrays. It must not use Bash variables, `chmod`, pipelines, or interpolated shell strings. On Windows, the only PowerShell-specific code permitted is the static JSON-payload launcher defined by the `container-apps-deployment` skill; don't invoke `.cmd` shims directly through `execFileSync()` or `spawnSync()`. The launcher must fail before invocation when a resolved `.cmd`/`.bat` target receives shell metacharacters or CR/LF in an argument.
+For example, n8n's `WEBHOOK_URL` depends on the Container App URL. The CommonJS `.js` hook resolves paths with `__dirname`, reads outputs with `azd env get-value`, and invokes Azure CLI with argument arrays. It must not use Bash variables, `chmod`, pipelines, or interpolated shell strings. On Windows, the only PowerShell-specific code permitted is the static JSON-payload launcher defined by the `container-apps-deployment` skill; don't invoke `.cmd` shims directly through `execFileSync()` or `spawnSync()`. The launcher must reject double quotes for every Windows target and additional shell metacharacters or CR/LF for `.cmd`/`.bat`.
 
 For AKS, attach manifests and a remote script to `az aks command invoke`. Run Helm and `kubectl` inside Azure. Store generated Secret values in a mode-`0600` temporary manifest, never print them, and remove the temporary bundle in `finally`.
 
