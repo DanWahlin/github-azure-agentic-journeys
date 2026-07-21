@@ -127,7 +127,7 @@ jobs:
           if ($LASTEXITCODE -eq 0) { throw "Shell chaining was accepted" }
 
           $quoted = @'
-          kubectl exec -n superset pod -c superset -- python -c "import psycopg2; print('OK')"
+          kubectl exec -n superset pod -c superset -- python -c 'import psycopg2; x=1'
           '@.Trim()
           node .github/scripts/run-aks-command.mjs $quoted
           if ($LASTEXITCODE -ne 0) { throw "A semicolon inside a quoted argument was rejected" }
