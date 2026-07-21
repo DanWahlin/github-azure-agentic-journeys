@@ -639,7 +639,7 @@ The **postdeploy hook** should have rebuilt the web image with `VITE_API_URL=<AP
 <details>
 <summary>Manual fallback: run the portable frontend hook</summary>
 
-A filtered `azd deploy web` can skip project-level postdeploy hooks. Run the JavaScript hook directly instead:
+The web Container App is not declared as an azd service. For a storefront-only rebuild, run the JavaScript hook directly instead of `azd deploy web`:
 
 ```text
 node infra/hooks/postdeploy.js
