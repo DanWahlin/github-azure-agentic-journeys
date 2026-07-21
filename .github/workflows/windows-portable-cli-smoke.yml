@@ -88,17 +88,20 @@ jobs:
           import { run } from './.github/scripts/_utils.mjs';
           const value = run('azd', ['env', 'get-value', 'TEST']).stdout.trim();
           if (value !== 'value with spaces;quotes"()') throw new Error(value);
-          const cmdSpecial = ['space value', 'semi;colon', 'amp&pipe|percent%bang!', 'paren()'];
-          const echoed = JSON.parse(run('azd', ['echo-args', ...cmdSpecial]).stdout);
-          if (JSON.stringify(echoed) !== JSON.stringify(cmdSpecial)) throw new Error(JSON.stringify(echoed));
-          const exeSpecial = [...cmdSpecial, 'quote"value'];
+          const cmdSafe = ['space value', 'semi;colon', "single'quote", 'brackets[]', 'equals=value', 'comma,value', 'colon:value', 'slash/value'];
+          const echoed = JSON.parse(run('azd', ['echo-args', ...cmdSafe]).stdout);
+          if (JSON.stringify(echoed) !== JSON.stringify(cmdSafe)) throw new Error(JSON.stringify(echoed));
+          const unsafe = ['quote"value', 'amp&value', 'pipe|value', 'less<value', 'greater>value', 'caret^value', 'percent%value', 'bang!value', 'paren(value)', 'line\nvalue'];
+          const exeSpecial = [...cmdSafe, ...unsafe];
           const echoScript = join(process.env.RUNNER_TEMP, 'fake-azure-cli', 'fake-azd.mjs');
           const exeEchoed = JSON.parse(run(process.execPath, [echoScript, 'echo-args', ...exeSpecial]).stdout);
           if (JSON.stringify(exeEchoed) !== JSON.stringify(exeSpecial)) throw new Error(JSON.stringify(exeEchoed));
-          let quoteRejected = false;
-          try { run('azd', ['echo-args', 'quote"value']); }
-          catch (error) { quoteRejected = /cannot be passed safely/.test(String(error)); }
-          if (!quoteRejected) throw new Error('Quoted .cmd argument was not rejected');
+          for (const value of unsafe) {
+            let rejected = false;
+            try { run('azd', ['echo-args', value]); }
+            catch (error) { rejected = /cannot be passed safely/.test(String(error)); }
+            if (!rejected) throw new Error(`Unsafe .cmd argument was not rejected: ${JSON.stringify(value)}`);
+          }
           const stdin = run('azd', ['stdin'], { input: 'stdin value\n' }).stdout.trim();
           if (stdin !== 'stdin value') throw new Error(stdin);
           const expectedCwd = new URL('./.github/', import.meta.url);

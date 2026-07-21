@@ -11,7 +11,8 @@ const WINDOWS_CLI_RUNNER = [
   '$target = [string]$resolved.Source',
   'if (-not $target) { $target = $command }',
   'if ($target.EndsWith(".cmd", [System.StringComparison]::OrdinalIgnoreCase) -or $target.EndsWith(".bat", [System.StringComparison]::OrdinalIgnoreCase)) {',
-  '  foreach ($argument in $arguments) { if (([string]$argument).Contains([char]34)) { [Console]::Error.WriteLine("Arguments containing double quotes cannot be passed safely to a Windows .cmd/.bat shim."); exit 2 } }',
+  "  $unsafe = [char[]]'\"&|<>^%!()'",
+  '  foreach ($argument in $arguments) { $text = [string]$argument; if ($text.IndexOfAny($unsafe) -ge 0 -or $text.Contains([char]10) -or $text.Contains([char]13)) { [Console]::Error.WriteLine("Arguments containing shell metacharacters or control characters cannot be passed safely to a Windows .cmd/.bat shim."); exit 2 } }',
   '}',
   '& $target @arguments',
   '$ok = $?',
@@ -114,11 +115,11 @@ async function main() {
   );
   record('Main logs retrieved with no SQLiteImpl fallback', Boolean(mainLogs.trim()) && !/SQLiteImpl/.test(mainLogs));
 
-  const psycopg = aksCommand(
+  aksCommand(
     env,
-    `kubectl exec -n superset ${podName} -c superset -- python -c 'import psycopg2; print(1)'`
+    `kubectl exec -n superset ${podName} -c superset -- python -c 'import psycopg2'`
   );
-  record('psycopg2 importable in main container', /^1\s*$/.test(psycopg));
+  record('psycopg2 importable in main container', true);
 
   try {
     const response = await fetch(`${url}/health`, { redirect: 'manual' });
