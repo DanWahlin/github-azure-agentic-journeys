@@ -57,7 +57,7 @@ gh --version
 gh auth status
 ```
 
-### Docker
+### Docker (optional local container work)
 
 - Windows: [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/)
 - macOS: [Docker Desktop for Mac](https://docs.docker.com/desktop/setup/install/mac-install/)
@@ -75,7 +75,7 @@ Don't automatically add a Linux user to the `docker` group. Docker documents tha
 
 ## Journey-specific tools
 
-### kubectl
+### kubectl (optional direct cluster access)
 
 Keep `kubectl` within one minor version of the target AKS cluster.
 
@@ -93,9 +93,9 @@ kubectl version --client
 
 `az aks install-cli` is an official alternative, but it downloads the current release, also installs `kubelogin`, and may target a privileged path on Unix. Don't run it silently on a managed host.
 
-### Helm 3
+### Helm 3 (optional direct cluster access)
 
-The Superset journey requires Helm 3. Unversioned package-manager commands may now install Helm 4, so verify the selected version before deployment.
+The Superset journey runs Helm inside Azure through AKS run command, so Helm is not required on the host. If you install Helm for direct cluster work, use Helm 3. Unversioned package-manager commands may install Helm 4.
 
 | OS | Install |
 |---|---|
@@ -179,10 +179,9 @@ The standard Microsoft SQL Server Linux container is AMD64-only. On Apple Silico
 
 Azure Container Apps expects Linux AMD64 images. On any ARM64 host, including Apple Silicon, Windows ARM64, and Linux ARM64:
 
-1. Prefer a remote ACR build targeting `linux/amd64` when the deployment workflow supports it.
-2. If building locally, verify emulation before deployment.
-3. Build static frontend assets on the native build platform using Docker's `$BUILDPLATFORM`, then use an AMD64 runtime stage.
-4. Never install privileged QEMU/binfmt handlers automatically. Ask first or fail preflight with exact setup instructions.
+1. Use an ACR cloud build targeting `linux/amd64` for deployment images.
+2. Do not require local Docker, Buildx, or emulation for the deployment path.
+3. Never install privileged QEMU/binfmt handlers automatically.
 
 ## Secure cross-platform secret generation
 

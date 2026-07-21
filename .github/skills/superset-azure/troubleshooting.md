@@ -2,6 +2,12 @@
 
 This guide covers common issues when deploying Apache Superset on Azure Kubernetes Service.
 
+Run every `kubectl` diagnostic in this guide inside Azure. Use this host-side wrapper and replace `<kubectl-command>` with the quoted command. Do not invoke a local `kubectl` binary.
+
+```text
+az aks command invoke --resource-group <resource-group> --name <aks-cluster> --command "<kubectl-command>" --query logs --output tsv
+```
+
 ## Issue 1: psycopg2 Not Found
 
 ### Symptoms

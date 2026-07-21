@@ -151,7 +151,7 @@ initContainers:
 
 ## Verifying Health Probes
 
-Run `node .github/scripts/verify-superset.mjs`. For diagnosis, use `kubectl get pods -n superset -w`, `kubectl describe pod -n superset <pod-name>`, and `kubectl exec -n superset <pod> -- curl -s localhost:8088/health`. If using port-forward, run `kubectl port-forward -n superset <pod> 8088:8088` in its own terminal instead of relying on host-specific background operators.
+Run `node ../../.github/scripts/verify-superset.mjs` from `journeys/superset`. For diagnosis, pass commands such as `kubectl get pods -n superset`, `kubectl describe pod -n superset <pod-name>`, and `kubectl exec -n superset <pod> -- curl -s localhost:8088/health` to `az aks command invoke`. Do not invoke a local `kubectl` binary. Port forwarding is optional direct-cluster work and is not part of the journey.
 
 ## Common Health Probe Issues
 

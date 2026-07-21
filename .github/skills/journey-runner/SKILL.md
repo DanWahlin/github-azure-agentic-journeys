@@ -57,7 +57,7 @@ Read the journey's `README.md`, `PLAN.md` when present, and every associated jou
 - Verification criteria
 - Platform gates such as Xcode
 
-Build a prerequisite list from the journey's own prerequisite section. Do not rely on a hard-coded generic list when the journey requires Helm, `sqlcmd`, Azure Functions Core Tools, Docker, or another host tool.
+Build a prerequisite list from the journey's own prerequisite section. Do not rely on a hard-coded generic list when the journey requires `sqlcmd`, Azure Functions Core Tools, or another host tool. AIMarket deployment images must build in ACR, and Superset must run Helm and `kubectl` inside Azure through AKS run command.
 
 Before execution, print a plan containing the journey, stack, host OS/architecture, phases, required tools, optional tools, planned ports, deployment choice, and cleanup policy.
 
@@ -77,8 +77,8 @@ Journey-specific minimums:
 |---|---|---|
 | Grafana | None | Playwright for screenshots |
 | n8n | Node.js 24 LTS or later | Playwright for screenshots |
-| Superset | Node.js 24 LTS or later, `kubectl`, Helm 3 | Playwright for screenshots |
-| AIMarket | Node.js 24 LTS or later, Docker CLI and running daemon, GitHub CLI | Playwright; local AMD64 emulation only when remote builds are unavailable |
+| Superset | Node.js 24 LTS or later | Playwright for screenshots; local `kubectl` and Helm only for optional direct cluster work |
+| AIMarket | Node.js 24 LTS or later, GitHub CLI | Playwright; Docker only for optional local container work |
 | SmartTodo | Node.js 24 LTS or later, Azure Functions Core Tools v4, `sqlcmd` | Project-local Azurite for local execution; Docker for alternate stacks or local SQL; Xcode 16+ only for macOS iOS execution |
 
 ### Authentication preflight
@@ -94,10 +94,9 @@ Check Azure CLI and `azd` separately:
 
 For Container Apps images, compare host architecture with the required `linux/amd64` target.
 
-- Prefer a remote ACR build on any ARM64 host.
-- If a local cross-build is required, verify Buildx and AMD64 emulation before provisioning.
-- Never install privileged QEMU/binfmt handlers automatically.
-- Require frontend Dockerfiles with native `$BUILDPLATFORM` builder stages when native tools such as esbuild are involved.
+- Require ACR cloud builds targeting `linux/amd64` on every host architecture.
+- Do not require Docker, Buildx, AMD64 emulation, or privileged QEMU/binfmt handlers for deployment.
+- Require frontend Dockerfiles that ACR can build without host-specific BuildKit variables.
 
 ### Mobile platform matrix
 

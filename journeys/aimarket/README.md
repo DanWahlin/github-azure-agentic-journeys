@@ -30,7 +30,6 @@ This journey supports Windows PowerShell, macOS, and Linux.
 | Azure CLI | Required | Authenticate and manage Azure resources | `az version` |
 | Azure Developer CLI (`azd`) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
 | Node.js 24 LTS or later | Required | Build the frontend, run hooks, and provide the default API runtime | `node --version` |
-| Docker with a running daemon and Buildx | Required for Phase 4 | Build deployment images | `docker version` and `docker buildx version` |
 | GitHub Copilot CLI | Required for the documented CLI path | Run the coding agent | `copilot --version` |
 | GitHub CLI (`gh`) | Required only for the cloud-agent issue and pull-request path | Create issues and manage pull requests | `gh auth status` |
 | Python 3.10+, .NET 8+, or Java 17+ | Required only when selected instead of the default Node.js API | Run the selected API stack | `python --version`, `dotnet --version`, or `java --version` |
@@ -43,13 +42,6 @@ az account show --output table
 azd version
 node --version
 copilot --version
-```
-
-Before Phase 4, also run:
-
-```text
-docker version
-docker buildx version
 ```
 
 Run `gh auth status` before the cloud-agent path. Run the validation command for the selected alternative API runtime before generating that API. Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix the prerequisite if a required check fails. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
@@ -560,15 +552,6 @@ gh pr merge <PR_NUMBER>
   <img src="./images/azure-deployment.webp" alt="Phase 4: Deploy to Azure" width="800" />
 </p>
 
-Before starting, confirm that the Docker daemon and Buildx are available:
-
-```text
-docker version
-docker buildx version
-```
-
-Both commands must exit successfully.
-
 Before generating Bicep, confirm that a supported model exists in `westus`:
 
 ```text
@@ -600,7 +583,7 @@ The Phase 4 section in PLAN.md and the `container-apps-deployment` skill contain
 4. Open `client/nginx.conf`. Does it ONLY have `try_files` for SPA routing? No `/api/` proxy block. (With public ingress on Container Apps, each service has its own URL, so nginx proxying to `aimarket-api` will crash because that hostname doesn't resolve.)
 5. Open `client/.dockerignore`. Does it exclude dependency directories (`node_modules/`, `.git/`)? Without this, the Docker build context is huge and may fail.
 6. Open `api/.dockerignore`. Make sure it does NOT exclude build config files like `tsconfig.json`. The Docker build needs them to compile.
-7. Open `client/Dockerfile`. Does the builder use `$BUILDPLATFORM`, and are `ARG VITE_API_URL` and `ENV VITE_API_URL=$VITE_API_URL` **before** `npm run build`?
+7. Open `client/Dockerfile`. Is it compatible with an ACR `linux/amd64` cloud build, and are `ARG VITE_API_URL` and `ENV VITE_API_URL=$VITE_API_URL` **before** `npm run build`?
 8. Do both Container Apps use system-assigned identity, an `AcrPull` assignment, and an explicit ACR registry entry using `identity: system` before a private image is deployed?
 9. Does `azure.yaml` define `hooks.postdeploy` → `infra/hooks/postdeploy.js` without `shell: sh`? Without this, the storefront will load HTML but products will fail.
 
@@ -660,7 +643,7 @@ A filtered `azd deploy web` can skip project-level postdeploy hooks. Run the Jav
 node infra/hooks/postdeploy.js
 ```
 
-The hook must read all dynamic values through `azd env get-value`, call Docker and Azure CLI with argument arrays, and verify that the updated Container App reaches `Running` before exiting.
+The hook must read all dynamic values through `azd env get-value`, call `az acr build` and `az containerapp update` with argument arrays, and verify that the updated Container App reaches `Running` before exiting. The host must not need Docker or Buildx.
 
 </details>
 
@@ -777,10 +760,10 @@ java --version    # Java (need 17+)
 
 **Check:** Open browser dev tools → Network tab. Are requests going to `https://ca-api-.../products` (missing `/api`)? They should go to `https://ca-api-.../api/products`.
 
-**Fix:** Rebuild the frontend image with `VITE_API_URL` including `/api`:
+**Fix:** Rebuild the frontend image in Azure Container Registry with `VITE_API_URL` including `/api`:
 
 ```text
-docker build --build-arg VITE_API_URL="https://<api-fqdn>/api" ...
+node infra/hooks/postdeploy.js
 ```
 
 ### Deployment fails with provider errors
@@ -800,13 +783,13 @@ az provider register --namespace Microsoft.OperationalInsights
 
 **Fix:** This is expected behavior for the lab. For persistence, ask GitHub Copilot to implement a Cosmos DB or PostgreSQL repository, provision the database, configure its credentials, and switch `DATA_PROVIDER`. If you already switched providers and see connection timeouts, check that the connection string environment variable is set on the API container, then ask GitHub Copilot to inspect the container logs.
 
-### Docker Build Fails
+### ACR build fails
 
 **Build context too large:**
 Check that `client/.dockerignore` and `api/.dockerignore` exclude `node_modules/`, `.git/`, and build output directories.
 
-**Wrong image platform on an ARM64 host:**
-Prefer a remote ACR build for `linux/amd64`. If building locally, verify Buildx and AMD64 emulation during preflight, keep the static frontend builder on `$BUILDPLATFORM`, and target `linux/amd64` for runtime images. Never install privileged QEMU/binfmt automatically.
+**Wrong image platform:**
+Require the postdeploy hook to pass `--platform linux/amd64` to `az acr build`. Do not fall back to a local cross-build.
 
 **Frontend can't find the API (`VITE_API_URL` not set):**
 The `ARG VITE_API_URL` line must come BEFORE the `npm run build` step in `client/Dockerfile`. If it's after, the build arg is silently ignored.

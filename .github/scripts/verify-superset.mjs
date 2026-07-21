@@ -1,26 +1,115 @@
-#!/usr/bin/env node
-import { azdValue, jsonRequest, main, request, run } from './_utils.mjs';
+// Superset AKS deployment verification through Azure run command.
+// The host needs only az, azd, and Node.js. The script never prints secrets.
+import { spawnSync } from 'node:child_process';
 
-main(async () => {
-  console.log('=== verify-superset ===');
-  const pods = JSON.parse(run('kubectl', ['get', 'pods', '-n', 'superset', '-o', 'json']).stdout);
-  const items = pods.items ?? [];
-  if (items.length === 0) throw new Error('No pods found in namespace superset');
-  for (const pod of items) {
-    const statuses = pod.status?.containerStatuses ?? [];
-    if (pod.status?.phase !== 'Running' || statuses.length === 0 || statuses.some((item) => !item.ready)) {
-      throw new Error(`Pod ${pod.metadata?.name} is not fully Ready/Running`);
-    }
+const azExe = process.platform === 'win32' ? 'az.cmd' : 'az';
+const azdExe = process.platform === 'win32' ? 'azd.cmd' : 'azd';
+
+function run(cmd, args) {
+  const res = spawnSync(cmd, args, { encoding: 'utf8' });
+  if (res.error) throw res.error;
+  if (res.status !== 0) {
+    throw new Error(`Command failed (${res.status}): ${cmd} ${args.join(' ')}\n${res.stderr || ''}`);
   }
-  const pod = items[0].metadata.name;
-  const initLogs = run('kubectl', ['logs', '-n', 'superset', pod, '-c', 'superset-init'], { allowFailure: true }).stdout;
-  const appLogs = run('kubectl', ['logs', '-n', 'superset', pod, '-c', 'superset'], { allowFailure: true }).stdout;
-  const logs = `${initLogs}\n${appLogs}`;
-  if (/SQLiteImpl|sqlite:\/{3,4}/i.test(logs)) throw new Error('SQLite fallback detected in Superset logs');
-  if (!/PostgresqlImpl|postgresql:\/\/|postgres:\/\//i.test(logs)) throw new Error('No PostgreSQL evidence found in Superset logs');
-  const url = azdValue('SUPERSET_URL');
-  const response = await request(`${url}/health`, { timeoutMs: 60000 });
-  if (response.status !== 200) throw new Error(`/health returned HTTP ${response.status}`);
-  console.log(`PASS: ${items.length} pod(s) Ready/Running, PostgreSQL confirmed, /health HTTP 200`);
-  console.log(`Open: ${url}`);
-});
+  return res;
+}
+
+function azdEnv() {
+  const res = run(azdExe, ['env', 'get-values', '--output', 'json']);
+  return JSON.parse(res.stdout);
+}
+
+function aksCommand(env, command) {
+  const res = run(azExe, [
+    'aks', 'command', 'invoke',
+    '--resource-group', env.AZURE_RESOURCE_GROUP,
+    '--name', env.AZURE_AKS_CLUSTER_NAME,
+    '--command', command,
+    '--output', 'json',
+    '--only-show-errors',
+  ]);
+
+  let result;
+  try {
+    result = JSON.parse(res.stdout);
+  } catch {
+    throw new Error(`AKS command returned invalid JSON: ${(res.stdout || '').slice(0, 500)}`);
+  }
+  if (result.provisioningState !== 'Succeeded' || Number(result.exitCode) !== 0) {
+    throw new Error(`Remote AKS command failed (${result.exitCode ?? 'unknown'}):\n${result.logs || result.reason || ''}`);
+  }
+  return result.logs || '';
+}
+
+const results = [];
+function record(name, pass, detail) {
+  results.push({ name, pass, detail });
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? `: ${detail}` : ''}`);
+}
+
+async function main() {
+  const env = azdEnv();
+  const url = env.SUPERSET_URL;
+  if (!url) throw new Error('SUPERSET_URL not set in azd environment');
+  if (!env.AZURE_RESOURCE_GROUP || !env.AZURE_AKS_CLUSTER_NAME) {
+    throw new Error('AKS resource group or cluster name is missing from the azd environment');
+  }
+
+  const podsJson = JSON.parse(aksCommand(
+    env,
+    'kubectl get pods -n superset -l app=superset -o json'
+  ));
+  if (!podsJson.items.length) {
+    record('Superset pod exists', false, 'no pods found');
+  }
+  let podName = null;
+  for (const pod of podsJson.items) {
+    const phase = pod.status.phase;
+    const statuses = pod.status.containerStatuses || [];
+    const ready = statuses.length > 0 && statuses.every((item) => item.ready);
+    const readyCount = statuses.filter((item) => item.ready).length;
+    record(`Pod ${pod.metadata.name} Ready ${readyCount}/${statuses.length} (${phase})`,
+      phase === 'Running' && ready);
+    if (phase === 'Running' && ready) podName = pod.metadata.name;
+  }
+  if (!podName) podName = podsJson.items[0]?.metadata?.name;
+  if (!podName) { finish(); return; }
+
+  const initLogs = aksCommand(
+    env,
+    `kubectl logs -n superset ${podName} -c superset-init`
+  );
+  record('Init logs contain PostgresqlImpl', /PostgresqlImpl/.test(initLogs));
+  record('Init logs have no SQLiteImpl fallback', !/SQLiteImpl/.test(initLogs));
+
+  const mainLogs = aksCommand(
+    env,
+    `kubectl logs -n superset ${podName} -c superset`
+  );
+  record('Main logs have no SQLiteImpl fallback', !/SQLiteImpl/.test(mainLogs));
+
+  const psycopg = aksCommand(
+    env,
+    `kubectl exec -n superset ${podName} -c superset -- python -c 'import psycopg2; print("OK")'`
+  );
+  record('psycopg2 importable in main container', /OK/.test(psycopg));
+
+  try {
+    const response = await fetch(`${url}/health`, { redirect: 'manual' });
+    const body = await response.text();
+    record('GET /health returns HTTP 200', response.status === 200,
+      `status=${response.status} body=${body.trim().slice(0, 40)}`);
+  } catch (error) {
+    record('GET /health returns HTTP 200', false, error.message);
+  }
+
+  finish();
+}
+
+function finish() {
+  const failed = results.filter((result) => !result.pass);
+  console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
+  process.exit(failed.length ? 1 : 0);
+}
+
+main().catch((err) => { console.error(err.message || String(err)); process.exit(1); });

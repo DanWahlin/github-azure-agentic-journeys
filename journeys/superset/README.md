@@ -31,11 +31,9 @@ This journey supports Windows PowerShell, macOS, and Linux.
 | Azure CLI | Required | Authenticate and manage Azure resources | `az version` |
 | Azure Developer CLI (`azd`) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
 | Node.js 24 LTS or later | Required | Run the post-provision hook and verifier | `node --version` |
-| `kubectl` | Required | Inspect and manage the AKS workload | `kubectl version --client` |
-| Helm 3 | Required | Install the NGINX Ingress Controller | `helm version` |
 | GitHub Copilot CLI | Required for the documented CLI path | Run the deployment agent | `copilot --version` |
 
-The signed-in Azure account must have permission to create AKS, PostgreSQL Flexible Server, Load Balancer, managed identity, and Log Analytics resources. The target region must have quota for at least four vCPUs.
+The signed-in Azure account must have permission to create AKS, PostgreSQL Flexible Server, Load Balancer, managed identity, and Log Analytics resources and to invoke AKS run commands. The target region must have quota for at least four vCPUs.
 
 Run these read-only checks on the host machine before you create Azure resources:
 
@@ -45,12 +43,10 @@ az account show --output table
 az vm list-usage --location westus --output table
 azd version
 node --version
-kubectl version --client
-helm version
 copilot --version
 ```
 
-Confirm that `az account show` identifies the intended subscription, the target region has at least four available vCPUs, `azd` is version 1.28.0 or later, Node.js is version 24 or later, and Helm reports major version 3. Stop and fix the prerequisite if any check fails. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
+Confirm that `az account show` identifies the intended subscription, the target region has at least four available vCPUs, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix the prerequisite if any check fails. The host does not need `kubectl` or Helm because the hook runs both tools inside Azure through AKS run command. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
 
 > [!NOTE]
 > GitHub Copilot CLI is the documented and validated command-line path. You may adapt the deployment prompt for another agentic coding tool by copying or adapting this repository's `.github/skills` into that tool's supported skills or instructions location and reporting anything unsupported.
@@ -59,7 +55,7 @@ Confirm that `az account show` identifies the intended subscription, the target 
 
 The deployment is complete when:
 
-- [ ] `kubectl get pods -n superset` reports each Superset pod as Ready and Running.
+- [ ] The checked-in verifier reports each Superset pod as Ready and Running through `az aks command invoke`.
 - [ ] Superset logs contain `PostgresqlImpl` and do not contain `SQLiteImpl`.
 - [ ] `<superset-url>/health` returns HTTP 200.
 - [ ] Browser login reaches `/superset/welcome/`.
@@ -121,7 +117,7 @@ Superset requires:
 - **ConfigMap mounting** for `superset_config.py`
 - **More control** over the deployment lifecycle
 
-> **Where does NGINX come from?** The post-provision hook installs the NGINX Ingress Controller into the cluster using Helm (a package manager for Kubernetes). It provides HTTP routing and a public Load Balancer IP for external access.
+> **Where does NGINX come from?** The post-provision hook uses AKS run command to run Helm inside Azure. Helm installs the NGINX Ingress Controller, which provides HTTP routing and a public Load Balancer IP. The host does not need Helm or `kubectl`.
 
 ---
 
@@ -205,8 +201,9 @@ Give the agent one prompt that covers the location, secrets, target platform, an
 ```
 > Deploy Apache Superset to Azure using Bicep and azd. Set the location to westus,
 > generate secure passwords for all credentials, use AKS (not Container Apps),
-> and generate infra-superset/hooks/postprovision.js for az aks get-credentials,
-> Helm, kubectl apply, and load-balancer polling without shell-specific syntax.
+> and generate infra-superset/hooks/postprovision.js. The hook must attach the
+> Kubernetes manifests to `az aks command invoke`, run Helm and kubectl inside
+> Azure, and poll the load balancer without requiring those tools on the host.
 > If a deployment step fails, inspect the relevant logs, make the smallest safe
 > correction, rerun the failed step, and record the problem and resolution in
 > issues.md. Do not print secrets.
@@ -219,7 +216,7 @@ The agent handles the entire deployment:
 3. Generates Bicep (Azure's infrastructure-as-code language) and Kubernetes manifests in `infra-superset/`
 4. Updates `azure.yaml`, registers Azure providers, sets environment variables
 5. Runs `azd up`
-6. Runs `infra-superset/hooks/postprovision.js`, a cross-platform Node.js hook that securely generates and persists missing `SUPERSET_SECRET_KEY` and `SUPERSET_ADMIN_PASSWORD` values, calls Helm and `kubectl` with argument arrays, applies the Kubernetes manifests, and waits for the external IP. Existing secret values are reused and never printed.
+6. Runs `infra-superset/hooks/postprovision.js`, a cross-platform Node.js hook that securely generates and persists missing `SUPERSET_SECRET_KEY` and `SUPERSET_ADMIN_PASSWORD` values. The hook uses `az aks command invoke` to run Helm and `kubectl` inside Azure, applies the Kubernetes manifests, and waits for the external IP. Existing secret values are reused and never printed.
 
 > ⏳ **While you wait:** This deployment can take a while because AKS cluster creation alone takes several minutes. Use that time to connect the architecture to the resources being created:
 >
@@ -237,19 +234,19 @@ You can ask follow-up questions anytime:
 
 ### Step 3: Verify
 
-Ask the agent to check the pod state, PostgreSQL evidence, health endpoint, and logs:
+Ask the agent to check the pod state, PostgreSQL evidence, health endpoint, and logs through Azure run command:
 
 ```text
 > Verify the Superset deployment. Report each acceptance criterion as pass or fail.
 ```
 
-Run the checked-in verifier from the repository root on the host machine:
+Run the checked-in verifier from the `journeys/superset` directory on the host machine:
 
 ```text
-node .github/scripts/verify-superset.mjs
+node ../../.github/scripts/verify-superset.mjs
 ```
 
-The verifier must print `PASS: <count> pod(s) Ready/Running, PostgreSQL confirmed, /health HTTP 200` and the deployed URL. Browser login is a separate check in Step 4.
+The verifier must print six `PASS` checks and `6/6 checks passed`. Browser login is a separate check in Step 4.
 
 If verification fails, report the failed criterion, exact command, redacted error output, and last successful step in the same agent session:
 
