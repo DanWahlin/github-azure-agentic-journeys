@@ -504,7 +504,7 @@ Azure SQL requires a post-provision step to add the Function App's managed ident
 
 Before provisioning, resolve and set the complete Entra administrator contract: `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE`. Interactive accounts use type `User`; non-interactive automation uses `ServicePrincipal`. Stop before Azure changes and report all missing values together.
 
-The JavaScript hook must use `execFileSync()` or `spawnSync()` argument arrays, not interpolated shell commands. It must:
+The JavaScript hook must use argument arrays, not interpolated shell commands. On macOS and Linux, invoke executables directly. On Windows, use the static PowerShell JSON-payload launcher from the `container-apps-deployment` skill for Azure CLI shims rather than passing `.cmd` files directly to `execFileSync()` or `spawnSync()`. It must:
 
 1. Fail before making Azure changes if `az`, `azd`, `node`, or `sqlcmd` is unavailable.
 2. Read `SQL_SERVER_NAME`, `SQL_DATABASE_NAME`, `FUNCTION_APP_NAME`, and `RESOURCE_GROUP_NAME` through `azd env get-value`.

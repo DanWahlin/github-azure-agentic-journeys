@@ -203,7 +203,7 @@ For Container Apps using ACR, verify all of these before the first private image
 - The Container App registry configuration contains the ACR login server and `identity: system`.
 - The deployed image architecture is compatible with `linux/amd64`.
 
-A filtered command such as `azd deploy web` can skip project-level hooks. Run the documented hook directly after a filtered deployment and repeat production verification.
+A filtered deployment of a service declared in `azure.yaml` can skip project-level hooks, so run the documented hook directly afterward and repeat production verification. AIMarket's web Container App is not an azd service; rebuild it with `node infra/hooks/postdeploy.js`, not `azd deploy web`.
 
 ## Step 7: Production Verification
 

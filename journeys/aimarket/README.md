@@ -633,7 +633,8 @@ The **postdeploy hook** should have rebuilt the web image with `VITE_API_URL=<AP
 > The frontend can't reach the API. Run or fix infra/hooks/postdeploy.js.
   It must read API_URL with azd, rebuild the client with API_URL + "/api",
   target linux/amd64, push to ACR, and update the web Container App without
-  relying on Bash or PowerShell-specific syntax.
+  interpolated shell commands. On Windows, use the static PowerShell JSON-
+  payload launcher required by the container-apps-deployment skill.
 ```
 
 <details>
