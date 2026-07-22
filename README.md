@@ -54,7 +54,7 @@ Before starting, ensure you have:
   azd config set auth.useAzCliAuth true
   ```
 
-Journey-specific tools are listed on each journey page. The [cross-platform installation guide](./docs/tool-installation.md) provides Windows, macOS, and Linux options for every required tool.
+Journey-specific tools are listed on each journey page. The [cross-platform installation guide](./docs/tool-installation.md) provides Windows, Mac, and Linux options for every required tool.
 
 ## GitHub Copilot tools
 

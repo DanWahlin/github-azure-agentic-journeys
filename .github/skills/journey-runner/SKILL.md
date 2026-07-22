@@ -8,7 +8,7 @@ description: |
 
 # Journey Runner Skill
 
-Run a journey like a learner would, but with strict preflight, isolated state, evidence-backed verification, and scoped cleanup. The workflow must work on Windows, macOS, and Linux.
+Run a journey like a learner would, but with strict preflight, isolated state, evidence-backed verification, and scoped cleanup. The workflow must work on Windows, Mac, and Linux.
 
 ## Required Runner Tools
 
@@ -79,7 +79,7 @@ Journey-specific minimums:
 | n8n | Node.js 24 LTS or later | Playwright for screenshots |
 | Superset | Node.js 24 LTS or later | Playwright for screenshots; local `kubectl` and Helm only for optional direct cluster work |
 | AIMarket | Node.js 24 LTS or later, GitHub CLI | Playwright; Docker only for optional local container work |
-| SmartTodo | Node.js 24 LTS or later, Azure Functions Core Tools v4, `sqlcmd` | Project-local Azurite for local execution; Docker for alternate stacks or local SQL; Xcode 16+ only for macOS iOS execution |
+| SmartTodo | Node.js 24 LTS or later, Azure Functions Core Tools v4, `sqlcmd` | Project-local Azurite for local execution; Docker for alternate stacks or local SQL; Xcode 16+ only for Mac iOS execution |
 
 ### Authentication preflight
 
@@ -100,7 +100,7 @@ For Container Apps images, compare host architecture with the required `linux/am
 
 ### Mobile platform matrix
 
-- macOS with Xcode: build and run the iOS app or simulator when the journey requires it.
+- Mac with Xcode: build and run the iOS app or simulator when the journey requires it.
 - Windows or Linux: generate and inspect SwiftUI source, build and test the backend, deploy Azure resources, and run backend API verification. Do not claim an iOS simulator or Xcode test occurred.
 
 Any missing required prerequisite stops the journey before Phase 1.
@@ -246,7 +246,7 @@ For Superset login, additionally pass:
 
 Never print credentials. Visually inspect the saved image and review failed document, script, XHR, fetch, and image requests. A broken product image fails AIMarket acceptance.
 
-Skip screenshots for API-only journeys and for iOS on Windows/Linux. A mobile screenshot is only required on a suitable macOS/Xcode host.
+Skip screenshots for API-only journeys and for iOS on Windows/Linux. A mobile screenshot is only required on a suitable Mac/Xcode host.
 
 ## Step 9: Scoped Cleanup
 
@@ -285,7 +285,7 @@ Write sanitized journey defects to that journey's `issues.md`. Keep shared orche
 ## Runner-Compatible Journey Checklist
 
 - [ ] The journey prerequisite section lists every required host tool and links to OS-specific installation options.
-- [ ] Commands work on Windows, macOS, and Linux, or clearly state a platform gate.
+- [ ] Commands work on Windows, Mac, and Linux, or clearly state a platform gate.
 - [ ] Required hooks are JavaScript/TypeScript, not shell-specific scripts.
 - [ ] Verification uses portable scripts with deterministic exit codes.
 - [ ] Local ports are configurable.

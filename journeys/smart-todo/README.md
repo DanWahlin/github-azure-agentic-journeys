@@ -23,20 +23,20 @@ You'll build SmartTodo, an iPhone app that turns a todo such as "Prepare confere
 
 ## Prerequisites
 
-The backend phases support Windows PowerShell, macOS, and Linux. Phase 2 simulator testing requires macOS and Xcode.
+The backend phases support Windows PowerShell, Mac, and Linux. Phase 2 simulator testing requires Mac and Xcode.
 
 | Host tool | Requirement | Purpose | Validation |
 | --- | --- | --- | --- |
-| Azure CLI | Required | Authenticate and manage Azure resources | `az version` |
-| Azure Developer CLI (`azd`) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
-| Node.js 24 LTS or later | Required | Run hooks, the verifier, and the default API stack | `node --version` |
-| Azure Functions Core Tools v4 | Required for local API execution | Run the Functions host | `func --version` |
-| Azurite | Required when local settings use `UseDevelopmentStorage=true` | Emulate Functions storage locally | `npx azurite --version` |
-| Go-based `sqlcmd` | Required for Phase 3 | Configure managed-identity database access and apply the schema | `sqlcmd --version` |
-| GitHub Copilot CLI | Required for the documented CLI path | Run the coding agent | `copilot --version` |
-| Docker | Optional | Run SQL Server locally instead of using Azure SQL | `docker version` |
-| Python 3.10+, .NET 8+, or Java 17+ | Required only when selected instead of the default Node.js API | Run the selected API stack | `python --version`, `dotnet --version`, or `java --version` |
-| Xcode | Required only for Phase 2 simulator testing | Build and run the SwiftUI client | `xcodebuild -version` |
+| [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) | Required | Authenticate and manage Azure resources | `az version` |
+| [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
+| [Node.js](https://nodejs.org/en/download) 24 LTS or later | Required | Run hooks, the verifier, and the default API stack | `node --version` |
+| [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools) v4 | Required for local API execution | Run the Functions host | `func --version` |
+| [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite#install-azurite) | Required when local settings use `UseDevelopmentStorage=true` | Emulate Functions storage locally | `npx azurite --version` |
+| Go-based [`sqlcmd`](https://learn.microsoft.com/sql/tools/sqlcmd/sqlcmd-download-install) | Required for Phase 3 | Configure managed-identity database access and apply the schema | `sqlcmd --version` |
+| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started) | Required for the documented CLI path | Run the coding agent | `copilot --version` |
+| [Docker](https://docs.docker.com/get-started/get-docker/) | Optional | Run SQL Server locally instead of using Azure SQL | `docker version` |
+| [Python](https://www.python.org/downloads/) 3.10+, [.NET](https://dotnet.microsoft.com/download) 8+, or [Eclipse Temurin JDK](https://adoptium.net/temurin/releases/?version=25) 25 LTS or later | Required only when selected instead of the default Node.js API | Run the selected API stack | `python --version`, `dotnet --version`, or `java --version` |
+| [Xcode](https://developer.apple.com/xcode/) | Required only for Phase 2 simulator testing | Build and run the SwiftUI client | `xcodebuild -version` |
 
 Run these read-only checks on the host machine before Phase 1:
 
@@ -50,17 +50,17 @@ npx azurite --version
 copilot --version
 ```
 
-Before Phase 3, also run `sqlcmd --version`. Run `docker version` only when you select local SQL Server. Run the validation command for the selected alternative API runtime before generating that API. On macOS, run `xcodebuild -version` before Phase 2.
+Before Phase 3, also run `sqlcmd --version`. Run `docker version` only when you select local SQL Server. Run the validation command for the selected alternative API runtime before generating that API. On Mac, run `xcodebuild -version` before Phase 2.
 
-Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, Node.js is version 24 or later, and Functions Core Tools reports major version 4. Stop and fix the prerequisite if a required check fails. The [cross-platform installation guide](../../docs/tool-installation.md) provides Windows, macOS, and Linux installation options.
+Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, Node.js is version 24 or later, and Functions Core Tools reports major version 4. Stop and fix the prerequisite if a required check fails. The [cross-platform installation guide](../../docs/tool-installation.md) provides Windows, Mac, and Linux installation options.
 
 Before Phase 3, resolve the complete `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` group. Use `User` for an interactive account and `ServicePrincipal` for automation.
 
 > [!IMPORTANT]
-> **Platform gate:** The full journey, including Phase 2 simulator testing, requires macOS and Xcode. On Windows or Linux, generate and statically verify the SwiftUI source, then complete Phase 1 and Phase 3 and verify the deployed API with HTTP calls. That completes the Azure path.
+> **Platform gate:** The full journey, including Phase 2 simulator testing, requires Mac and Xcode. On Windows or Linux, generate and statically verify the SwiftUI source, then complete Phase 1 and Phase 3 and verify the deployed API with HTTP calls. That completes the Azure path.
 
 > [!NOTE]
-> GitHub Copilot CLI is the documented and validated command-line path. You may adapt the prompts for another agentic coding tool by copying or adapting this repository's `.github/skills` into that tool's supported skills or instructions location and reporting anything unsupported.
+> GitHub Copilot CLI is the documented and validated command-line path. You may adapt the prompts for another agentic coding tool. For another tool, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
 
 ### Acceptance criteria
 
@@ -72,7 +72,7 @@ The backend is complete when:
 - [ ] Completing a step persists `isCompleted: true`.
 - [ ] Deleting the temporary todo returns HTTP 204 and removes it from the final list.
 
-On macOS, the client phase is complete when the simulator performs the create, generate, and complete flow against the selected API. On Windows or Linux, generated SwiftUI source inspection plus a passing deployed-backend verifier completes the Azure path.
+On Mac, the client phase is complete when the simulator performs the create, generate, and complete flow against the selected API. On Windows or Linux, generated SwiftUI source inspection plus a passing deployed-backend verifier completes the Azure path.
 
 The journey is complete after the [Cleanup](#cleanup) procedure removes the Azure resources.
 
@@ -99,12 +99,15 @@ graph TB
             GPT["gpt-5-mini<br/>(Task Decomposition)"]
         end
 
+        STOR["Storage Account<br/>(Functions runtime + deployment package)"]
+
         AI["Application Insights"]
     end
 
     APP -->|HTTPS| API
     API -->|Managed Identity| SQL
-    API -->|OpenAI-compatible API| GPT
+    API -->|API key · OpenAI-compatible API| GPT
+    Functions -->|Managed Identity<br/>Storage Blob Data Owner| STOR
     Functions -->|diagnostics| AI
     AI -->|logs| LA
 
@@ -115,6 +118,7 @@ graph TB
     style SQL fill:#fff,stroke:#0078D4
     style Foundry fill:#f0f9ff,stroke:#50e6ff
     style GPT fill:#fff,stroke:#0078D4
+    style STOR fill:#fff,stroke:#0078D4
     style LA fill:#fff,stroke:#50e6ff
     style AI fill:#fff,stroke:#50e6ff
 ```
@@ -155,7 +159,7 @@ SmartTodo is driven by [`PLAN.md`](./PLAN.md), the spec in this journey folder. 
 
 ## The Journey
 
-SmartTodo is built in three phases that map directly to `PLAN.md`. Phase 1 builds the API and AI integration with Azure SQL. Phase 2 adds the SwiftUI app on macOS. Phase 3 deploys the backend to Azure. Keep [`PLAN.md`](./PLAN.md) open as the shared spec throughout.
+SmartTodo is built in three phases that map directly to `PLAN.md`. Phase 1 builds the API and AI integration with Azure SQL. Phase 2 adds the SwiftUI app on Mac. Phase 3 deploys the backend to Azure. Keep [`PLAN.md`](./PLAN.md) open as the shared spec throughout.
 
 **How this journey works:** You won't paste one giant prompt and hope for a finished app. You'll work incrementally. Ask GitHub Copilot for one piece, inspect what it generated, test it, fix what needs attention, and then continue. The loop is simple: generate → inspect → test → refine.
 
@@ -163,6 +167,7 @@ SmartTodo is built in three phases that map directly to `PLAN.md`. Phase 1 build
 
 > [!IMPORTANT]
 > **When something fails**
+> These journeys are designed to provide a solid starting point, but you may encounter errors along the way due to the non-deterministic nature of AI code generation. If a command or process fails, follow these steps to get help:
 >
 > 1. Stay in the same AI coding session so it retains the journey context.
 > 2. Paste the exact command and relevant error output. Don't paraphrase the error.
@@ -379,7 +384,7 @@ If any test fails, describe the failure to GitHub Copilot and let it fix it:
 
 ---
 
-### Phase 2: Build the iOS App (~45–60 min, macOS only)
+### Phase 2: Build the iOS App (~45–60 min, Mac only)
 
 <p align="center">
   <img src="./images/phase2-ios.webp" alt="Phase 2: SwiftUI App" width="800" />
@@ -558,7 +563,7 @@ Deployment may take several minutes. If it fails, ask GitHub Copilot to help dia
 
 ##### Step 3: Confirm the post-provision SQL setup
 
-Bicep creates the Function App identity, but Azure SQL needs a separate database user and schema step. The generated `infra/hooks/postprovision.js` runs automatically after provisioning and works on Windows, macOS, and Linux. It invokes `sqlcmd` through Node.js, temporarily opens only the current client IP, handles Azure SQL Redirect/Proxy connectivity, applies the schema and seed data, and restores the firewall rule and original connection policy in `finally`.
+Bicep creates the Function App identity, but Azure SQL needs a separate database user and schema step. The generated `infra/hooks/postprovision.js` runs automatically after provisioning and works on Windows, Mac, and Linux. It invokes `sqlcmd` through Node.js, temporarily opens only the current client IP, handles Azure SQL Redirect/Proxy connectivity, applies the schema and seed data, and restores the firewall rule and original connection policy in `finally`.
 
 Check `azd up` for `Post-provision SQL setup complete.` If the hook reports a missing prerequisite, use the [cross-platform installation guide](../../docs/tool-installation.md), verify `node --version` and `sqlcmd --version`, then rerun:
 

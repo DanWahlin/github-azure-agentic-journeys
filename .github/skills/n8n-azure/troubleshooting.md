@@ -140,7 +140,7 @@ param n8nEncryptionKey string = newGuid()  // ✅ Works
      postprovision:
        run: ./infra-n8n/hooks/postprovision.js
    ```
-   Run `node --version` and execute the CommonJS `.js` file directly to see its full error. JavaScript hooks do not need `chmod` and work on Windows, macOS, and Linux.
+   Run `node --version` and execute the CommonJS `.js` file directly to see its full error. JavaScript hooks do not need `chmod` and work on Windows, Mac, and Linux.
 
 ---
 

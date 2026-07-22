@@ -8,7 +8,7 @@ description: |
 
 # Journey Test Harness
 
-Orchestrate `journey-runner` across the selected journey directories. The harness must work on Windows, macOS, and Linux and must never delete an Azure environment merely because it appears in `azd env list`.
+Orchestrate `journey-runner` across the selected journey directories. The harness must work on Windows, Mac, and Linux and must never delete an Azure environment merely because it appears in `azd env list`.
 
 ## Inputs
 
@@ -48,7 +48,7 @@ The union of selected-journey requirements may include:
 - Node.js 24 LTS or later for hooks, tests, and verifiers
 - Azure Functions Core Tools v4, Azurite, and Go-based `sqlcmd` for SmartTodo
 - The pinned Playwright package and bundled Chromium for web screenshots
-- Xcode 16+ only when SmartTodo iOS execution is requested on macOS
+- Xcode 16+ only when SmartTodo iOS execution is requested on Mac
 
 Use `.github/skills/journey-runner/scripts/check-prerequisites.mjs` with the union of required tools. Missing required tools stop the whole suite before provider registration. Do not install system tools during the suite.
 
@@ -117,7 +117,7 @@ Use the mapping below:
 | n8n | `N8N_URL` | Owner-setup or login page |
 | Superset | `SUPERSET_URL` | Authenticated welcome page when credentials are available |
 | AIMarket | `WEB_URL` | Storefront with all images loaded |
-| SmartTodo | None | No screenshot on Windows/Linux; simulator screenshot only on a suitable macOS/Xcode host |
+| SmartTodo | None | No screenshot on Windows/Linux; simulator screenshot only on a suitable Mac/Xcode host |
 
 Use journey-runner's pinned Playwright Chromium helper. Never use a branded Chrome channel.
 
@@ -195,4 +195,4 @@ A journey can't receive PASS when cleanup was requested but not verified.
 - Never delete all `azd` environments.
 - Never broaden cleanup scope after a failed deletion.
 - Never expose credentials, cookies, authorization headers, connection strings, or generated secrets.
-- Never claim macOS, Windows, iOS, or browser verification that didn't actually run.
+- Never claim Mac, Windows, iOS, or browser verification that didn't actually run.

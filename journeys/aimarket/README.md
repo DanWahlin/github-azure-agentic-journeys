@@ -23,16 +23,16 @@ In this journey, you'll build AIMarket, a lightweight marketplace with semantic 
 
 ## Prerequisites
 
-This journey supports Windows PowerShell, macOS, and Linux.
+This journey supports Mac, Linux, and Windows.
 
 | Host tool | Requirement | Purpose | Validation |
 | --- | --- | --- | --- |
-| Azure CLI | Required | Authenticate and manage Azure resources | `az version` |
-| Azure Developer CLI (`azd`) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
-| Node.js 24 LTS or later | Required | Build the frontend, run hooks, and provide the default API runtime | `node --version` |
-| GitHub Copilot CLI | Required for the documented CLI path | Run the coding agent | `copilot --version` |
-| GitHub CLI (`gh`) | Required only for the cloud-agent issue and pull-request path | Create issues and manage pull requests | `gh auth status` |
-| Python 3.10+, .NET 8+, or Java 17+ | Required only when selected instead of the default Node.js API | Run the selected API stack | `python --version`, `dotnet --version`, or `java --version` |
+| [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) | Required | Authenticate and manage Azure resources | `az version` |
+| [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
+| [Node.js](https://nodejs.org/en/download) 24 LTS or later | Required | Build the frontend, run hooks, and provide the default API runtime | `node --version` |
+| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started) | Required for the documented CLI path | Run the coding agent | `copilot --version` |
+| [GitHub CLI (`gh`)](https://cli.github.com/) | Required only for the cloud-agent issue and pull-request path | Create issues and manage pull requests | `gh auth status` |
+| [Python](https://www.python.org/downloads/) 3.10+, [.NET](https://dotnet.microsoft.com/download) 8+, or [Eclipse Temurin JDK](https://adoptium.net/temurin/releases/?version=25) 25 LTS or later | Required only when selected instead of the default Node.js API | Run the selected API stack | `python --version`, `dotnet --version`, or `java --version` |
 
 Run these read-only checks on the host machine before Phase 1:
 
@@ -47,7 +47,7 @@ copilot --version
 Run `gh auth status` before the cloud-agent path. Run the validation command for the selected alternative API runtime before generating that API. Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix the prerequisite if a required check fails. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
 
 > [!NOTE]
-> GitHub Copilot CLI is the documented and validated command-line path. You may adapt the prompts for another agentic coding tool by copying or adapting this repository's `.github/skills` into that tool's supported skills or instructions location and reporting anything unsupported.
+> GitHub Copilot CLI is the documented and validated command-line path. You may adapt the prompts for another agentic coding tool. For another tool, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
 
 ### Acceptance criteria
 
@@ -70,26 +70,29 @@ The journey is complete after the [Cleanup](#cleanup) procedure removes the Azur
 ```mermaid
 graph TB
     subgraph Clients
-        WEB["React Storefront<br/>(Product Grid · Search · Cart · Chat)"]
+        WEB["Web Browser<br/>(Product Grid · Search · Cart · Chat)"]
     end
 
     subgraph RG["Azure Resource Group"]
         LA["Log Analytics Workspace"]
         APM["Application Insights"]
+        ACR["Azure Container Registry"]
         subgraph CAE["Container Apps Environment"]
-            API["AIMarket API<br/>(Your language · REST)<br/>SQLite by default · ephemeral"]
-            FRONTEND["Storefront<br/>(React · Port 80)"]
+            API["AIMarket API<br/>(Your language · REST)<br/>SQLite by default · ephemeral<br/>System-assigned identity"]
+            FRONTEND["Storefront<br/>(React · Port 80)<br/>System-assigned identity"]
         end
         DB["Optional cloud database<br/>(Cosmos DB or PostgreSQL · not provisioned by default)"]
         SEARCH["Azure AI Search<br/>(Semantic Product Discovery)"]
         AOAI["Microsoft Foundry<br/>(gpt-5-mini · Shopping Assistant)"]
     end
 
-    WEB --> FRONTEND
+    WEB -->|HTTPS| FRONTEND
     FRONTEND -->|REST| API
     API -.->|optional provider| DB
-    API --> SEARCH
-    API --> AOAI
+    API -->|admin key| SEARCH
+    API -->|managed identity| AOAI
+    ACR -.->|image pull · managed identity| API
+    ACR -.->|image pull · managed identity| FRONTEND
     API -->|telemetry| APM
     APM --> LA
     CAE -->|logs & metrics| LA
@@ -102,6 +105,7 @@ graph TB
     style APM fill:#fff,stroke:#50e6ff
     style SEARCH fill:#fff,stroke:#0078D4
     style AOAI fill:#fff,stroke:#0078D4
+    style ACR fill:#fff,stroke:#0078D4
     style LA fill:#fff,stroke:#50e6ff
 ```
 
@@ -114,13 +118,13 @@ graph TB
 - **Azure Container Registry**: Docker image storage
 - **Application Insights + Azure Log Analytics**: Application telemetry, monitoring, and diagnostics
 
-> ⚠️ **Data persistence note:** The default deployment does **not** provision a database. SQLite lives inside the API container, so orders and inventory changes are lost whenever the container restarts or scales to zero. That's fine for this lab; the [Grafana journey](../grafana/README.md) explores the same ephemeral-storage tradeoff. For persistent data, ask GitHub Copilot to implement a Cosmos DB or PostgreSQL repository, provision that database in Bicep, configure its credentials, and set `DATA_PROVIDER` accordingly.
+> ⚠️ **Data persistence note:** The default deployment does **not** provision a database. SQLite lives inside the API container, so orders and inventory changes are lost whenever the container restarts or scales to zero. That's fine for experimenting with this journey; the [Grafana journey](../grafana/README.md) explores the same ephemeral-storage tradeoff. For persistent data, ask GitHub Copilot to implement a Cosmos DB or PostgreSQL repository, provision that database in Bicep, configure its credentials, and set `DATA_PROVIDER` accordingly.
 
 ---
 
 ## The Spec
 
-AIMarket is driven by [`PLAN.md`](./PLAN.md), the spec in this journey folder. It defines the data models, API contracts, validation rules, and seed data. Skim it before you start so you know what the finished app should do; GitHub Copilot will use the details as implementation context.
+AIMarket is driven by [`PLAN.md`](./PLAN.md), the spec in this journey folder. It defines the data models, API contracts, validation rules, and seed data. Open the document and explore it before you start so you know what the finished app should do. GitHub Copilot will use the details as implementation context.
 
 **Core data model (the parts you'll build):**
 
@@ -151,17 +155,22 @@ AIMarket is built in four phases that combine interactive prompting, code review
 
 **How this journey works:** You won't paste one giant prompt and hope for a finished app. You'll work incrementally: ask GitHub Copilot for one piece, inspect what it generated, test it, fix what needs attention, and then continue. The loop is simple: generate → inspect → test → refine.
 
+**What AI model should I choose?**
+
+Use a capable frontier model for architecture decisions, changes spanning several files, and difficult debugging because it will generally follow the specification more reliably and produce more complete results, though it may take longer and consume more premium requests or incur higher usage costs. Smaller models are often sufficient for focused coding, test updates, and clearly identified fixes. If a smaller model misses requirements or struggles to connect `PLAN.md`, API, and frontend details, switch to a frontier model; choose based on task complexity rather than a specific model name.
+
 > **💡 Tip: Track issues as you go.** Add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed"* to your prompt. This keeps generation and deployment problems in one place while you iterate.
 
 > [!IMPORTANT]
 > **When something fails**
+> These journeys are designed to provide a solid starting point, but you may encounter errors along the way due to the non-deterministic nature of AI code generation. If a command or process fails, follow these steps to get help:
 >
 > 1. Stay in the same AI coding session so it retains the journey context.
 > 2. Paste the exact command and relevant error output. Don't paraphrase the error.
 > 3. Include your operating system, shell, current phase, and last successful step.
 > 4. Remove passwords, tokens, connection strings, keys, cookies, and `.env` values before pasting.
 > 5. Ask the agent to inspect the relevant application and Azure logs, explain the root cause, make the smallest safe fix, rerun the failed step, and run the journey verifier.
-> 6. Record the problem and resolution in `issues.md`.
+> 6. Record the problem and resolution in `issues.md` in the AIMarket workspace.
 >
 > Use this prompt:
 >
@@ -189,13 +198,41 @@ You'll build the API in stages, not all at once. Each step teaches a different a
 
 #### Step 1: Set up the project
 
-From the repository root, change to the existing journey directory so GitHub Copilot can access the skills and agent definitions in `.github/`:
+Keep this README open, but generate the application in a separate workspace so the journeys repository stays clean and the application can become its own GitHub repository.
+
+From the journeys repository root, start GitHub Copilot CLI:
 
 ```text
-cd journeys/aimarket
+copilot
 ```
 
-Configure `azd` to reuse the signed-in Azure CLI session:
+Then run the following prompt. If you have a specific folder where you'd like to create the `aimarket-workspace`, adjust the prompt accordingly.
+
+```
+> Create a standalone AIMarket workspace in a sibling directory named
+  aimarket-workspace next to this repository. Stop and ask before changing
+  anything if that directory already exists and is not empty.
+  Preserve the existing folder structure by copying these directories into
+  the workspace:
+  - journeys/aimarket
+  - .github/agents
+  - .github/skills
+  - .github/scripts
+  Initialize a Git repository at the workspace root and add a root .gitignore that
+  excludes secrets and generated files, including .env and .env.* while
+  allowing .env.example, plus .azure/, aimarket.db, node_modules/, dist/,
+  build/, coverage/, playwright-report/, and test-results/.
+  Do not modify the source journeys repository. When finished, show the
+  workspace path and the files copied.
+```
+
+End that Copilot session, then change to the new workspace:
+
+```text
+cd ../aimarket-workspace/journeys/aimarket
+```
+
+Now configure `azd` to reuse the signed-in Azure CLI session:
 
 ```text
 azd config set auth.useAzCliAuth true
@@ -203,7 +240,7 @@ azd config set auth.useAzCliAuth true
 
 The command must exit successfully.
 
-Start the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+Start a new [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started) session or your chosen agentic coding tool from the `journeys/aimarket` directory.
 
 ```text
 copilot
@@ -267,7 +304,7 @@ Now add the database layer. The spec calls for a repository pattern so you can s
 Open the SQLite implementation file and look for:
 - **Tags storage:** SQLite has no array type. The spec says to store tags as JSON strings (`'["laptop","ultrabook"]'`) and parse them on read. Is that how tags are stored and read?
 - **Order items:** Are they in a junction table (`order_items`) or embedded? The spec says junction table.
-- **Seed orders:** Do they decrement inventory? They shouldn't; they're historical data.
+- **Seed orders:** Do they decrement inventory? They shouldn't since they're historical data.
 
 ```
 > Show me how tags are stored and retrieved in the SQLite implementation. 
@@ -286,7 +323,12 @@ Now add the route handlers that use the repository interfaces.
   directly. Follow the endpoint specs in PLAN.md Phase 1. Also create a 
   global error handler matching the error format from the spec, and the 
   main entry point with CORS, JSON body parsing, a GET /api/health endpoint, 
-  and all routes mounted at /api.
+  and all routes mounted at /api. Configure the API to listen on 0.0.0.0,
+  use port 3000 by default, and honor the PORT environment variable. For the
+  default Node.js stack, add a package.json "build" script that compiles
+  TypeScript and a "start" script that runs the compiled API. Add api/README.md
+  with the exact dependency installation, build, and start commands for
+  Windows PowerShell, Mac, and Linux.
 ```
 
 **🔍 Inspect what was generated:**
@@ -311,36 +353,75 @@ If any of these are missing, ask GitHub Copilot to fix them one at a time:
 
 #### Step 5: Test the API yourself
 
-Don't ask GitHub Copilot to claim it tested the API. Generate a reusable cross-platform verifier, run it yourself, and inspect the output.
+Start the API and call it directly. The documented local URL is `http://localhost:3000`.
 
-1. Check that the preferred API port is free. If it is already in use, select another port instead of stopping the unrelated process.
-2. Start the API with its documented `PORT` or equivalent setting.
-3. Generate `scripts/verify-api.mjs` using Node.js `fetch`. The script must read `API_URL` and default to the selected local URL. This generated local verifier is separate from the checked-in deployment verifier used in Phase 4.
-4. Run:
+First, confirm port 3000 is available. This command works from PowerShell, Command Prompt, Mac, and Linux:
 
 ```text
-node scripts/verify-api.mjs
+node -e "const net=require('node:net');const s=net.createServer();s.once('error',()=>{console.error('Port 3000 is in use');process.exit(1)});s.once('listening',()=>s.close(()=>console.log('Port 3000 is available')));s.listen(3000,'127.0.0.1')"
 ```
 
-The verifier must fail with a nonzero exit code unless all of these pass:
+If the port is already in use, you can choose another port, such as 3001, and use that port in the commands below.
 
-- `GET /api/health` returns JSON and HTTP 200.
-- `GET /api/products` returns all 10 seed products.
-- `GET /api/products?category=Electronics` returns only the three electronics products.
-- `GET /api/products/prod-1` includes the full description.
-- `GET /api/products/nonexistent` returns the documented 404 error envelope.
-- Creating an order decrements inventory by the requested quantity.
-- Updating a product to `64.99` succeeds, while a three-decimal price such as `64.991` fails validation.
+In the first terminal, start the default Node.js API from the `journeys/aimarket` directory:
 
-If any check fails, describe the exact request, expected result, and actual result to GitHub Copilot. Keep the verifier in the generated project so the same checks work from PowerShell, Command Prompt, Bash, and CI.
-
-```
-> The category filter isn't working — GET /api/products?category=Electronics 
-  returns all 10 products instead of just 3. Check the SQL query in the 
-  SQLite implementation.
+```text
+cd api
+npm install
+npm run build
+npm start
 ```
 
-**💡 What you're learning:** Running the verifier yourself shows you what the API returns, how inventory changes after an order, and which failures matter when you later test the deployed app.
+The API should report that it is listening at `http://localhost:3000`. If you selected Python, .NET, or Java, use the exact start command in the generated `api/README.md`.
+
+If port 3000 was unavailable, start the default Node.js API on port 3001 instead (or pick another port):
+
+**Mac, Linux, or Git Bash:**
+
+```bash
+PORT=3001 npm start
+```
+
+**PowerShell:**
+
+```powershell
+$env:PORT=3001
+npm start
+```
+
+Replace `3000` with `3001` in the HTTP commands below.
+
+In a second terminal, call the health and products endpoints.
+
+**Mac, Linux, or Git Bash:**
+
+```bash
+curl --fail http://localhost:3000/api/health
+curl --fail http://localhost:3000/api/products
+```
+
+**PowerShell:**
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:3000/api/health
+Invoke-RestMethod -Uri http://localhost:3000/api/products
+```
+
+The health response must contain `"status": "ok"`. The products response must contain all seeded products.
+
+If either request fails, paste the exact start command, terminal error, and HTTP response into GitHub Copilot:
+
+```
+> I started the AIMarket API with this command:
+  [paste start command]
+  Calling http://localhost:3000/api/health failed with:
+  [paste exact error or response]
+  Diagnose the cause, make the smallest fix, restart the API, and retry the request.
+```
+
+**💡 What you're learning:** Starting the API yourself and making direct HTTP requests confirms that the generated application actually runs and that its basic contract matches the spec.
+
+Once the API is running and the endpoints respond correctly, stop the API with Ctrl+C. You will restart it later when you run the storefront.
 
 ---
 
@@ -351,6 +432,8 @@ If any check fails, describe the exact request, expected result, and actual resu
 </p>
 
 #### Step 1: Generate the React frontend
+
+Run the following prompt. Ensure that you replace `[YOUR API PORT]` with the port you used for the API (for example: 3000). The frontend will proxy `/api` requests to that port.
 
 ```
 > Create a React frontend for AIMarket in a client/ directory using Vite, 
@@ -369,16 +452,15 @@ You need the API and frontend running at the same time. Ask GitHub Copilot to se
 
 ```
 > Create a way to start both the API and the React frontend with a single 
-  command from the project root. The API runs in api/ and the frontend 
-  runs in client/. I want to run one command and see both start.
+command from the project root such as 'npm run app'. The API runs in api/ and the frontend runs in client/. I want to run one command and see both start.
 ```
 
-Start both services, then open `http://localhost:5173` in your browser.
+Start both services using your newly created command, then open `http://localhost:5173` in your browser.
 
 **🔍 Open the app in your browser at `http://localhost:5173`:**
 
 - Do all 10 products display with images, prices, and ratings?
-- In the browser network panel, do all 10 image requests return HTTP 2xx? Treat a broken seed image as a journey failure and replace it with a verified URL before continuing.
+- In the browser network panel (right-click --> Inspect), do all 10 image requests return HTTP 2xx? Treat a broken seed image as a journey failure and replace it with a verified URL before continuing.
 - Does typing in the search bar filter products?
 - Click "Electronics". Do only 3 products show?
 - Click a product → does the detail page load with the full description?
@@ -404,22 +486,49 @@ Pick one issue (or find a real one) and fix it with GitHub Copilot:
 
 **💡 What you're learning:** Frontend review involves more judgment than checking an API contract. Layout, state management, and error handling can all be technically valid while still producing a poor experience, so test the app in the browser rather than trusting the generated structure.
 
-#### Step 4: Push to GitHub
+<details>
+<summary><strong>Bonus: Add Playwright tests for the storefront</strong></summary>
 
-You'll need a GitHub repo for Phase 3's cloud agent workflow. Stay in this journey folder:
+Use Playwright to turn the browser checklist into repeatable end-to-end tests.
 
-From the journeys repository root, change to `journeys/aimarket`, then run:
-
-```text
-git init
-git add -A
-git commit -m "AIMarket: API + React storefront"
-gh repo create aimarket --private --source=. --push
+```
+> Add Playwright end-to-end tests for the AIMarket storefront. Use the
+  single command created in Step 2 to start the API and frontend from the
+  Playwright webServer configuration, and use http://localhost:5173 as the
+  base URL. Test that:
+  - all 10 product cards render and every product image loads successfully
+  - searching by product name and by tag filters the grid correctly
+  - selecting Electronics displays exactly 3 products
+  - opening prod-1 displays its full description
+  - adding 2 items updates the cart badge, quantities, and total
+  - placing an order displays a confirmation containing an order ID
+  Use accessible locators instead of fixed delays, keep test data predictable,
+  and add a test:e2e script. Document how to install Playwright Chromium and
+  run the tests on Windows PowerShell, Mac, and Linux.
 ```
 
-> **Nested repo note:** `git init` creates a repository rooted at `journeys/aimarket`. That's intentional because the cloud agent needs a standalone repository. Git commands run inside this directory target the nested repository, while the outer journeys clone may still report changes to files it already tracks. Do not commit the generated app to the outer repository or add it as a submodule. Run these commands from `journeys/aimarket`, never from the repo root.
->
-> Work only under `journeys/aimarket` for the rest of this journey. Do not copy the app to `~/aimarket`.
+Run the generated Playwright command and confirm every test passes before continuing.
+
+</details>
+
+#### Step 4: Push to GitHub
+
+You'll need a GitHub repo for Phase 3's cloud agent workflow. Run:
+
+```
+> Prepare this Git repository for the cloud-agent workflow. Run Git operations
+  from the repository root so .github and journeys/aimarket are included.
+  Before staging files, inspect .gitignore and the working tree. Ensure secrets,
+  .env files, .azure, aimarket.db, node_modules, build output, coverage, and
+  Playwright output will not be committed; stop and tell me what needs to be
+  fixed if any sensitive or generated files are included. Stage the project,
+  commit it with the message "AIMarket: API + React storefront", create a
+  private GitHub repository named aimarket with GitHub CLI, and push the
+  current branch. When finished, show me the repository URL and final git
+  status.
+```
+
+Continue working from `journeys/aimarket` for the rest of the journey.
 
 ---
 
@@ -431,52 +540,80 @@ gh repo create aimarket --private --source=. --push
 
 This phase has two goals: integrate Azure AI services and delegate a well-scoped feature to the Copilot cloud agent.
 
-#### Step 1: Local AI credentials (optional before Phase 4)
-
-**Recommended:** Skip creating standalone AI resources here. Implement search and chat with **graceful fallbacks** (SQLite LIKE for search; chat returns 503 without a Foundry endpoint). Phase 4 Bicep provisions **Azure AI Search + Microsoft Foundry** and configures managed-identity authentication for Foundry.
-
-**Optional local AI now:** If you want live semantic search and chat before deploy, have GitHub Copilot create an uncommitted `.env.local` containing `AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_KEY`, `AZURE_SEARCH_INDEX`, `AZURE_OPENAI_ENDPOINT`, and `AZURE_OPENAI_DEPLOYMENT`, plus `AZURE_OPENAI_KEY` for local Foundry authentication. Add the file to `.gitignore` and load it through the selected framework instead of placing credentials in shell history. Use existing Search and Foundry resources, or create temporary resources and delete them immediately after testing.
-
-Do **not** create a second long-lived Search/Foundry pair if you are about to run Phase 4 — you will pay twice.
-
-#### Step 2: Add semantic product search (interactive CLI)
+#### Step 1: Add semantic product search
 
 This one you'll do interactively so you can see how search integration works.
 
 ```
 > Add Azure AI Search integration to AIMarket. Read the "AI Feature 1" 
-  section in PLAN.md for the full spec. Create the search index, add a 
-  POST /api/products/search endpoint with semantic ranking, and add a 
-  script to push products to the index. Use the Azure AI Search SDK 
-  recommended in PLAN.md for my language.
+  section in PLAN.md for the full spec. Do not provision Azure resources.
+  Add a POST /api/products/search endpoint that uses SQLite fallback search
+  when Azure Search settings are absent. When settings are present, create or
+  update the search index, use semantic ranking, and provide a script to push
+  products to the index. Use the Azure AI Search SDK recommended in PLAN.md
+  for my language.
 ```
 
 **🔍 Inspect the search service code:**
 
-Open the search service file. Key things to understand:
+Open the search service file and inspect it directly or ask Copilot about it. Key things to understand:
 - The search index has a **semantic configuration**. This is what makes "lightweight for travel" match "UltraBook Pro" even though those words don't appear together
 - The endpoint does a **two-step process**: search returns IDs and scores, then full product details come from your database
 - There's a **fallback**: when Azure AI Search credentials aren't set, it uses a SQLite LIKE query instead
 
-Extend `scripts/verify-api.mjs` with fallback-search assertions, then rerun it. When Azure AI Search credentials are configured, also prove that “something lightweight for travel” returns the UltraBook product and “gift for a kid” returns the castle set or another valid toy without relying on exact string matching alone. Run those semantic assertions again after Phase 4 deployment.
-
-> **No results?** If search returns no results, make sure products have been pushed to the search index. Restart the API (which indexes on startup) or call `POST /api/products/reindex`.
-
-**💡 What you're learning:** Azure AI Search handles indexing and semantic reranking. You query the index with natural language, then merge the ranked results with full product records from the database.
-
-#### Step 3: Delegate the shopping assistant to the cloud agent
-
-For the shopping assistant, switch to an asynchronous workflow: write a GitHub issue and let the GitHub Copilot cloud agent implement it.
-
-**Why delegate this one?** The shopping assistant is well-scoped (one endpoint + one component) with clear acceptance criteria in the spec. That makes it a good candidate for async delegation since you don't need to be in the loop for every decision.
-
-**Option A: Delegate from your GitHub Copilot session**
-
-If your surface supports it (e.g. Copilot CLI `/delegate`), delegate asynchronously:
+Start the API server again:
 
 ```
-> /delegate Create the AI shopping assistant for AIMarket. Read PLAN.md
-  in the root of the pushed AIMarket repository for the full spec — see
+npm start
+```
+
+Now call the search endpoint directly.
+
+**Mac, Linux, or Git Bash:**
+
+```bash
+curl --fail --request POST http://localhost:3000/api/products/search \
+  --header "Content-Type: application/json" \
+  --data '{"query":"something lightweight for travel"}'
+```
+
+**PowerShell:**
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri http://localhost:3000/api/products/search `
+  -ContentType application/json `
+  -Body '{"query":"something lightweight for travel"}'
+```
+
+Without Azure AI Search credentials, the endpoint should return fallback SQLite results. When credentials are configured, confirm that the response includes **UltraBook Pro 15**. Also try `"gift for a kid"` and confirm the semantic results include the castle set or another valid toy.
+
+**💡 What you're learning:** The same search endpoint can use SQLite fallback locally and Azure AI Search after deployment. Azure AI Search handles indexing and semantic reranking, while the API combines ranked search results with the full product records stored in the database.
+
+#### Step 2: Add the shopping assistant
+
+The shopping assistant is a good candidate for cloud delegation, but delegation is optional. You can implement it interactively in your current session or let the GitHub Copilot cloud agent work asynchronously. Choose one of the following options.
+
+**Why consider delegation?** The shopping assistant is well-scoped (one endpoint + one component) with clear acceptance criteria in the spec. That makes it a good candidate for async delegation since you don't need to be in the loop for every decision.
+
+**Option A: Continue in your current session**
+
+```
+> Create the AI shopping assistant for AIMarket. Read the "AI Feature 2:
+  Shopping Assistant" section in PLAN.md. Implement the POST /api/chat endpoint
+  using the Microsoft Foundry SDK for my language. Fetch all products and
+  include them in the system prompt, return HTTP 503 when the Foundry endpoint
+  is not configured, and add the ChatWidget component to the React frontend.
+  Use the Phase 3 acceptance criteria in PLAN.md to verify the implementation.
+```
+
+**Option B: Delegate from your GitHub Copilot session**
+
+If your GitHub Copilot subscription supports it (e.g. Copilot CLI `/delegate`), delegate asynchronously and have the cloud agent implement the shopping assistant while you take a break or work on another task. The agent will open a pull request when it's done, and you can review it like any other PR.
+
+```
+> /delegate Create the AI shopping assistant for AIMarket. Read
+  journeys/aimarket/PLAN.md in the pushed repository for the full spec — see
   "AI Feature 2: Shopping Assistant"
   under Phase 3. Implement the POST /api/chat endpoint using the Microsoft Foundry
   SDK for my language. The endpoint should fetch all products and include them 
@@ -484,16 +621,16 @@ If your surface supports it (e.g. Copilot CLI `/delegate`), delegate asynchronou
   Use the acceptance criteria in PLAN.md Phase 3 to verify your work.
 ```
 
-**Option B: Create an issue and assign GitHub Copilot cloud agent**
+**Option C: Create an issue and assign GitHub Copilot cloud agent**
 
-Create `issue-body.md` with this content:
+Create a file named `issue-body.md` with this content:
 
 ```markdown
 ## What
 Add the AI shopping assistant to AIMarket.
 
 ## Spec
-Read PLAN.md in the root of the pushed AIMarket repository. Implement:
+Read `journeys/aimarket/PLAN.md` in the pushed repository. Implement:
 1. **POST /api/chat** endpoint (see 'AI Feature 2: Shopping Assistant' in Phase 3)
    - Uses the Microsoft Foundry SDK for this project's language
    - Fetches all products and injects them into the system prompt
@@ -605,7 +742,7 @@ Set the returned value in the selected `azd` environment:
 azd env set AZURE_SUBSCRIPTION_ID <subscription-id>
 ```
 
-Start the deployment from the AIMarket journey directory:
+Start the deployment from the `journeys/aimarket` directory:
 
 ```text
 azd up
@@ -654,7 +791,7 @@ The hook must read all dynamic values through `azd env get-value`, call `az acr 
 
 #### Step 4: Verify the live deployment
 
-Run the checked-in verifier from the AIMarket journey directory on the host machine:
+Run the verifier from the `journeys/aimarket` directory on the host machine:
 
 ```text
 node ../../.github/scripts/verify-aimarket.mjs
@@ -733,7 +870,7 @@ Scale-to-zero on Container Apps keeps compute low when idle. **Azure AI Search B
 node --version    # Node.js (need LTS)
 python --version  # Python (need 3.10+)
 dotnet --version  # .NET (need 8+)
-java --version    # Java (need 17+)
+java --version    # Eclipse Temurin JDK (need 25 LTS or later)
 ```
 
 ### Semantic search returns no results
@@ -806,7 +943,7 @@ The `ARG VITE_API_URL` line must come BEFORE the `npm run build` step in `client
 
 ## Verification Checklist
 
-Use the acceptance contract in [Phase 4, Step 4](#step-4-verify-the-live-deployment), then run `node ../../.github/scripts/verify-aimarket.mjs` from the AIMarket journey directory.
+Use the acceptance contract in [Phase 4, Step 4](#step-4-verify-the-live-deployment), then run `node ../../.github/scripts/verify-aimarket.mjs` from `journeys/aimarket`.
 
 </details>
 
@@ -841,7 +978,7 @@ Read and save the generated resource group name:
 azd env get-value RESOURCE_GROUP_NAME
 ```
 
-Run the cleanup from the AIMarket journey directory:
+Run the cleanup from `journeys/aimarket`:
 
 ```text
 azd down --force --purge
@@ -870,7 +1007,7 @@ The final command must return `false`.
 
 Explore the other journeys:
 
-- [SmartTodo](../smart-todo/README.md) — Azure Functions Flex Consumption, Azure SQL, SwiftUI, and Foundry task breakdown (macOS for the iOS phase)
+- [SmartTodo](../smart-todo/README.md) — Azure Functions Flex Consumption, Azure SQL, SwiftUI, and Foundry task breakdown (Mac for the iOS phase)
 - [Grafana](../grafana/README.md) and [n8n](../n8n/README.md) — quick OSS deploys to Container Apps
 
 > 📚 **All journeys:** [Back to root README](../../README.md#agentic-journeys)

@@ -60,7 +60,7 @@ hooks:
     run: infra/hooks/postdeploy.js
 ```
 
-Use `postprovision` for steps that need infrastructure outputs, such as setting `WEBHOOK_URL`. Use `postdeploy` for steps that need deployed services, such as rebuilding a frontend with its API URL. Hook code must invoke `az` and `azd` through argument arrays, never interpolated shell command strings. On macOS and Linux, call the CLI executable directly. On Windows, `.cmd` shims cannot be launched with `execFileSync()` or `spawnSync()` alone. Invoke a static, non-interpolated `powershell.exe` runner and pass the command plus arguments as a JSON environment payload, then use PowerShell's call operator with array splatting. This supports both the Azure CLI shim and the `azd.exe` installation without exposing arguments to shell parsing. Build deployment images in Azure Container Registry so the host does not need Docker or Buildx.
+Use `postprovision` for steps that need infrastructure outputs, such as setting `WEBHOOK_URL`. Use `postdeploy` for steps that need deployed services, such as rebuilding a frontend with its API URL. Hook code must invoke `az` and `azd` through argument arrays, never interpolated shell command strings. On Mac and Linux, call the CLI executable directly. On Windows, `.cmd` shims cannot be launched with `execFileSync()` or `spawnSync()` alone. Invoke a static, non-interpolated `powershell.exe` runner and pass the command plus arguments as a JSON environment payload, then use PowerShell's call operator with array splatting. This supports both the Azure CLI shim and the `azd.exe` installation without exposing arguments to shell parsing. Build deployment images in Azure Container Registry so the host does not need Docker or Buildx.
 
 ## SPA Frontend Deployment (React/Vite)
 

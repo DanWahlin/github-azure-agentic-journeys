@@ -9,7 +9,7 @@ Application-specific configuration for deploying n8n to Azure Container Apps wit
 
 ## Prerequisites and Portability
 
-Require Azure CLI, Azure Developer CLI 1.28.0 or later, and Node.js 24 LTS or later. Generated lifecycle hooks must be CommonJS JavaScript (`.js`) or TypeScript (`.ts`) files referenced directly from `azure.yaml`; azd 1.28.0 rejects `.mjs` hook paths. Do not generate Bash-only `.sh` or PowerShell-only `.ps1` hooks. See `../../../docs/tool-installation.md` for Windows, macOS, and Linux installation options.
+Require Azure CLI, Azure Developer CLI 1.28.0 or later, and Node.js 24 LTS or later. Generated lifecycle hooks must be CommonJS JavaScript (`.js`) or TypeScript (`.ts`) files referenced directly from `azure.yaml`; azd 1.28.0 rejects `.mjs` hook paths. Do not generate Bash-only `.sh` or PowerShell-only `.ps1` hooks. See `../../../docs/tool-installation.md` for Windows, Mac, and Linux installation options.
 
 ## Critical: Subscription Context
 
@@ -139,7 +139,7 @@ hooks:
     run: ./infra-n8n/hooks/postprovision.js
 ```
 
-The hook must use argument arrays to call `azd` and `az`; it must not assemble shell command strings. On macOS and Linux, call each executable directly. On Windows, `.cmd` shims cannot be launched through `execFileSync()` or `spawnSync()` alone, so use the static PowerShell runner and JSON environment payload defined by the `container-apps-deployment` skill. Reject double quotes for every Windows target and additional shell metacharacters or CR/LF for `.cmd`/`.bat`; native `.exe` targets preserve the remaining metacharacters. Read the Container App FQDN, set `WEBHOOK_URL=https://<fqdn>`, and fail with a nonzero exit code if either CLI call fails. The update creates a replacement revision, so poll both `/healthz` and `/` for up to five minutes and require six consecutive HTTP 200 results over 30 seconds before returning. One successful probe is insufficient while Azure is deprovisioning the old revision.
+The hook must use argument arrays to call `azd` and `az`; it must not assemble shell command strings. On Mac and Linux, call each executable directly. On Windows, `.cmd` shims cannot be launched through `execFileSync()` or `spawnSync()` alone, so use the static PowerShell runner and JSON environment payload defined by the `container-apps-deployment` skill. Reject double quotes for every Windows target and additional shell metacharacters or CR/LF for `.cmd`/`.bat`; native `.exe` targets preserve the remaining metacharacters. Read the Container App FQDN, set `WEBHOOK_URL=https://<fqdn>`, and fail with a nonzero exit code if either CLI call fails. The update creates a replacement revision, so poll both `/healthz` and `/` for up to five minutes and require six consecutive HTTP 200 results over 30 seconds before returning. One successful probe is insufficient while Azure is deprovisioning the old revision.
 
 When a module parameter receives `uniqueString()` output, declare its exact contract with `@minLength(13)` and `@maxLength(13)`. This prevents false `BCP334` name-length warnings in downstream resources.
 

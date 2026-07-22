@@ -106,6 +106,6 @@ This ledger tracks defects discovered by deploying the generated solutions from 
 Do not mark a backport **Source integrated** until:
 
 1. The source README/PLAN and every listed skill agree on the behavior.
-2. Generated scripts remain Windows, macOS, and Linux compatible.
+2. Generated scripts remain Windows, Mac, and Linux compatible.
 3. Syntax/static validation passes.
 4. The repaired solution behavior has already been demonstrated against live Azure resources.

@@ -1,8 +1,8 @@
 # Cross-Platform Tool Installation
 
-The journeys support Windows, macOS, and Linux. Install only the tools listed in the prerequisite section of the journey you are running. Validate every required command before generating code or creating Azure resources.
+The journeys support Windows, Mac, and Linux. Install only the tools listed in the prerequisite section of the journey you are running. Validate every required command before generating code or creating Azure resources.
 
-> Windows examples use PowerShell. macOS and Linux examples use a POSIX shell. Generated Azure Developer CLI hooks use JavaScript or TypeScript instead of OS-specific `.sh` or `.ps1` scripts.
+> Windows examples use PowerShell. Mac and Linux examples use a POSIX shell. Generated Azure Developer CLI hooks use JavaScript or TypeScript instead of OS-specific `.sh` or `.ps1` scripts.
 
 ## Standard tools
 
@@ -17,7 +17,7 @@ npm --version
 
 ### Azure CLI
 
-Use Microsoft's [Azure CLI installation guide](https://learn.microsoft.com/cli/azure/install-azure-cli) for Windows, macOS, or your Linux distribution. Don't pipe a remote installer directly into an elevated shell.
+Use Microsoft's [Azure CLI installation guide](https://learn.microsoft.com/cli/azure/install-azure-cli) for Windows, Mac, or your Linux distribution. Don't pipe a remote installer directly into an elevated shell.
 
 ```text
 az version
@@ -32,7 +32,7 @@ This repository requires Azure Developer CLI (`azd`) 1.28.0 or later for cross-p
 | OS | Install |
 |---|---|
 | Windows | `winget install --exact --id Microsoft.Azd` |
-| macOS | `brew install azure/azd/azd` |
+| Mac | `brew install azure/azd/azd` |
 | Linux | Use the signed `.deb`/`.rpm` from [Azure Developer CLI releases](https://github.com/Azure/azure-dev/releases), or download and inspect Microsoft's installer before executing it |
 
 The [official azd installation guide](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) has current distribution-specific steps. Upgrade through the same package manager used to install it.
@@ -49,7 +49,7 @@ The second command makes `azd` reuse the authenticated Azure CLI session instead
 | OS | Install |
 |---|---|
 | Windows | `winget install --exact --id GitHub.cli --source winget` |
-| macOS | `brew install gh` |
+| Mac | `brew install gh` |
 | Linux | Follow the [official package repository instructions](https://github.com/cli/cli/blob/trunk/docs/install_linux.md) |
 
 ```text
@@ -60,7 +60,7 @@ gh auth status
 ### Docker (optional local container work)
 
 - Windows: [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/)
-- macOS: [Docker Desktop for Mac](https://docs.docker.com/desktop/setup/install/mac-install/)
+- Mac: [Docker Desktop for Mac](https://docs.docker.com/desktop/setup/install/mac-install/)
 - Linux: [Docker Engine](https://docs.docker.com/engine/install/)
 
 Verify the daemon and Buildx, not just the client binary:
@@ -82,10 +82,10 @@ Keep `kubectl` within one minor version of the target AKS cluster.
 | OS | Install |
 |---|---|
 | Windows | `winget install --exact --id Kubernetes.kubectl` |
-| macOS | `brew install kubectl` |
+| Mac | `brew install kubectl` |
 | Linux | Use the signed Kubernetes package repository or a checksum-verified binary from the [Linux installation guide](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/) |
 
-Official platform guides: [Windows](https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/), [macOS](https://kubernetes.io/docs/tasks/tools/install-kubectl-macos/), and [Linux](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/).
+Official platform guides: [Windows](https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/), [Mac](https://kubernetes.io/docs/tasks/tools/install-kubectl-macos/), and [Linux](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/).
 
 ```text
 kubectl version --client
@@ -100,7 +100,7 @@ The Superset journey runs Helm inside Azure through AKS run command, so Helm is 
 | OS | Install |
 |---|---|
 | Windows | Run `winget show --exact --id Helm.Helm --versions`, then install an available 3.x version with `winget install --exact --id Helm.Helm --version <3.x-version>` |
-| macOS | `brew install helm@3`, then add `$(brew --prefix helm@3)/bin` to `PATH` |
+| Mac | `brew install helm@3`, then add `$(brew --prefix helm@3)/bin` to `PATH` |
 | Linux | Use a checksum-verified Helm 3 archive from [Helm releases](https://github.com/helm/helm/releases), or download and inspect `get-helm-3` before running it |
 
 See the [official Helm 3 installation guide](https://helm.sh/docs/v3/intro/install/).
@@ -116,7 +116,7 @@ The reported major version must be `v3`.
 | OS | Install |
 |---|---|
 | Windows | `winget install --exact --id Microsoft.Azure.FunctionsCoreTools` |
-| macOS | `brew tap azure/functions && brew install azure-functions-core-tools@4` |
+| Mac | `brew tap azure/functions && brew install azure-functions-core-tools@4` |
 | Linux | Configure Microsoft's repository for the exact distribution, then install `azure-functions-core-tools-4` |
 
 Use Microsoft's [Core Tools installation guide](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools). Avoid global npm installation with elevated permissions.
@@ -140,12 +140,12 @@ See the [official Azurite documentation](https://learn.microsoft.com/azure/stora
 
 ### sqlcmd
 
-Use the current Go-based `sqlcmd`, which supports Microsoft Entra authentication on Windows, macOS, and Linux.
+Use the current Go-based `sqlcmd`, which supports Microsoft Entra authentication on Windows, Mac, and Linux.
 
 | OS | Install |
 |---|---|
 | Windows | `winget install sqlcmd` |
-| macOS | `brew install sqlcmd` |
+| Mac | `brew install sqlcmd` |
 | Linux | Use Microsoft's distribution package repository, or download the matching release archive and verify its published SHA-256 digest |
 
 Use the [official sqlcmd installation guide](https://learn.microsoft.com/sql/tools/sqlcmd/sqlcmd-download-install). Release archives are published in [microsoft/go-sqlcmd](https://github.com/microsoft/go-sqlcmd/releases); don't describe archives as signed unless a signature is actually provided.
@@ -198,4 +198,4 @@ Copy the result into the relevant `azd env set` command. Don't place generated s
 - Use `text` fences for single executable commands that are identical across shells.
 - For stateful variables, loops, pipelines, or line continuations, provide both `bash` and `powershell` examples or replace them with a portable Node.js script.
 - Required lifecycle hooks must be CommonJS JavaScript (`.js`) or TypeScript (`.ts`) files referenced directly from `azure.yaml`; azd 1.28.0 rejects `.mjs` hook paths.
-- Invoke child processes with argument arrays and don't build interpolated shell strings. On macOS and Linux, execute `az` and `azd` directly. On Windows, use the repository's static `powershell.exe` JSON-payload launcher so Node does not try to execute Azure CLI `.cmd` shims directly. The launcher rejects literal double quotes for every Windows target. For `.cmd`/`.bat`, it additionally rejects shell metacharacters and CR/LF; rewrite the argument, attach a script for complex payloads, or invoke a native executable target.
+- Invoke child processes with argument arrays and don't build interpolated shell strings. On Mac and Linux, execute `az` and `azd` directly. On Windows, use the repository's static `powershell.exe` JSON-payload launcher so Node does not try to execute Azure CLI `.cmd` shims directly. The launcher rejects literal double quotes for every Windows target. For `.cmd`/`.bat`, it additionally rejects shell metacharacters and CR/LF; rewrite the argument, attach a script for complex payloads, or invoke a native executable target.

@@ -22,14 +22,14 @@ In this journey, you'll deploy [n8n](https://n8n.io), an open-source, self-hoste
 
 ## Prerequisites
 
-This journey supports Windows PowerShell, macOS, and Linux.
+This journey supports Windows PowerShell, Mac, and Linux.
 
 | Host tool | Requirement | Purpose | Validation |
 | --- | --- | --- | --- |
-| Azure CLI | Required | Authenticate and manage Azure resources | `az version` |
-| Azure Developer CLI (`azd`) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
-| Node.js 24 LTS or later | Required | Run the cross-platform hook and verifier | `node --version` |
-| GitHub Copilot CLI | Required for the documented CLI path | Run the deployment agent | `copilot --version` |
+| [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) | Required | Authenticate and manage Azure resources | `az version` |
+| [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
+| [Node.js](https://nodejs.org/en/download) 24 LTS or later | Required | Run the cross-platform hook and verifier | `node --version` |
+| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started) | Required for the documented CLI path | Run the deployment agent | `copilot --version` |
 
 The signed-in Azure account must have permission to create Container Apps, PostgreSQL Flexible Server, Log Analytics, and managed identity resources.
 
@@ -43,7 +43,7 @@ node --version
 copilot --version
 ```
 
-Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix the prerequisite if a command fails or a required version is too old. See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, macOS, and Linux installation instructions.
+Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix the prerequisite if a command fails or a required version is too old. See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, Mac, and Linux installation instructions.
 
 > [!NOTE]
 > GitHub Copilot CLI is the documented and validated command-line path. You may adapt the deployment prompt for the GitHub Copilot app, VS Code agent chat, or another agentic coding tool. For another tool, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
@@ -69,17 +69,20 @@ graph TB
             N8N["n8n Container App<br/>(0-3 replicas)"]
         end
         LA["Log Analytics Workspace<br/>(monitoring)"]
-        PG["Azure PostgreSQL Flexible Server<br/>(B_Standard_B1ms, 32GB, v16)"]
+        PG["Azure PostgreSQL Flexible Server<br/>(Standard_B1ms · Burstable · 32GB · v16)"]
+        MI["User-Assigned Managed Identity"]
     end
 
     CAE -->|logs & metrics| LA
-    N8N -->|SSL/TLS port 5678| PG
+    N8N -->|SSL/TLS port 5432| PG
+    MI -.->|assigned to| N8N
 
     style RG fill:#e8f4fd,stroke:#0078D4
     style CAE fill:#f0f9ff,stroke:#50e6ff
     style N8N fill:#fff,stroke:#0078D4
     style LA fill:#fff,stroke:#50e6ff
     style PG fill:#fff,stroke:#0078D4
+    style MI fill:#fff,stroke:#50e6ff
 ```
 
 **Azure resources created:**
@@ -101,6 +104,7 @@ You'll use `oss-to-azure-deployer` (a custom agent defined in this repo) with Gi
 
 > [!IMPORTANT]
 > **When something fails**
+> These journeys are designed to provide a solid starting point, but you may encounter errors along the way due to the non-deterministic nature of AI code generation. If a command or process fails, follow these steps to get help:
 >
 > 1. Stay in the same AI coding session so it retains the journey context.
 > 2. Paste the exact command and relevant error output. Don't paraphrase the error.
@@ -299,7 +303,7 @@ Current n8n releases use built-in user management. On first launch, complete the
 | Resource | SKU | Monthly Cost |
 |----------|-----|--------------|
 | Container Apps (scale-to-zero) | Consumption (1 vCPU, 2GB) | ~$5-15 |
-| PostgreSQL Flexible Server | B_Standard_B1ms (32GB) | ~$15 |
+| PostgreSQL Flexible Server | Standard_B1ms · Burstable (32GB) | ~$15 |
 | Log Analytics | Pay-per-GB (30-day retention) | ~$2-5 |
 | **Total** | | **~$25-35/month** |
 

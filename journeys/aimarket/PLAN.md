@@ -10,7 +10,7 @@ AIMarket is a marketplace API and React storefront with semantic search and an A
 
 Pick your API language. Data models, endpoints, and acceptance criteria are identical across stacks.
 
-**Happy path (recommended for first run):** Node.js + TypeScript + Express, region `westus`, model `gpt-5-mini` (fallback `gpt-4.1`). Stay in `journeys/aimarket` for the whole journey.
+**Happy path (recommended for first run):** Node.js + TypeScript + Express, region `westus`, model `gpt-5-mini` (fallback `gpt-4.1`). Complete the work from `journeys/aimarket` inside the workspace created at the beginning of the journey.
 
 | | Node.js | Python | .NET | Java |
 |---|---------|--------|------|------|
@@ -64,7 +64,7 @@ The factory reads the `DATA_PROVIDER` environment variable (default: `sqlite`) a
 
 **SQLite notes:** Store arrays and objects as JSON strings, then parse them on read. Use an `order_items` junction table for order line items. Set `journal_mode=WAL` and `foreign_keys=ON`. Store the database at `api/aimarket.db` and add it to `.gitignore`.
 
-**API entry point:** Enable CORS, parse JSON, expose `GET /api/health` → `{status:"ok"}`, mount routes at `/api/{products,orders,users,chat}`, and register the global error handler last.
+**API entry point:** Listen on `0.0.0.0:3000` by default and honor the `PORT` environment variable when it is set. Binding to all interfaces keeps the API reachable both at `localhost:3000` during development and through Container Apps ingress after deployment. Enable CORS, parse JSON, expose `GET /api/health` → `{status:"ok"}`, mount routes at `/api/{products,orders,users,chat}`, and register the global error handler last.
 
 ### Data Models
 

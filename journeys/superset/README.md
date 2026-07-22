@@ -24,14 +24,14 @@
 
 ## Prerequisites
 
-This journey supports Windows PowerShell, macOS, and Linux.
+This journey supports Windows PowerShell, Mac, and Linux.
 
 | Host tool | Requirement | Purpose | Validation |
 | --- | --- | --- | --- |
-| Azure CLI | Required | Authenticate and manage Azure resources | `az version` |
-| Azure Developer CLI (`azd`) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
-| Node.js 24 LTS or later | Required | Run the post-provision hook and verifier | `node --version` |
-| GitHub Copilot CLI | Required for the documented CLI path | Run the deployment agent | `copilot --version` |
+| [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) | Required | Authenticate and manage Azure resources | `az version` |
+| [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
+| [Node.js](https://nodejs.org/en/download) 24 LTS or later | Required | Run the post-provision hook and verifier | `node --version` |
+| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started) | Required for the documented CLI path | Run the deployment agent | `copilot --version` |
 
 The signed-in Azure account must have permission to create AKS, PostgreSQL Flexible Server, Load Balancer, managed identity, and Log Analytics resources and to invoke AKS run commands. The target region must have quota for at least four vCPUs.
 
@@ -49,7 +49,7 @@ copilot --version
 Confirm that `az account show` identifies the intended subscription, the target region has at least four available vCPUs, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix the prerequisite if any check fails. The host does not need `kubectl` or Helm because the hook runs both tools inside Azure through AKS run command. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
 
 > [!NOTE]
-> GitHub Copilot CLI is the documented and validated command-line path. You may adapt the deployment prompt for another agentic coding tool by copying or adapting this repository's `.github/skills` into that tool's supported skills or instructions location and reporting anything unsupported.
+> GitHub Copilot CLI is the documented and validated command-line path. You may adapt the deployment prompt for another agentic coding tool. For another tool, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
 
 ### Acceptance criteria
 
@@ -68,9 +68,8 @@ The journey is complete after the [Cleanup](#cleanup) procedure removes the Azur
 
 ```mermaid
 graph TB
-    LB["Load Balancer<br/>(Public IP)"]
-
     subgraph RG["Azure Resource Group"]
+        LB["Load Balancer<br/>(Public IP)"]
         LA["Log Analytics Workspace"]
         subgraph AKS["AKS Cluster"]
             NGINX["NGINX Ingress Controller"]
@@ -129,6 +128,7 @@ In GitHub Copilot, use the repository's `oss-to-azure-deployer` agent to generat
 
 > [!IMPORTANT]
 > **When something fails**
+> These journeys are designed to provide a solid starting point, but you may encounter errors along the way due to the non-deterministic nature of AI code generation. If a command or process fails, follow these steps to get help:
 >
 > 1. Stay in the same AI coding session so it retains the journey context.
 > 2. Paste the exact command and relevant error output. Don't paraphrase the error.
@@ -378,7 +378,7 @@ Health endpoint: `GET /health` → `{"status": "OK"}` (HTTP 200)
 | Resource | SKU | Monthly Cost |
 |----------|-----|--------------|
 | AKS Cluster | 2x Standard_D2s_v3 | ~$170 |
-| PostgreSQL Flexible Server | B_Standard_B1ms | ~$15 |
+| PostgreSQL Flexible Server | Standard_B1ms · Burstable | ~$15 |
 | Load Balancer | Standard | ~$20 |
 | **Total** | | **~$200-215/month** |
 

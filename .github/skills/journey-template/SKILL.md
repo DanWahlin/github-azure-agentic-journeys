@@ -115,7 +115,7 @@ Every journey README MUST follow this exact structure. Reference `journeys/aimar
 >
 > 💰 **Estimated Cost**: ~$X-Y/month (<main cost driver> — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
 >
-> 📋 **Prerequisites**: List every required host tool here, including its validation command. Link to the [cross-platform tool guide](../../../docs/tool-installation.md) for Windows, macOS, and Linux installation options.
+> 📋 **Prerequisites**: List every required host tool here, including its validation command. Link to the [cross-platform tool guide](../../../docs/tool-installation.md) for Windows, Mac, and Linux installation options.
 >
 > **Additional prerequisites for this journey:**
 > - `<Tool>` — why it's needed
@@ -758,7 +758,7 @@ Before considering a journey complete:
 - [ ] VITE_API_URL handled via **postdeploy hook** (if React frontend) — not manual-only first success
 - [ ] Soft-deleted Cognitive Services warning (if using AI services)
 - [ ] Platform flag `--platform linux/amd64` documented (if Docker builds)
-- [ ] Windows, macOS, and Linux prerequisite and command paths reviewed
+- [ ] Windows, Mac, and Linux prerequisite and command paths reviewed
 - [ ] Stateful verification uses portable scripts or paired Bash and PowerShell examples
 - [ ] Browser verification uses Playwright's bundled Chromium
 - [ ] Required lifecycle hooks are CommonJS `.js` or `.ts`, not unsupported `.mjs` or host-specific `.sh`/`.ps1`

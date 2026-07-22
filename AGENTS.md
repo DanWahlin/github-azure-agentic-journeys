@@ -96,7 +96,7 @@ The Azure MCP plugin provides these tools for use throughout the deployment life
 
 ## Commands
 
-These commands must work from PowerShell, Windows Terminal, macOS, and Linux. Don't use shell command substitution for stateful operations.
+These commands must work from PowerShell, Windows Terminal, Mac, and Linux. Don't use shell command substitution for stateful operations.
 
 ```text
 # Read the subscription ID, then pass the returned value to azd
