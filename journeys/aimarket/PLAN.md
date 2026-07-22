@@ -10,14 +10,14 @@ AIMarket is a marketplace API and React storefront with semantic search and an A
 
 Pick your API language. Data models, endpoints, and acceptance criteria are identical across stacks.
 
-**Happy path (recommended for first run):** Node.js + TypeScript + Express, region `westus`, model `gpt-5-mini` (fallback `gpt-4.1`). Complete the work from `journeys/aimarket` inside the workspace created at the beginning of the journey.
+**Happy path (recommended for first run):** Node.js + TypeScript + Express, region `westus`, model `gpt-5-mini` (fallback `gpt-5.4-mini`). Complete the work from `journeys/aimarket` inside the workspace created at the beginning of the journey.
 
 | | Node.js | Python | .NET | Java |
 |---|---------|--------|------|------|
 | **Framework** | Express + TypeScript | FastAPI | ASP.NET Core Minimal APIs | Spring Boot |
 | **SQLite** | `better-sqlite3` | `sqlite3` (stdlib) | `Microsoft.Data.Sqlite` | `JdbcTemplate` + SQLite |
 
-The frontend is always React 18 + Tailwind CSS. AI uses **gpt-5-mini on Microsoft Foundry** (with gpt-4.1 as the fallback if gpt-5-mini is unavailable in your region). Deploy with **azd** + **Bicep**, preferring Azure Verified Modules (AVM) with raw `Microsoft.*` resources when AVM blocks deployment. See the [`data-access-abstraction` skill](../../.github/skills/data-access-abstraction/SKILL.md) for repository pattern examples in all four languages.
+The frontend is always React 18 + Tailwind CSS. AI uses **gpt-5-mini on Microsoft Foundry** (with gpt-5.4-mini as the fallback if gpt-5-mini is unavailable in your region). Deploy with **azd** + **Bicep**, preferring Azure Verified Modules (AVM) with raw `Microsoft.*` resources when AVM blocks deployment. See the [`data-access-abstraction` skill](../../.github/skills/data-access-abstraction/SKILL.md) for repository pattern examples in all four languages.
 
 ## Project Structure
 
@@ -567,8 +567,8 @@ Current catalog:
 
 **Behavior:**
 - On each request, fetch all active products and inject them into the system prompt as JSON
-- Use Microsoft Foundry chat completions API with `gpt-5-mini` (fallback to `gpt-4.1` if unavailable in your region)
-- Temperature: leave at the model default — gpt-5 family models reject custom temperature values. Set `0.7` only if using the gpt-4.1 fallback.
+- Use Microsoft Foundry chat completions API with `gpt-5-mini` (fallback to `gpt-5.4-mini` if unavailable in your region)
+- Temperature: leave at the model default — both supported models are in the gpt-5 family and reject custom temperature values.
 - Max tokens: `500`
 - Pass the full message history from the request (the client maintains conversation state)
 
@@ -617,7 +617,7 @@ Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resourc
 | Azure AI Search | `br/public:avm/res/search/search-service` (Basic SKU — required for semantic ranking) + `existing` ref for `listAdminKeys()` | Semantic product search |
 | Container Apps Env | `br/public:avm/res/app/managed-environment` | Hosts API + frontend |
 | Container Apps (×2) | `br/public:avm/res/app/container-app` | API + web |
-| Microsoft Foundry | `br/public:avm/ptn/ai-ml/ai-foundry` (`baseName` max 12 chars, `aiModelDeployments` array for gpt-5-mini, `aiFoundryConfiguration.disableLocalAuth: false`) | gpt-5-mini model hosting (fallback: gpt-4.1). Outputs: `aiServicesName`, `aiProjectName`. The API authenticates with managed identity. |
+| Microsoft Foundry | `br/public:avm/ptn/ai-ml/ai-foundry` (`baseName` max 12 chars, `aiModelDeployments` array for the selected model, `aiFoundryConfiguration.disableLocalAuth: false`) | gpt-5-mini model hosting (fallback: gpt-5.4-mini). Outputs: `aiServicesName`, `aiProjectName`. The API authenticates with managed identity. |
 
 **Pattern for wiring secrets:** At subscription scope, `existing` resource references cannot use `dependsOn`, so `listAdminKeys()` calls can fail before a resource exists. Create a resource-group-scoped wrapper module for Azure AI Search, then use a deterministic `existing` reference with `dependsOn` to read its admin key. Do not extract a Foundry key or ACR admin credentials. Foundry uses managed identity, and container image pulls use each Container App's system-assigned identity with `AcrPull`.
 
@@ -629,12 +629,12 @@ Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resourc
 4. **Output `AZURE_CONTAINER_REGISTRY_ENDPOINT`** (azd reads this for image push)
 5. **Wire Azure AI Search credentials** into API container secrets using `listAdminKeys()`. Configure Foundry with `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT`; do not inject a Foundry API key into the deployed app.
 6. **Azure AI Search** — use `basic` SKU (not `free`), set `disableLocalAuth: false`, and set `semanticSearch: 'free'` to enable the semantic ranker
-7. **Microsoft Foundry** — use `br/public:avm/ptn/ai-ml/ai-foundry` with `baseName` (max 12 chars), `aiModelDeployments` array for gpt-5-mini, and `aiFoundryConfiguration.disableLocalAuth: false`. Enable system-assigned managed identity on the API container app.
+7. **Microsoft Foundry** — use `br/public:avm/ptn/ai-ml/ai-foundry` with `baseName` (max 12 chars), an `aiModelDeployments` array for gpt-5-mini or the gpt-5.4-mini fallback, and `aiFoundryConfiguration.disableLocalAuth: false`. Enable system-assigned managed identity on the API container app.
 8. **Managed identity for Foundry** — assign the `Cognitive Services User` role (`a97b65f3-24c7-4388-baec-2e87135dc908`) from the API container app's managed identity to the AI Services resource. This allows the API to authenticate to Microsoft Foundry without API keys.
 9. **Container App startup probe** — `failureThreshold` max is 10 (not 30) when using the AVM container-app module. The API app's probes target `GET /api/health`.
 10. **Container Registry** — Basic tier. **Container Apps Environment** — set `zoneRedundant: false` (required in many regions, e.g. westus).
 11. **Soft-deleted Cognitive Services** — if a previous deployment fails or is torn down, the AI Services resource may be soft-deleted and block re-creation. Run `az cognitiveservices account list-deleted` and `az cognitiveservices account purge` before redeploying
-12. **AI model version is region-specific** — use `az cognitiveservices model list --location <region> --query "[?model.name=='gpt-5-mini']"` to find the correct version before generating Bicep
+12. **AI model version is region-specific** — use `az cognitiveservices model list --location <region> --query "[?model.name=='gpt-5-mini' || model.name=='gpt-5.4-mini']"` to find the correct version before generating Bicep
 13. **ACR pull authentication** — use a two-phase deployment: provision each Container App with a public placeholder image and system-assigned identity, grant `AcrPull`, configure `configuration.registries` with the ACR login server and `identity: 'system'`, then deploy the private image. Do not assume every azd version wires the registry automatically.
 
 ### Deployment

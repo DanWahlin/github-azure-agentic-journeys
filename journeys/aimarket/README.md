@@ -667,7 +667,7 @@ gh pr checkout <PR_NUMBER>
 **🔍 Review the PR like you would any code review:**
 
 - Does the system prompt include the product catalog? (It should fetch products on each request, not hardcode them)
-- Does the code avoid setting a custom temperature? (gpt-5 family models reject non-default temperature values — only set `0.7` if you're on the gpt-4.1 fallback)
+- Does the code avoid setting a custom temperature? (Both supported models are in the gpt-5 family and reject non-default temperature values.)
 - Does the ChatWidget send the full message history, or just the latest message?
 - What happens when `AZURE_OPENAI_ENDPOINT` isn't set? (Should return 503, not crash)
 
@@ -689,10 +689,10 @@ gh pr merge <PR_NUMBER>
   <img src="./images/azure-deployment.webp" alt="Phase 4: Deploy to Azure" width="800" />
 </p>
 
-Before generating Bicep, confirm that a supported model exists in `westus`:
+Before generating the Bicep code to deploy to Azure, confirm that a supported model exists in `westus`:
 
 ```text
-az cognitiveservices model list --location westus --query "[?model.name=='gpt-5-mini' || model.name=='gpt-4.1'].{name:model.name, version:model.version}" --output table
+az cognitiveservices model list --location westus --query "[?model.name=='gpt-5-mini' || model.name=='gpt-5.4-mini'].{name:model.name, version:model.version}" --output table
 ```
 
 The command must list at least one supported model. Stop before provisioning if the result is empty.
@@ -713,18 +713,36 @@ The Phase 4 section in PLAN.md and the `container-apps-deployment` skill contain
   Set the location to westus. Log issues to issues.md.
 ```
 
-**🔍 Before deploying, review these critical details:**
+If you're asked any questions after submitting the prompt, accept the recommended answers.
 
-1. Open `infra/main.bicep`. Do both Container Apps have `azd-service-name` tags? The `api` tag lets azd map its declared service; the `web` tag lets the postdeploy hook discover the storefront. The web app is not an azd service.
-2. Is there an Azure Container Registry resource? Without it, there's nowhere to push images.
-3. Open `api/Dockerfile`. Does it use the correct base image for your language? If using Node.js with `better-sqlite3`, it needs native build tools (`python3 make g++`).
-4. Open `client/nginx.conf`. Does it ONLY have `try_files` for SPA routing? No `/api/` proxy block. (With public ingress on Container Apps, each service has its own URL, so nginx proxying to `aimarket-api` will crash because that hostname doesn't resolve.)
-5. Open `client/.dockerignore`. Does it exclude dependency directories (`node_modules/`, `.git/`)? Without this, the Docker build context is huge and may fail.
-6. Open `api/.dockerignore`. Make sure it does NOT exclude build config files like `tsconfig.json`. The Docker build needs them to compile.
-7. Open `client/Dockerfile`. Is it compatible with an ACR `linux/amd64` cloud build, and are `ARG VITE_API_URL` and `ENV VITE_API_URL=$VITE_API_URL` **before** `npm run build`?
-8. Do both Container Apps use system-assigned identity, an `AcrPull` assignment, and an explicit ACR registry entry using `identity: system` before a private image is deployed?
-9. Does the API service in `azure.yaml` set `docker.remoteBuild: true` and `platform: linux/amd64`? Without this, `azd up` can require local Docker.
-10. Does `azure.yaml` define `hooks.postdeploy` → `infra/hooks/postdeploy.js` without `shell: sh`? Without this, the storefront will load HTML but products will fail.
+After generation completes, run this pre-deployment review prompt:
+
+```
+> Perform a read-only pre-deployment review of the generated AIMarket
+  infrastructure and container configuration. Do not modify files or deploy.
+  Check these areas against Phase 4 in PLAN.md and the
+  container-apps-deployment skill:
+  - Bicep creates ACR plus API and web Container Apps with the correct
+    azd-service-name tags, system-assigned identities, AcrPull assignments,
+    and registry entries using identity: system.
+  - The API Dockerfile uses the correct runtime and includes native build tools
+    when required; its .dockerignore keeps required build configuration files.
+  - The frontend Dockerfile supports an ACR linux/amd64 build and applies
+    VITE_API_URL before npm run build; nginx.conf contains SPA routing without
+    an /api proxy; client/.dockerignore excludes dependencies and Git metadata.
+  - azure.yaml configures the API for remote linux/amd64 builds, does not
+    declare the web app as an azd service, and wires hooks.postdeploy to
+    infra/hooks/postdeploy.js without shell: sh.
+  - The postdeploy hook reads deployment values through azd, rebuilds the
+    frontend with API_URL + "/api", and updates the web Container App without
+    requiring local Docker.
+  Run any existing read-only Bicep or azd validation commands that do not create
+  resources. Return:
+  1. PRE-DEPLOYMENT STATUS: READY or NOT READY
+  2. A table with each check, PASS or FAIL, and file/line evidence
+  3. Every blocking issue and the smallest exact fix
+  Do not report READY while any required check is unresolved.
+```
 
 **💡 What you're learning:** Small deployment details can fail in very different ways. A missing API service tag prevents azd from mapping the API, while a missing web tag prevents the hook from finding the storefront. An incomplete `.dockerignore` can overwhelm the build context, and the wrong nginx configuration can stop the container. The postdeploy hook solves a separate timing problem: Vite needs `VITE_API_URL` at build time, but the API FQDN isn't known until after provisioning.
 
@@ -759,7 +777,7 @@ Do not continue until `azd up` and the required `postdeploy` hook exit successfu
 Deployment may take several minutes. If it fails, ask GitHub Copilot to help diagnose:
 
 ```
-> azd up failed with this error: [paste the error]. What's wrong?
+> azd up failed with this error: [paste the error]. What's wrong and what can be done to fix it?
 ```
 
 #### Step 3: Confirm the frontend API URL (should be automatic)
@@ -787,7 +805,7 @@ The hook must read all dynamic values through `azd env get-value`, call `az acr 
 
 </details>
 
-**💡 What you're learning:** Build-time env vars for SPAs are a classic multi-service deploy problem. Production teams use postdeploy hooks, runtime config injection, or two-stage CI/CD so the first deploy still ends green.
+**💡 What you're learning:** Build-time env vars for SPAs are a classic multi-service deploy challenge. Production teams use postdeploy hooks, runtime config injection, or two-stage CI/CD so the first deploy still ends green.
 
 #### Step 4: Verify the live deployment
 
