@@ -766,6 +766,8 @@ Start the deployment from the `journeys/aimarket` directory:
 azd up
 ```
 
+You may be asked if you'd like to check your Azure development tools. If you're asked and choose `Yes`, the command will list all recommended tools and their versions. If you know all of the required tools are installed, you can choose `No` to skip the check.
+
 Do not continue until `azd up` and the required `postdeploy` hook exit successfully.
 
 > ⏳ **While you wait:** While `azd` builds and publishes the application images and Azure provisions Container Apps, AI Search, and Foundry:
@@ -782,7 +784,15 @@ Deployment may take several minutes. If it fails, ask GitHub Copilot to help dia
 
 #### Step 3: Confirm the frontend API URL (should be automatic)
 
-The **postdeploy hook** should have rebuilt the web image with `VITE_API_URL=<API_URL>/api`. Confirm products load at `WEB_URL`. If they do not:
+The **postdeploy hook** should have rebuilt the web image with `VITE_API_URL=<API_URL>/api`. Read the deployed storefront URL:
+
+```text
+azd env get-value WEB_URL
+```
+
+Open the returned URL in your browser and confirm that the products load.
+
+If they do not, run this prompt:
 
 ```
 > The frontend can't reach the API. Run or fix infra/hooks/postdeploy.js.
