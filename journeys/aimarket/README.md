@@ -668,10 +668,12 @@ Read `journeys/aimarket/PLAN.md` in the pushed repository. Implement:
 
 ## Acceptance Criteria
 - POST /api/chat with 'What laptops do you have?' mentions UltraBook Pro 15
+- POST /api/chat can compare UltraBook Pro 15 with another catalog product without returning empty content or HTTP 500
 - Assistant does not invent products outside the catalog
 - Multi-turn conversation works (follow-up questions)
 - ChatWidget opens, sends messages, displays responses
 - If `AZURE_OPENAI_ENDPOINT` is missing, endpoint returns 503
+- If Foundry returns no usable content, endpoint returns 502 with `AI_RESPONSE_ERROR`
 ```
 
 Create the issue with one shell-neutral command:
@@ -693,8 +695,10 @@ gh pr checkout <PR_NUMBER>
 
 - Does the system prompt include the product catalog? (It should fetch products on each request, not hardcode them)
 - Does the code avoid setting a custom temperature? (Both supported models are in the gpt-5 family and reject non-default temperature values.)
+- Does it use `minimal` reasoning effort and allow at least 2,000 completion/output tokens? (GPT-5 counts hidden reasoning against this limit.)
 - Does the ChatWidget send the full message history, or just the latest message?
 - What happens when `AZURE_OPENAI_ENDPOINT` isn't set? (Should return 503, not crash)
+- What happens when Foundry returns empty content? (Should return 502 with `AI_RESPONSE_ERROR`, not a generic 500)
 
 If something's off, comment on the PR and let the agent fix it. Then merge:
 
@@ -869,11 +873,13 @@ Run the verifier from the `journeys/aimarket` directory on the host machine:
 node ../../.github/scripts/verify-aimarket.mjs
 ```
 
-The verifier must print `PASS: health, 10 products, images, search, chat, storefront, and API integration`. It checks the deployed health endpoint, product count, image responses, semantic-search results, an assistant-shaped chat response that mentions **UltraBook Pro 15**, the storefront response, and the production API host embedded in the frontend assets.
+The verifier must print `PASS: health, 10 products, images, search, chat, storefront, and API integration`. It checks the deployed health endpoint, product count, image responses, semantic-search results, an assistant-shaped response to a comparison prompt that mentions **UltraBook Pro 15**, the storefront response, and the production API host embedded in the frontend assets. The comparison prompt is intentional: it verifies that GPT-5 has enough shared reasoning/output capacity to produce visible content.
 
 Open the value returned by `azd env get-value WEB_URL` in your browser and confirm that the product grid displays 10 products. If the page reports `Failed to load products`, return to Step 3.
 
 Leave **AI Search** enabled and enter `something lightweight for travel`. Confirm that the grid includes **UltraBook Pro 15** and displays **AI-powered results**. Disable AI Search and confirm that a literal name or tag search still filters the grid.
+
+Open the shopping assistant and ask: `Compare the UltraBook Pro 15 with the Wireless Noise-Canceling Headphones for travel.` Confirm that the typing indicator is replaced by a visible answer and the request does not return HTTP 500.
 
 Right-click and select `Inspect` from the page to open the browser's developer tools. Locate the network tab and confirm that product requests target `https://<api-host>/api/products`, not the storefront-relative `/api/products` path. With AI Search enabled, confirm that searching sends `POST https://<api-host>/api/products/search`.
 
@@ -966,6 +972,20 @@ java --version    # Eclipse Temurin JDK (need 25 LTS or later)
 ```
 > The shopping assistant isn't mentioning specific products. 
   Check that the chat endpoint includes the product catalog in the system prompt.
+```
+
+### Chat assistant shows typing and then returns HTTP 500
+
+**Cause:** GPT-5 can spend the configured completion budget on hidden reasoning before producing visible content. If the implementation uses a 500-token limit, comparison prompts can return an empty model message that becomes a generic server error.
+
+**Fix:** Set GPT-5 reasoning effort to `minimal`, allow at least 2,000 completion/output tokens, and map an empty model response to HTTP 502 with code `AI_RESPONSE_ERROR`. Redeploy the API and retry a comparison prompt.
+
+```text
+> The shopping assistant returns HTTP 500 after the typing indicator.
+  Check the Foundry request against the Shopping Assistant requirements in
+  PLAN.md, including GPT-5 reasoning effort, completion/output token budget,
+  and empty-response error handling. Fix it and add a comparison-query
+  regression test.
 ```
 
 ### Frontend loads but products don't appear

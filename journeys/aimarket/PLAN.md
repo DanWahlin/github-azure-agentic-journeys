@@ -301,6 +301,7 @@ All errors: `{ "error": { "code": "ERROR_CODE", "message": "...", "details": [] 
 | 400 | `DUPLICATE_EMAIL` | Email already registered |
 | 400 | `INSUFFICIENT_INVENTORY` | Not enough stock |
 | 404 | `NOT_FOUND` | Resource doesn't exist |
+| 502 | `AI_RESPONSE_ERROR` | Foundry returned no usable assistant content |
 | 500 | `INTERNAL_ERROR` | Unexpected error |
 
 ### Seed Data
@@ -587,8 +588,10 @@ Current catalog:
 - On each request, fetch all active products and inject them into the system prompt as JSON
 - Use Microsoft Foundry chat completions API with `gpt-5-mini` (fallback to `gpt-5.4-mini` if unavailable in your region)
 - Temperature: leave at the model default — both supported models are in the gpt-5 family and reject custom temperature values.
-- Max tokens: `500`
+- Reasoning effort: `minimal` — product lookup and comparison are latency-sensitive assistant tasks that do not need deep reasoning.
+- Max completion/output tokens: at least `2000`. This limit includes hidden reasoning tokens for GPT-5 models; a 500-token limit can be exhausted before the model emits visible content.
 - Pass the full message history from the request (the client maintains conversation state)
+- Treat an empty or whitespace-only model response as an upstream failure. Return HTTP 502 with code `AI_RESPONSE_ERROR` and a user-safe message instead of exposing it as a generic 500.
 
 #### Shopping Assistant Environment Variables
 
@@ -666,4 +669,4 @@ Prefer **Azure Verified Modules (AVM)** from `br/public:avm/...` for all resourc
 
 ### Deployment Acceptance Criteria
 
-Deployment is complete only when every required check passes: `/api/health`, exactly 10 products, successful product images, non-empty semantic search, an assistant-shaped chat response to **What laptops do you have?** that mentions **UltraBook Pro 15**, storefront HTTP 200, and the production API host in the built frontend assets. The journey README owns the command that executes these deployment checks. After completing the README assignment, run `azd down --force --purge`.
+Deployment is complete only when every required check passes: `/api/health`, exactly 10 products, successful product images, non-empty semantic search, an assistant-shaped response to a product-comparison prompt that mentions **UltraBook Pro 15**, storefront HTTP 200, and the production API host in the built frontend assets. Use a comparison prompt rather than only a simple lookup so verification catches GPT-5 reasoning budgets that can be exhausted before visible content is produced. The journey README owns the command that executes these deployment checks. After completing the README assignment, run `azd down --force --purge`.
