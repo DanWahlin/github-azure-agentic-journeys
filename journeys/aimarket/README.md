@@ -549,17 +549,31 @@ This one you'll do interactively so you can see how search integration works.
   section in PLAN.md for the full spec. Do not provision Azure resources.
   Add a POST /api/products/search endpoint that uses SQLite fallback search
   when Azure Search settings are absent. When settings are present, create or
-  update the search index, use semantic ranking, and provide a script to push
-  products to the index. Use the Azure AI Search SDK recommended in PLAN.md
-  for my language.
+  update the search index, use semantic ranking, and add a script to push products
+  to the index. Wire the React SearchBar's AI Search
+  toggle to this endpoint and show "AI-powered results" when it is active.
+  Preserve client-side name and tag filtering when AI Search is disabled.
+  Use the Azure AI Search SDK recommended in PLAN.md for my language.
 ```
 
 **🔍 Inspect the search service code:**
 
-Open the search service file and inspect it directly or ask Copilot about it. Key things to understand:
-- The search index has a **semantic configuration**. This is what makes "lightweight for travel" match "UltraBook Pro" even though those words don't appear together
-- The endpoint does a **two-step process**: search returns IDs and scores, then full product details come from your database
-- There's a **fallback**: when Azure AI Search credentials aren't set, it uses a SQLite LIKE query instead
+The generated file names depend on your selected API language. Ask Copilot to locate the implementation:
+
+```
+> Locate the generated AIMarket files that implement:
+  - POST /api/products/search
+  - Azure AI Search index creation and semantic configuration
+  - the SQLite fallback search
+  - the React SearchBar and its AI Search toggle
+  Do not modify files. Return a table with each file path and its purpose.
+```
+
+Open the files Copilot identifies. Key things to understand:
+- The search index has a **semantic configuration**. This is what makes "lightweight for travel" match "UltraBook Pro" even though those words don't appear together.
+- The endpoint does a **two-step process**: search returns IDs and scores, then full product details come from your database.
+- There's a **fallback**: when Azure AI Search credentials aren't set, it uses a SQLite LIKE query instead.
+- The React SearchBar has an **AI Search** toggle. When enabled, it calls `POST /api/products/search` and labels the response as "AI-powered results"; when disabled, it retains client-side name and tag filtering.
 
 Start the API server again:
 
@@ -567,14 +581,14 @@ Start the API server again:
 npm start
 ```
 
-Now call the search endpoint directly.
+Now call the search endpoint directly. This bypasses the React toggle, which only chooses between client-side filtering and this endpoint. The API automatically uses SQLite fallback when Azure AI Search settings are absent and Azure AI Search when they are configured.
 
 **Mac, Linux, or Git Bash:**
 
 ```bash
 curl --fail --request POST http://localhost:3000/api/products/search \
   --header "Content-Type: application/json" \
-  --data '{"query":"something lightweight for travel"}'
+  --data '{"query":"laptop"}'
 ```
 
 **PowerShell:**
@@ -583,10 +597,10 @@ curl --fail --request POST http://localhost:3000/api/products/search \
 Invoke-RestMethod -Method Post `
   -Uri http://localhost:3000/api/products/search `
   -ContentType application/json `
-  -Body '{"query":"something lightweight for travel"}'
+  -Body '{"query":"laptop"}'
 ```
 
-Without Azure AI Search credentials, the endpoint should return fallback SQLite results. When credentials are configured, confirm that the response includes **UltraBook Pro 15**. Also try `"gift for a kid"` and confirm the semantic results include the castle set or another valid toy.
+The local fallback should return **UltraBook Pro 15** for `"laptop"`. After Azure AI Search is configured in Phase 4, try `"something lightweight for travel"` and confirm that semantic ranking also returns **UltraBook Pro 15**.
 
 **💡 What you're learning:** The same search endpoint can use SQLite fallback locally and Azure AI Search after deployment. Azure AI Search handles indexing and semantic reranking, while the API combines ranked search results with the full product records stored in the database.
 
@@ -725,6 +739,11 @@ After generation completes, run this pre-deployment review prompt:
   - Bicep creates ACR plus API and web Container Apps with the correct
     azd-service-name tags, system-assigned identities, AcrPull assignments,
     and registry entries using identity: system.
+  - Bicep implements ACR access as separate deployment phases? Each bootstrap 
+    Container App must use a public placeholder and system-assigned identity with 
+    no ACR registry entry. After `AcrPull`  is assigned to that identity, a later 
+    module must update the same app with the ACR login server and `identity: system`. 
+    A single module that declares both the new identity and registry is not a two-phase deployment.
   - The API Dockerfile uses the correct runtime and includes native build tools
     when required; its .dockerignore keeps required build configuration files.
   - The frontend Dockerfile supports an ACR linux/amd64 build and applies
@@ -811,7 +830,7 @@ The web Container App is not declared as an azd service. For a storefront-only r
 node infra/hooks/postdeploy.js
 ```
 
-The hook must read all dynamic values through `azd env get-value`, call `az acr build` and `az containerapp update` with argument arrays, and verify that the updated Container App reaches `Running` before exiting. The host must not need Docker or Buildx.
+The hook must read all dynamic values through `azd env get-value`, call `az acr build` and `az containerapp update` with argument arrays, and verify that the expected revision is healthy and provisioned before exiting. With `minReplicas: 0`, either `Running` or `ScaledToZero` is ready; requiring only `Running` causes a false timeout. The hook's storefront request activates a scale-to-zero revision. The host must not need Docker or Buildx.
 
 </details>
 
@@ -829,7 +848,9 @@ The verifier must print `PASS: health, 10 products, images, search, chat, storef
 
 Open the value returned by `azd env get-value WEB_URL` in your browser and confirm that the product grid displays 10 products. If the page reports `Failed to load products`, return to Step 3.
 
-In the browser Network panel, confirm that product requests target `https://<api-host>/api/products`, not the storefront-relative `/api/products` path.
+Leave **AI Search** enabled and enter `something lightweight for travel`. Confirm that the grid includes **UltraBook Pro 15** and displays **AI-powered results**. Disable AI Search and confirm that a literal name or tag search still filters the grid.
+
+Right-click and select `Inspect` from the page to open the browser's developer tools. Locate the network tab and confirm that product requests target `https://<api-host>/api/products`, not the storefront-relative `/api/products` path. With AI Search enabled, confirm that searching sends `POST https://<api-host>/api/products/search`.
 
 #### 🧪 Try it yourself: Add an endpoint
 

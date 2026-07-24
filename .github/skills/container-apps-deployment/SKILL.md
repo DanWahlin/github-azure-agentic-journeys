@@ -10,7 +10,7 @@ description: |
 
 Supplements the official `azure-prepare` plugin skill with additional gotchas for Container Apps deployments — zone redundancy, azure.yaml, and SPA frontend patterns.
 
-> **📖 ACR authentication:** Use a deterministic two-phase pattern. Provision Container Apps with a public placeholder image and system-assigned identity, grant `AcrPull`, then configure `configuration.registries` with the ACR login server and `identity: 'system'` before deploying private images. Some azd versions call `az containerapp registry set` automatically and some do not. Never assume that implicit step occurred; verify the registry configuration before the first private-image deployment.
+> **📖 ACR authentication:** Use a deterministic two-phase pattern with separate deployment modules. The bootstrap module provisions each Container App with a public placeholder image and system-assigned identity but no `configuration.registries` entry. Grant that principal `AcrPull`, then make a later module depend on the role assignment and update the same app with the ACR login server and `identity: 'system'` before deploying private images. A single module that declares both a new system identity and registry is not two-phase and can fail with an ACR token-exchange 401. Some azd versions call `az containerapp registry set` automatically and some do not. Never assume that implicit step occurred; verify the registry configuration before the first private-image deployment.
 
 ## Region-Specific Gotchas
 
@@ -91,7 +91,7 @@ The JavaScript hook must:
 3. Find the web Container App by its `azd-service-name=web` tag.
 4. Run `az acr build` with `--platform linux/amd64`, a unique image tag, and `--build-arg VITE_API_URL=<API_URL>/api`.
 5. Update the web Container App to use the cloud-built image.
-6. Wait until the new revision is ready, then verify the storefront can load products.
+6. Wait until the expected revision is healthy and provisioned, then verify the storefront can load products. When `minReplicas` is `0`, accept both `Running` and `ScaledToZero`; requiring only `Running` causes a false timeout before the verification request can activate the revision.
 
 Call external tools with `execFileSync()` or `spawnSync()` and argument arrays. Do not concatenate a shell command, use `chmod`, or depend on Bash, `cut`, `grep`, or `date`. The static Windows PowerShell launcher described above is the only platform-specific exception; all CLI arguments must travel in the JSON environment payload. Windows PowerShell cannot losslessly pass a literal double quote inside a native argument, so reject it for every Windows target. For `.cmd`/`.bat`, also reject `&`, `|`, `<`, `>`, `^`, `%`, `!`, `(`, `)`, and CR/LF. Rewrite unsafe arguments or use attached files; native `.exe` targets preserve the remaining metacharacters. Use JavaScript for path handling, timestamps, retries, and JSON parsing.
 
