@@ -2,6 +2,8 @@
 
 AIMarket is a marketplace API and React storefront with semantic search and an AI shopping assistant. GitHub Copilot uses this document as the implementation spec.
 
+README prompts use the exact section names in this document as stable references. If a section is renamed, update its README references in the same change.
+
 **Out of scope:** No auth, no payments, no image upload, no email, no admin dashboard, no rate limiting, no WebSockets.
 
 ---
@@ -25,15 +27,15 @@ The frontend is always React 18 + Tailwind CSS. AI uses **gpt-5-mini on Microsof
 aimarket/
 ├── api/          # Your chosen language
 ├── client/       # React frontend (Vite + Tailwind)
-├── infra/        # Bicep with AVM modules (Phase 4)
-└── azure.yaml    # azd configuration (Phase 4)
+├── infra/        # Bicep with AVM modules (Azure deployment)
+└── azure.yaml    # azd configuration (Azure deployment)
 ```
 
 The API must follow the **repository pattern** (interfaces → implementations → factory) so routes stay independent of the data layer. SQLite is the default implementation. A Cosmos DB or PostgreSQL deployment also requires its repository implementation, database infrastructure, credentials, and `DATA_PROVIDER` configuration.
 
 ---
 
-## Phase 1: API
+## API
 
 Build the API with a local SQLite database. No Azure services needed yet.
 
@@ -355,7 +357,7 @@ Use Unsplash image URLs for `imageUrl`. Format: `https://images.unsplash.com/pho
 
 ---
 
-## Phase 2: Frontend
+## Frontend
 
 Build the React storefront. The API must be running for the frontend to work.
 
@@ -387,23 +389,33 @@ Build the React storefront. The API must be running for the frontend to work.
 
 ### Components
 
-#### SearchBar
+#### SearchBar: Client-Side Filtering
 
 - Text input with placeholder "Search products..."
 - Filters the product grid as the user types (debounced, 300ms)
-- After Phase 3: add a toggle for "AI Search" that uses the semantic search endpoint instead of client-side filtering
 
-#### ChatWidget
+#### SearchBar: AI Search Integration
+
+- Add a toggle for "AI Search" that uses the semantic search endpoint instead of client-side filtering
+
+#### ChatWidget: Shared Layout
 
 - Floating button in the bottom-right corner (collapsed by default)
 - Click to expand a chat panel (400px wide, 500px tall)
-- **In Phase 2:** Show a placeholder message: "Shopping assistant coming soon! (Phase 3)". Do not wire up the API.
-- **In Phase 3:** Wire up to `POST /api/chat`:
-  - Message list showing conversation history (user messages right-aligned, assistant messages left-aligned)
-  - Text input at the bottom with a send button
-  - Sends full message history to `POST /api/chat` on each message
-  - Shows a typing indicator while waiting for a response
-  - Initial assistant message on open: "Hi! I'm the AIMarket assistant. I can help you find products, compare options, or answer questions about our catalog. What are you looking for?"
+
+#### ChatWidget: Placeholder State
+
+- Show a placeholder message: "Shopping assistant coming soon!"
+- Do not wire up the API
+
+#### ChatWidget: AI Integration
+
+- Wire up to `POST /api/chat`
+- Message list showing conversation history (user messages right-aligned, assistant messages left-aligned)
+- Text input at the bottom with a send button
+- Sends full message history to `POST /api/chat` on each message
+- Shows a typing indicator while waiting for a response
+- Initial assistant message on open: "Hi! I'm the AIMarket assistant. I can help you find products, compare options, or answer questions about our catalog. What are you looking for?"
 
 #### CartIcon
 
@@ -435,13 +447,13 @@ export async function sendChatMessage(messages: ChatMessage[]): Promise<string>
 
 ---
 
-## Phase 3: AI Features
+## AI Features
 
 Add semantic search and a shopping assistant.
 
-**Local development and deployment:** Implement endpoints with graceful fallbacks (SQLite LIKE for search; chat returns 503 without a Foundry endpoint) so Phase 3 works without long-lived standalone AI resources. **Phase 4 provisions Azure AI Search + Microsoft Foundry**, injects the Search key, and configures managed-identity authentication for Foundry. You can use temporary local credentials to test AI before deployment, but don't create a second permanent Search/Foundry pair if Phase 4 will provision them.
+**Local development and deployment:** Implement endpoints with graceful fallbacks (SQLite LIKE for search; chat returns 503 without a Foundry endpoint) so the AI features work without long-lived standalone AI resources. The **Azure Deployment** section provisions Azure AI Search + Microsoft Foundry, injects the Search key, and configures managed-identity authentication for Foundry. You can use temporary local credentials to test AI before deployment, but don't create a second permanent Search/Foundry pair when the Azure deployment will provision them.
 
-### AI Feature 1: Semantic Product Search
+### Semantic Product Search
 
 Replace keyword filtering with semantic search that understands intent.
 
@@ -521,7 +533,13 @@ Only `query` is required. `category`, `minPrice`, and `maxPrice` are optional fi
 - When enabled, search calls `POST /api/products/search` instead of client-side filtering
 - Show a small label on results: "AI-powered results" when semantic search is active
 
-### AI Feature 2: Shopping Assistant
+#### Semantic Search Environment Variables
+
+`AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_KEY`, and `AZURE_SEARCH_INDEX` (default: `aimarket-products`).
+
+When Azure AI Search variables are not set, search falls back to SQLite LIKE queries.
+
+### Shopping Assistant
 
 A conversational agent that helps users find products.
 
@@ -572,15 +590,15 @@ Current catalog:
 - Max tokens: `500`
 - Pass the full message history from the request (the client maintains conversation state)
 
-### Environment Variables (Phase 3)
+#### Shopping Assistant Environment Variables
 
-`AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_KEY`, `AZURE_SEARCH_INDEX` (default: `aimarket-products`), `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT` (default: `gpt-5-mini`), and optional `AZURE_OPENAI_KEY` for local testing.
+`AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT` (default: `gpt-5-mini`), and optional `AZURE_OPENAI_KEY` for local testing.
 
-When Azure AI Search variables are not set, search falls back to SQLite LIKE queries. When `AZURE_OPENAI_ENDPOINT` is not set, `/api/chat` returns 503. In Azure, authenticate to Foundry with the API Container App's managed identity and the `Cognitive Services User` role. For optional local testing, use `AZURE_OPENAI_KEY` as a fallback.
+When `AZURE_OPENAI_ENDPOINT` is not set, `/api/chat` returns 503. In Azure, authenticate to Foundry with the API Container App's managed identity and the `Cognitive Services User` role. For optional local testing, use `AZURE_OPENAI_KEY` as a fallback.
 
 ---
 
-## Phase 4: Deploy to Azure
+## Azure Deployment
 
 Deploy the full stack to Azure Container Apps using Bicep with AVM modules and azd.
 

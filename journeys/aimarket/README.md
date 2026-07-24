@@ -263,7 +263,7 @@ Start with the data models rather than the whole API. This lets you inspect the 
 > Read the PLAN.md file in this directory. Create a Node.js/Express with TypeScript
   project in an api/ subdirectory (or my chosen stack if I say otherwise).
   Initialize the project with the standard build files.
-  Then create just the data models from the Phase 1 spec: Product, Order 
+  Then create just the data models from the "Data Models" section: Product, Order
   (with OrderItem and ShippingAddress), and User. Include validation functions 
   for each model. Use the recommended framework from the Choose Your Stack 
   table in the spec. If you encounter any issues, log them to issues.md.
@@ -272,7 +272,7 @@ Start with the data models rather than the whole API. This lets you inspect the 
 **🔍 Inspect what was generated:**
 
 Open the Product model file. Look for:
-- Does the `Product` type match the PLAN.md fields? (id, name, description, price, category, tags, etc.)
+- Does the `Product` type match the PLAN.md "Product" section? (id, name, description, price, category, tags, etc.)
 - Does validation check that `price > 0` and `category` is from the allowed list?
 - Are the constraints right? (name 1-200 chars, inventory >= 0)
 
@@ -280,7 +280,8 @@ If anything's off, tell GitHub Copilot:
 
 ```
 > The Product validation doesn't check that category is one of the allowed 
-  values from the spec. Fix it to reject invalid categories.
+  values in the "Product" section of PLAN.md. Fix it to reject invalid
+  categories.
 ```
 
 **💡 What you're learning:** A spec gives GitHub Copilot structure, but it doesn't remove the need for review. Compare the generated types and validation rules with the source, especially around constraints and edge cases.
@@ -290,12 +291,12 @@ If anything's off, tell GitHub Copilot:
 Now add the database layer. The spec calls for a repository pattern so you can swap SQLite for Cosmos DB later without changing route code.
 
 ```
-> Read the Data Access Layer section in PLAN.md. Create the repository pattern 
+> Read the "Data Access Layer" section in PLAN.md. Create the repository pattern
   for [YOUR LANGUAGE]:
   1. Repository interfaces/protocols for Product, Order, and User
   2. SQLite implementation using the recommended library from the Choose Your Stack table
   3. A factory that reads DATA_PROVIDER env var (default: sqlite)
-  4. Seed data from the PLAN.md tables with exact IDs
+  4. Seed data from the "Seed Data" section with exact IDs
   Store tags as JSON strings in SQLite and parse them on read.
 ```
 
@@ -318,10 +319,10 @@ Open the SQLite implementation file and look for:
 Now add the route handlers that use the repository interfaces.
 
 ```
-> Create route handlers for products, orders, users, and chat. Each should 
+> Create route handlers for products, orders, and users. Each should
   receive a DataStore (repository) parameter — never import the database 
-  directly. Follow the endpoint specs in PLAN.md Phase 1. Also create a 
-  global error handler matching the error format from the spec, and the 
+  directly. Follow the "API Endpoints" section in PLAN.md. Also create a
+  global error handler matching the "Error Format" section, and the
   main entry point with CORS, JSON body parsing, a GET /api/health endpoint, 
   and all routes mounted at /api. Configure the API to listen on 0.0.0.0,
   use port 3000 by default, and honor the PORT environment variable. For the
@@ -438,11 +439,15 @@ Run the following prompt. Ensure that you replace `[YOUR API PORT]` with the por
 ```
 > Create a React frontend for AIMarket in a client/ directory using Vite, 
   TypeScript, and Tailwind CSS. The frontend is always React regardless of 
-  your API language. Read the Phase 2 spec in PLAN.md. Build:
-  - Product grid page with search bar and category filter buttons
+  your API language. Read the "Frontend" section in PLAN.md. Build:
+  - Product grid page with the "SearchBar: Client-Side Filtering" behavior and
+    category filter buttons
   - Product detail page with Add to Cart
   - Shopping cart page with Place Order
-  - A ChatWidget component that shows "Coming in Phase 3" as a stub
+  - A ChatWidget component that follows the "ChatWidget: Shared Layout" and
+    "ChatWidget: Placeholder State" sections in PLAN.md
+  Do not implement "SearchBar: AI Search Integration" or
+  "ChatWidget: AI Integration" yet.
   Set up a Vite proxy so /api requests go to http://localhost:[YOUR API PORT].
 ```
 
@@ -545,15 +550,18 @@ This phase has two goals: integrate Azure AI services and delegate a well-scoped
 This one you'll do interactively so you can see how search integration works.
 
 ```
-> Add Azure AI Search integration to AIMarket. Read the "AI Feature 1" 
-  section in PLAN.md for the full spec. Do not provision Azure resources.
+> Add Azure AI Search integration to AIMarket. Read the
+  "Semantic Product Search" section in PLAN.md, including
+  "Semantic Search Environment Variables," and the
+  "SearchBar: AI Search Integration" section for the full spec.
+  Do not provision Azure resources.
   Add a POST /api/products/search endpoint that uses SQLite fallback search
   when Azure Search settings are absent. When settings are present, create or
   update the search index, use semantic ranking, and add a script to push products
   to the index. Wire the React SearchBar's AI Search
   toggle to this endpoint and show "AI-powered results" when it is active.
   Preserve client-side name and tag filtering when AI Search is disabled.
-  Use the Azure AI Search SDK recommended in PLAN.md for my language.
+  Use the official Azure AI Search SDK for my language.
 ```
 
 **🔍 Inspect the search service code:**
@@ -600,7 +608,7 @@ Invoke-RestMethod -Method Post `
   -Body '{"query":"laptop"}'
 ```
 
-The local fallback should return **UltraBook Pro 15** for `"laptop"`. After Azure AI Search is configured in Phase 4, try `"something lightweight for travel"` and confirm that semantic ranking also returns **UltraBook Pro 15**.
+The local fallback should return **UltraBook Pro 15** for `"laptop"`. After Azure AI Search is configured in Phase 4, you'll be able to try like `"something lightweight for travel"` and confirm that semantic ranking also returns **UltraBook Pro 15**.
 
 **💡 What you're learning:** The same search endpoint can use SQLite fallback locally and Azure AI Search after deployment. Azure AI Search handles indexing and semantic reranking, while the API combines ranked search results with the full product records stored in the database.
 
@@ -608,31 +616,33 @@ The local fallback should return **UltraBook Pro 15** for `"laptop"`. After Azur
 
 The shopping assistant is a good candidate for cloud delegation, but delegation is optional. You can implement it interactively in your current session or let the GitHub Copilot cloud agent work asynchronously. Choose one of the following options.
 
-**Why consider delegation?** The shopping assistant is well-scoped (one endpoint + one component) with clear acceptance criteria in the spec. That makes it a good candidate for async delegation since you don't need to be in the loop for every decision.
+**Why consider delegation?** The shopping assistant is well-scoped (one endpoint + one component) with clear implementation requirements in the spec. That makes it a good candidate for async delegation since you don't need to be in the loop for every decision.
 
 **Option A: Continue in your current session**
 
 ```
-> Create the AI shopping assistant for AIMarket. Read the "AI Feature 2:
-  Shopping Assistant" section in PLAN.md. Implement the POST /api/chat endpoint
-  using the Microsoft Foundry SDK for my language. Fetch all products and
-  include them in the system prompt, return HTTP 503 when the Foundry endpoint
-  is not configured, and add the ChatWidget component to the React frontend.
-  Use the Phase 3 acceptance criteria in PLAN.md to verify the implementation.
+> Create the AI shopping assistant for AIMarket. Read the
+  "Shopping Assistant" section in PLAN.md and implement its
+  POST /api/chat requirements using the Microsoft Foundry SDK for my language.
+  Read the "ChatWidget: Shared Layout," "ChatWidget: AI Integration," and
+  "Shopping Assistant Environment Variables" sections and implement their
+  requirements. Verify the implementation against all referenced PLAN.md
+  requirements.
 ```
 
 **Option B: Delegate from your GitHub Copilot session**
 
-If your GitHub Copilot subscription supports it (e.g. Copilot CLI `/delegate`), delegate asynchronously and have the cloud agent implement the shopping assistant while you take a break or work on another task. The agent will open a pull request when it's done, and you can review it like any other PR.
+If you have access to GitHub cloud agent, you can delegate asynchronously and have the cloud agent implement the shopping assistant while you take a break or work on another task. The agent will open a pull request when it's done, and you can review it like any other PR.
 
 ```
 > /delegate Create the AI shopping assistant for AIMarket. Read
-  journeys/aimarket/PLAN.md in the pushed repository for the full spec — see
-  "AI Feature 2: Shopping Assistant"
-  under Phase 3. Implement the POST /api/chat endpoint using the Microsoft Foundry
-  SDK for my language. The endpoint should fetch all products and include them 
-  in the system prompt. Also add a ChatWidget component to the React frontend. 
-  Use the acceptance criteria in PLAN.md Phase 3 to verify your work.
+  journeys/aimarket/PLAN.md in the pushed repository. Implement the requirements
+  in "Shopping Assistant," including POST /api/chat. Implement the frontend
+  requirements in "ChatWidget: Shared Layout" and
+  "ChatWidget: AI Integration." Follow
+  "Shopping Assistant Environment Variables" for local and deployed
+  configuration. Verify the implementation against all referenced PLAN.md
+  requirements.
 ```
 
 **Option C: Create an issue and assign GitHub Copilot cloud agent**
@@ -645,12 +655,13 @@ Add the AI shopping assistant to AIMarket.
 
 ## Spec
 Read `journeys/aimarket/PLAN.md` in the pushed repository. Implement:
-1. **POST /api/chat** endpoint (see 'AI Feature 2: Shopping Assistant' in Phase 3)
+1. **POST /api/chat** endpoint (see 'Shopping Assistant')
    - Uses the Microsoft Foundry SDK for this project's language
-   - Fetches all products and injects them into the system prompt
+   - Fetches all active products and injects them into the system prompt
    - Accepts a messages array for conversation history
    - Returns the assistant's response
-2. **ChatWidget** React component (see Phase 2 ChatWidget spec)
+2. **ChatWidget** React component (see 'ChatWidget: Shared Layout' and
+   'ChatWidget: AI Integration')
    - Floating button bottom-right, expands to chat panel
    - Message list + text input
    - Sends full history with each request
@@ -660,7 +671,7 @@ Read `journeys/aimarket/PLAN.md` in the pushed repository. Implement:
 - Assistant does not invent products outside the catalog
 - Multi-turn conversation works (follow-up questions)
 - ChatWidget opens, sends messages, displays responses
-- If Azure credentials are missing, endpoint returns 503
+- If `AZURE_OPENAI_ENDPOINT` is missing, endpoint returns 503
 ```
 
 Create the issue with one shell-neutral command:
@@ -691,9 +702,23 @@ If something's off, comment on the PR and let the agent fix it. Then merge:
 gh pr merge <PR_NUMBER>
 ```
 
-> **If the agent's PR doesn't work:** After 2 rounds of feedback, close the PR and implement it yourself interactively using the "AI Feature 2: Shopping Assistant" section in PLAN.md. Not every task is a good fit for delegation, and that's a lesson too.
+> **If the agent's PR has an issue:** After 2 rounds of feedback, close the PR and implement it yourself interactively using the "Shopping Assistant," "Shopping Assistant Environment Variables," "ChatWidget: Shared Layout," and "ChatWidget: AI Integration" sections in PLAN.md. Not every task is a good fit for delegation, and that's a lesson too.
 
 **💡 What you're learning:** Cloud-agent work starts with a well-scoped issue and ends with your review. Self-contained tasks work best because the agent can read the spec and prove its work against testable acceptance criteria. Use interactive prompting when you need to steer each decision; delegate when the boundaries are already clear.
+
+#### Step 3: Review the completed application
+
+Before generating deployment infrastructure, review the complete AIMarket implementation. If you delegated the shopping assistant, review the PR and merge it (you can ask GitHub Copilot to review a PR), then pull the latest changes to your local machine.
+
+```text
+> /review Review the completed AIMarket implementation against PLAN.md.
+  Identify missing or incorrectly implemented requirements and correctness,
+  security, or reliability issues.
+```
+
+Address any high-confidence correctness, security, or reliability findings before continuing.
+
+> **💡 Get multiple perspectives:** Run `/rubber-duck` with the same review request against multiple models. Compare their findings and act on issues that are specific, reproducible, and relevant to the requirements in `PLAN.md`.
 
 ---
 
@@ -713,10 +738,10 @@ The command must list at least one supported model. Stop before provisioning if 
 
 #### Step 1: Generate infrastructure
 
-The Phase 4 section in PLAN.md and the `container-apps-deployment` skill contain the infrastructure requirements used in this journey, including resources, Dockerfiles, and the postdeploy hook. That context keeps the deployment prompt short:
+The "Azure Deployment" section in PLAN.md and the `container-apps-deployment` skill contain the infrastructure requirements used in this journey, including resources, Dockerfiles, and the postdeploy hook. That context keeps the deployment prompt short:
 
 ```
-> Read the Phase 4 section in PLAN.md and the container-apps-deployment skill
+> Read the "Azure Deployment" section in PLAN.md and the container-apps-deployment skill
   at ../../.github/skills/container-apps-deployment/SKILL.md. Following the
   Containerization, Azure Resources, Bicep Requirements, and Deployment
   sections exactly, create everything needed to deploy AIMarket to Azure
@@ -734,7 +759,7 @@ After generation completes, run this pre-deployment review prompt:
 ```
 > Perform a read-only pre-deployment review of the generated AIMarket
   infrastructure and container configuration. Do not modify files or deploy.
-  Check these areas against Phase 4 in PLAN.md and the
+  Check these areas against the "Azure Deployment" section in PLAN.md and the
   container-apps-deployment skill:
   - Bicep creates ACR plus API and web Container Apps with the correct
     azd-service-name tags, system-assigned identities, AcrPull assignments,
