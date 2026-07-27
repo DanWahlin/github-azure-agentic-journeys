@@ -538,6 +538,8 @@ Only `query` is required. `category`, `minPrice`, and `maxPrice` are optional fi
 
 `AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_KEY`, and `AZURE_SEARCH_INDEX` (default: `aimarket-products`).
 
+There is deliberately no api-version variable. The chat client calls the versionless `/openai/v1` API, so do not add `AZURE_OPENAI_API_VERSION` here or to the Container App environment.
+
 When Azure AI Search variables are not set, search falls back to SQLite LIKE queries.
 
 ### Shopping Assistant
@@ -587,8 +589,10 @@ Current catalog:
 **Behavior:**
 - On each request, fetch all active products and inject them into the system prompt as JSON
 - Use Microsoft Foundry chat completions API with `gpt-5-mini` (fallback to `gpt-5.4-mini` if unavailable in your region)
+- Call the versionless `/openai/v1` API. Use the OpenAI client with a base URL of `<AZURE_OPENAI_ENDPOINT>/openai/v1/` (tolerate a trailing slash on the endpoint) and send the deployment name as `model`. Do **not** use a dated `api-version` and do **not** use an Azure-specific client that requires one: the dated GA version (`2024-10-21`) rejects `reasoning_effort`, and the v1 API has been GA since August 2025.
 - Temperature: leave at the model default — both supported models are in the gpt-5 family and reject custom temperature values.
 - Reasoning effort: `minimal` — product lookup and comparison are latency-sensitive assistant tasks that do not need deep reasoning.
+- If a deployment rejects `reasoning_effort` anyway (`gpt-5-chat` variants are not reasoning models), retry the request once without the parameter rather than failing the conversation.
 - Max completion/output tokens: at least `2000`. This limit includes hidden reasoning tokens for GPT-5 models; a 500-token limit can be exhausted before the model emits visible content.
 - Pass the full message history from the request (the client maintains conversation state)
 - Treat an empty or whitespace-only model response as an upstream failure. Return HTTP 502 with code `AI_RESPONSE_ERROR` and a user-safe message instead of exposing it as a generic 500.
