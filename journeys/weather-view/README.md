@@ -327,7 +327,7 @@ Run the app and check the local acceptance criteria manually. Search for your ci
 ### Phase 2: Test, Verify, and Refine (~35–50 min)
 
 <p align="center">
-  <img src="./images/weather-view-verify.webp" alt="Testing WeatherView accessibility, resilience, and forecast behavior" width="800" />
+  <img src="./images/weather-view-verify.webp" alt="Testing WeatherView accessibility, resilience, and forecast behavior on a mobile viewport" width="360" />
 </p>
 
 #### Step 1: Generate targeted tests
@@ -589,6 +589,10 @@ Run all tests and both deployed verifiers again before accepting the change.
 <summary><strong>How Agentic AI is Used</strong></summary>
 
 ## How Agentic AI is Used
+
+<p align="center">
+  <img src="./images/weather-view-agentic-workflow.webp" alt="WeatherView agentic workflow: generate, inspect, test, refine, and deploy" width="800" />
+</p>
 
 This journey uses agentic AI in several distinct roles:
 
