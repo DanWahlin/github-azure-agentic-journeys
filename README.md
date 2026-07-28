@@ -127,28 +127,28 @@ Each journey is self-contained — jump into whichever one fits what you want to
 
 | Journey | What you'll do | Cost if left running |
 |---------|----------------|----------------------|
+| [WeatherView](./journeys/weather-view/README.md) | **Start here.** Build an accessible vanilla JavaScript forecast app from a plan and deploy it to Azure Static Web Apps. | $0 on the Free tier |
 | [Grafana](./journeys/grafana/README.md) | Deploy an OSS observability app to Container Apps — one container, no database. | ~$10–20/month |
 | [n8n](./journeys/n8n/README.md) | Deploy workflow automation with PostgreSQL, health probes, and post-provision hooks. | ~$25–35/month |
 | [Apache Superset](./journeys/superset/README.md) | Deploy a BI platform to AKS: init containers, ConfigMaps, Kubernetes debugging. | ~$200–215/month |
 | [AIMarket](./journeys/aimarket/README.md) | Build a full-stack marketplace from a spec: API + React + AI Search + Foundry chat. | ~$100–115/month |
 | [SmartTodo](./journeys/smart-todo/README.md) | Build an AI todo app: Azure Functions, Azure SQL with managed identity, SwiftUI client. | ~$10–30/month |
-| [WeatherView](./journeys/weather-view/README.md) | Build an accessible vanilla JavaScript forecast app from a plan and deploy it to Azure Static Web Apps. | $0 on the Free tier |
 
 > **Tip:** Complete a journey and run `azd down --force --purge` the same day. Cost estimates are “if left on for a month,” not what you pay for a single lab session.
 
 ## What each journey teaches
 
-| Pipeline slice | Grafana | n8n | Superset | AIMarket | SmartTodo | WeatherView |
-|----------------|:-------:|:---:|:--------:|:--------:|:---------:|:-----------:|
-| Idea / product intent | | | | ✅ | ✅ | ✅ |
-| PLAN/spec → agentic code | | | | ✅ | ✅ | ✅ |
+| Pipeline slice | WeatherView | Grafana | n8n | Superset | AIMarket | SmartTodo |
+|----------------|:-----------:|:-------:|:---:|:--------:|:--------:|:---------:|
+| Idea / product intent | ✅ | | | | ✅ | ✅ |
+| PLAN/spec → agentic code | ✅ | | | | ✅ | ✅ |
 | Agent-generated Bicep + `azd` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Azure Static Web Apps | | | | | | ✅ |
-| Container Apps | ✅ | ✅ | | ✅ | | |
-| AKS | | | ✅ | | | |
-| Azure Functions | | | | | ✅ | |
-| Microsoft Foundry / LLMs | | | | ✅ | ✅ | |
-| Azure AI Search | | | | ✅ | | |
+| Azure Static Web Apps | ✅ | | | | | |
+| Container Apps | | ✅ | ✅ | | ✅ | |
+| AKS | | | | ✅ | | |
+| Azure Functions | | | | | | ✅ |
+| Microsoft Foundry / LLMs | | | | | ✅ | ✅ |
+| Azure AI Search | | | | | ✅ | |
 
 ---
 
