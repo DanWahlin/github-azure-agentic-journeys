@@ -39,6 +39,7 @@ const checks = {
   copilot: ['copilot', ['--version']],
   docker: ['docker', ['--version']],
   gh: ['gh', ['--version']],
+  git: ['git', ['--version']],
   kubectl: ['kubectl', ['version', '--client']],
   helm: ['helm', ['version', '--short']],
   func: ['func', ['--version']],

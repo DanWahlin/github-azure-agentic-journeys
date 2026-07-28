@@ -13,13 +13,19 @@ Generate a complete agentic journey from a user's app idea. A journey is a hands
 ## Curriculum packaging (required)
 
 **Every journey README must include:**
-- No learning-path or stage numbering — journeys are self-contained; link related journeys in What's Next
+- No journey-sequence or learning-path numbering such as "Journey 2 of 5" — journeys are self-contained. Numbered phases and steps inside one journey are encouraged when they clarify the flow.
 - Honest first-run time + cost **if left running** + same-day teardown
 - **Done when** checklist with concrete manual verification steps
 - Full-stack: **one-line default stack** at the first generate prompt (not a defaults table); put stack details in PLAN.md
 - Plugin commands: only `microsoft/azure-skills` / `azure@azure-skills`
-- What's Next aligned to the path (not renumbered leftovers)
+- What's Next uses plain links to related journeys, not prescribed-path or completion language
 - OSS: shared deploy recipe (location, secrets, probes, resolve issues, issues.md)
+- An isolated-workspace setup prompt that copies the journey, `.github/agents`, `.github/skills`, `.github/scripts`, and `docs` without modifying the source repository
+- A prerequisite table, concrete local/Azure acceptance criteria, and a reusable exact-error recovery prompt
+- A prompt that **creates every generated verifier or diagnostic script before the README tells the learner to run it**
+- A read-only pre-deployment review with READY/NOT READY, PASS/FAIL evidence, and fail-closed blockers
+- Agent-led azd environment preparation, followed by the learner running the consequential `azd up` command
+- No checked-in journey `issues.md`: prompts create it only in the isolated learner workspace when a real issue occurs
 
 Update root `README.md` learning path + journey table when adding a journey.
 
@@ -97,7 +103,7 @@ Every journey README MUST follow this exact structure. Reference `journeys/aimar
 ### Required Sections (in order)
 
 ```markdown
-# Agentic Journey NN: <App Name> — <Subtitle>
+# <App Name> - <Subtitle>
 
 > ✨ **<One-sentence hook — what makes this journey interesting, not a summary>**
 
@@ -114,11 +120,16 @@ Every journey README MUST follow this exact structure. Reference `journeys/aimar
 > ⏱️ **Estimated Time**: ~NN minutes
 >
 > 💰 **Estimated Cost**: ~$X-Y/month (<main cost driver> — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
->
-> 📋 **Prerequisites**: List every required host tool here, including its validation command. Link to the [cross-platform tool guide](../../../docs/tool-installation.md) for Windows, Mac, and Linux installation options.
->
-> **Additional prerequisites for this journey:**
-> - `<Tool>` — why it's needed
+
+## Prerequisites
+
+<Required/optional/platform-gated tool table with purpose, minimum version, and validation command. Link to the cross-platform tool guide.>
+
+<Read-only preflight command block and explicit stop-on-failure rule.>
+
+### Acceptance criteria
+
+<Concrete local, deployed, screenshot, and cleanup completion checks.>
 
 ---
 
@@ -156,6 +167,8 @@ Then install the plugin:
 
 > **Already installed?** If you completed the root [Quick Start](../../../README.md#quick-start) (or already installed `azure@azure-skills`), skip the install commands — the plugin persists across sessions.
 > **Canonical only:** `microsoft/azure-skills` — never document alternate marketplace names.
+
+After installation, include a prompt that asks the agent to confirm which Azure Skills and MCP tools are available in the current session. Stop before Azure-file generation if the plugin is unavailable.
 
 <For OSS journeys, select the agent:>
 
@@ -235,9 +248,13 @@ Separate deployment errors from post-deployment usage issues with:
 
 ## Cleanup
 
+> ⚠️ Confirm the selected azd environment belongs to this journey. Save `RESOURCE_GROUP_NAME` before teardown so deletion can be verified without guessing.
+
 ```bash
 azd down --force --purge
 ```
+
+Require successful exit, then verify the exact resource group no longer exists with `az group exists --name <resource-group-name>` returning `false`. Include resource-specific soft-delete purge guidance only when the architecture needs it.
 
 ---
 
@@ -257,7 +274,7 @@ azd down --force --purge
 
 ## What's Next
 
-<Link to next journey in the progression>
+<Plain links to related journeys without prescribed order or completion language>
 
 ---
 
@@ -276,15 +293,18 @@ azd down --force --purge
 
 | Base Template Section | Full-Stack Replacement |
 |----------------------|----------------------|
-| `Deploy with the Agent` (3 steps) | `The Journey` (4 phases: Build API → Frontend → AI → Deploy) |
+| `Deploy with the Agent` (3 steps) | `The Journey` with app-specific numbered phases that end in Deploy |
 | `Configuration Reference` | Omit — specs live in PLAN.md |
 | `Key Learnings` | `How Agentic AI is Used` — table of agentic use cases |
 
-Full-stack journeys also add:
-- **"The Spec"** section after Architecture — links to PLAN.md with a note: *"This is a spec for AI agents. You don't need to read it — GitHub Copilot will."*
-- **Phase-level images** — one image at each phase boundary (e.g., spec-to-code, storefront, AI features, deployment)
+Full-stack and from-plan static-web journeys also add:
+- **"The Spec"** section after Architecture — links to PLAN.md and explains that it is shared implementation context
+- **Phase-level images** — one image at each phase boundary (e.g., spec-to-code, testing, deployment)
 - **Teaching markers** within each phase (🔍 Inspect, 💡 What you're learning, 🧪 Test it yourself)
-- **Two deployment options** in final phase: Option A (GitHub Copilot) and Option B (GitHub Copilot cloud agent)
+- **Incremental prompts** that generate, inspect, test, and refine one bounded layer at a time
+- **Generated-script provenance**: the README prompt must create a verifier or diagnostic before any command runs that path
+- **Deployment handoff**: use the agent plus Azure Skills for preparation and review, but have the learner run `azd up` and observe its real output
+- A cloud-agent/delegation option only when it teaches a real, self-contained asynchronous task; do not force two deployment options into every journey
 
 For mobile frontends (iOS/Android), note in the README:
 - Backend is deployed to Azure with `azd up`; mobile app runs locally or via TestFlight / Play Store internal testing
@@ -320,9 +340,9 @@ Use consistently throughout all journeys:
 
 ---
 
-## PLAN.md Template (Full-Stack Journeys Only)
+## PLAN.md Template (Full-Stack and From-Plan Journeys)
 
-The PLAN.md is a spec document that GitHub Copilot reads to generate code. It is NOT tutorial content. Add a note at the top: "This is a spec for AI agents. You don't need to read it — GitHub Copilot will." Reference `journeys/aimarket/PLAN.md` for the complete example.
+The PLAN.md is a spec document that GitHub Copilot reads to generate code. It is not tutorial content, but the learner should open it, understand the finished behavior, and keep it available as shared context. README prompts must cite exact PLAN section names; rename both in the same change. Reference current AIMarket and SmartTodo PLANs for examples.
 
 ### Required Sections
 
@@ -382,8 +402,11 @@ Key rules for PLAN.md:
 - **Seed data must be complete** — exact IDs, names, descriptions, prices, image URLs
 - **Error format** — specify the exact error response schema the API should return
 - **Deployment gotchas** — document every real failure encountered during testing with the fix
-- **Model references** — use gpt-5-mini as primary model, gpt-4.1 as fallback
+- **Model references** — make primary/fallback models journey-specific, verify regional availability, and document model-specific request constraints
 - **Data access** — if the app supports multiple database backends, reference the `data-access-abstraction` skill for the repository pattern
+- **Stable headings** — README prompts reference exact PLAN section names; rename both in the same change
+- **Resolve source contradictions** — when adapting an external plan, state the chosen behavior instead of carrying conflicting decisions into prompts
+- **No phantom scripts** — PLAN and README state who creates each generated script, where it lands, and what it verifies
 
 ---
 
@@ -414,6 +437,28 @@ infra:
 ```
 
 Supported `host` values: `containerapp`, `aks`, `appservice`, `function`, `staticwebapp`, `springapp`. Choose based on your app's compute needs.
+
+### Static Web Apps Pattern
+
+For a browser-only static journey, keep the deployment small:
+
+```yaml
+services:
+  web:
+    project: .
+    language: js
+    host: staticwebapp
+    dist: dist
+```
+
+- Prefer `br/public:avm/res/web/static-site`; fall back to raw `Microsoft.Web/staticSites@2023-12-01` only when current AVM inputs block a working deployment, and record why.
+- Tag the resource with `azd-service-name: web` and output `WEB_URL`, `STATIC_WEB_APP_NAME`, and `RESOURCE_GROUP_NAME`.
+- Use Free SKU and `provider: Custom` when azd deploys directly. Do not create a deployment token or GitHub Actions workflow unless CI/CD is an explicit lesson.
+- Static Web Apps has a narrower region list than resource groups. Normalize an unsupported request to a documented supported location such as `eastus2`.
+- Use `staticwebapp.config.json` for navigation fallback and security headers.
+- Azure Developer CLI rejects a Static Web App whose source and output folder both resolve to `.`. Generate a portable Node.js build script that recreates `dist/`, copies only deployable assets, add an npm `build` script, set `dist: dist`, and inspect the exact output before deployment.
+- Gate the publish phase on host architecture. The current Static Web Apps deployment client is x86-64-only; document that ARM64 can build/test/validate but must use an approved x64 host for publish. Do not normalize privileged emulation or local Docker as the workaround.
+- Do not add a backend, storage account, container, local Docker, or unrelated provider registration to a static-only journey.
 
 ### Dockerfile Patterns
 
@@ -569,7 +614,7 @@ For AKS, attach manifests and a remote script to `az aks command invoke`. Run He
 
 ### AVM Modules
 
-Always use Azure Verified Modules from `br/public:avm/...`. Common modules:
+Prefer Azure Verified Modules from `br/public:avm/...`. If parameter drift, unsupported passthrough, or schema mismatch blocks a working deployment, fall back only that resource to raw `Microsoft.*`, record why, and preserve the same acceptance contract. Common modules:
 
 | Resource | Module |
 |----------|--------|
@@ -660,6 +705,8 @@ node scripts/verify-api.mjs
 ```
 ````
 
+Immediately before this command, the journey must include the exact prompt that creates `scripts/verify-api.mjs`, its required assertions, cleanup behavior, and nonzero failure contract. Never assume a learner already has a workspace-only script.
+
 ---
 
 ## Writing Rules
@@ -715,6 +762,10 @@ After creating a new journey, update these files:
    - Titles in dark navy (#1e3a5f) Helvetica Bold 42pt
    - Optimize: 1200px max width, JPEG quality 80, progressive, <100KB each
 
+6. **Checked-in deployment verifier** — add `.github/scripts/verify-<journey>.mjs`, list it in `AGENTS.md`, and make the README state the exact PASS contract.
+
+7. **Workspace-only issue log** — do not commit `journeys/<app>/issues.md`. Prompts create it only when the learner's generated copy encounters a real issue.
+
 ---
 
 ## Checklist
@@ -726,20 +777,25 @@ Before considering a journey complete:
 - [ ] Opening hook passes the "does a developer care yet?" test
 - [ ] Time estimate is honest first-run (tested)
 - [ ] Cost "if left running" + same-day teardown called out
-- [ ] No path/stage numbering anywhere in the README
+- [ ] No journey-sequence/path numbering; numbered phases and steps inside the journey are clear and bounded
 - [ ] Done when checklist + verify script where applicable
 - [ ] Full-stack: one-line default stack at first generate prompt (details live in PLAN.md)
+- [ ] Isolated workspace prompt copies all required agent, skill, script, and docs context
+- [ ] Acceptance criteria separate local, deployed, screenshot, and cleanup completion
+- [ ] Every generated verifier or diagnostic has a creation prompt before its run command
 - [ ] No bare "Copilot" — use "GitHub Copilot" in narrative; "GitHub Copilot CLI" / "cloud agent" only when product-specific
 - [ ] No AI-generated filler words or summary paragraphs
 - [ ] All JSON examples are valid (check closing brackets!)
 - [ ] SKU names are human-readable in cost tables (not "PerGB2018")
-- [ ] gpt-5-mini is primary model (fallback to gpt-4.1)
+- [ ] Any AI model and fallback are journey-specific, region-checked, and consistent between PLAN and README
 - [ ] Images optimized (1200px, JPEG, <100KB)
 
 ### Structure & Sections
 
 - [ ] Architecture diagram shows all Azure resources
 - [ ] Plugin setup: only `microsoft/azure-skills` / `azure@azure-skills`
+- [ ] Plugin availability confirmation occurs before Azure generation
+- [ ] Exact-error recovery prompt asks for root cause, smallest fix, rerun, verifier, and real issue logging
 - [ ] Troubleshooting covers real errors from actual deployments (Symptom/Cause/Fix format)
 - [ ] Assignment guides discovery (do → observe → ask agent → fix)
 - [ ] Cleanup section with `azd down --force --purge`
@@ -761,6 +817,8 @@ Before considering a journey complete:
 - [ ] Windows, Mac, and Linux prerequisite and command paths reviewed
 - [ ] Stateful verification uses portable scripts or paired Bash and PowerShell examples
 - [ ] Browser verification uses Playwright's bundled Chromium
+- [ ] Read-only pre-deployment review fails closed with file/line evidence
+- [ ] Agent prepares provider and environment inputs; learner runs `azd up`
 - [ ] Required lifecycle hooks are CommonJS `.js` or `.ts`, not unsupported `.mjs` or host-specific `.sh`/`.ps1`
 - [ ] Wrapper module pattern used for resources needing `listKeys()` (if subscription-scoped)
 - [ ] Health probe timing tested with actual startup time
@@ -769,4 +827,6 @@ Before considering a journey complete:
 
 - [ ] Journey added to root README journey table
 - [ ] AGENTS.md updated (project structure + skills table)
+- [ ] Checked-in deployment verifier added and listed in AGENTS.md
+- [ ] No source-journey `issues.md` was added
 - [ ] Additional prerequisites in journey README (not root)

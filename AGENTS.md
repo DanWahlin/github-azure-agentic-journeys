@@ -123,6 +123,7 @@ az provider register --namespace Microsoft.App
 az provider register --namespace Microsoft.DBforPostgreSQL
 az provider register --namespace Microsoft.OperationalInsights
 az provider register --namespace Microsoft.ContainerService  # AKS only
+az provider register --namespace Microsoft.Web               # Functions and Static Web Apps
 ```
 
 ### Cross-platform verification helpers
@@ -135,6 +136,7 @@ node .github/scripts/verify-n8n.mjs
 node .github/scripts/verify-superset.mjs
 node .github/scripts/verify-aimarket.mjs
 node .github/scripts/verify-smart-todo.mjs
+node .github/scripts/verify-weather-view.mjs
 ```
 
 Configure the journey E2E repository variables and secrets interactively with `node .github/scripts/setup-journey-tests.mjs`. The script asks before creating or rotating a service-principal credential. Never print or commit secret values.
@@ -145,7 +147,7 @@ Configure the journey E2E repository variables and secrets interactively with `n
 
 - **Infrastructure as Code**: Bicep with modular structure per journey
 - **Deployment Tool**: Azure Developer CLI (azd) configured via `azure.yaml`
-- **Container Hosting**: Azure Container Apps (n8n, Grafana) or AKS (Superset)
+- **Hosting**: Azure Static Web Apps (WeatherView), Azure Container Apps (n8n, Grafana, AIMarket), Azure Functions (SmartTodo), or AKS (Superset)
 - **Database**: Azure Database for PostgreSQL Flexible Server, Cosmos DB, or SQLite (local dev)
 - **Post-provisioning**: Hooks configure app-specific settings after deployment (e.g., WEBHOOK_URL)
 
@@ -260,7 +262,10 @@ journeys/
 ├── aimarket/                     # Full-stack journey (API + frontend + AI)
 │   ├── README.md
 │   └── PLAN.md
-└── smart-todo/                   # Full-stack journey (iOS + Functions + AI)
+├── smart-todo/                   # Full-stack journey (iOS + Functions + AI)
+│   ├── README.md
+│   └── PLAN.md
+└── weather-view/                 # Static web journey (vanilla JS + Static Web Apps)
     ├── README.md
     └── PLAN.md
 .github/

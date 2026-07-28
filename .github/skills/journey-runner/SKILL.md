@@ -80,6 +80,7 @@ Journey-specific minimums:
 | Superset | Node.js 24 LTS or later | Playwright for screenshots; local `kubectl` and Helm only for optional direct cluster work |
 | AIMarket | Node.js 24 LTS or later, GitHub CLI | Playwright; Docker only for optional local container work |
 | SmartTodo | Node.js 24 LTS or later, Azure Functions Core Tools v4, `sqlcmd` | Project-local Azurite for local execution; Docker for alternate stacks or local SQL; Xcode 16+ only for Mac iOS execution |
+| WeatherView | Node.js 24 LTS or later; x64 host for Static Web Apps publish | Project-local Playwright and bundled Chromium for browser tests/screenshots; ARM64 can build/test/validate but must move publish to an approved x64 runner |
 
 ### Authentication preflight
 
@@ -164,6 +165,10 @@ For Superset, a clean environment may not contain `SUPERSET_SECRET_KEY` or `SUPE
 
 For SmartTodo, resolve and persist `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` before `azd up`; handle interactive users and service principals separately and fail before provisioning if any value is unavailable. If raw Foundry resources are generated, put the model child in a nested Bicep module that runs after account creation. Name the Azure-services SQL firewall rule `AllowAzureServices` or another neutral name, never one containing the reserved word `WINDOWS`.
 
+For WeatherView, require only `Microsoft.Web`, use Azure Static Web Apps Free with `provider: Custom`, map `azure.yaml` service `web` to `azd-service-name: web`, and normalize unsupported Static Web Apps locations to `eastus2`. Do not accept a generated backend, deployment token, GitHub workflow, storage account, container, local Docker requirement, or unrelated provider registration.
+
+Before provisioning WeatherView, gate on `process.arch`. The current Static Web Apps deployment client is x86-64-only and upstream ARM64 support remains open. On ARM64, finish generation, local verification, Bicep build, and what-if, then stop before `azd up` unless the operator has approved a specific x64 runner. Never install privileged emulation silently.
+
 For development servers:
 
 - Start a tracked background process.
@@ -216,6 +221,7 @@ Examples:
 - Superset: pod `1/1 Running`, `/health` HTTP 200, login succeeds with the documented selectors.
 - AIMarket: 10 products, search and chat work, production API URL is baked into the frontend, and every product image loads.
 - SmartTodo: seed read, create, AI step generation, fetch, step update, delete, and absence confirmation all pass.
+- WeatherView: deployed assets load, the Open-Meteo contract has exactly five aligned days, geolocation denial falls back to Seattle, city search changes location, units and theme persist after reload, and the browser reports no failed required resources.
 
 Temporary verification records must be deleted in `finally`.
 
