@@ -23,6 +23,6 @@
 - **Phase:** WeatherView deployment after successful Bicep provisioning.
 - **Observed:** azd downloaded Microsoft `StaticSitesClient` as an x86-64 ELF and failed with `Exec format` output on the ARM64 runner.
 - **Cause:** The current Static Web Apps deployment client has no ARM64 Linux build; Bicep provisioning and content publishing are separate azd phases.
-- **Fix:** Added an architecture gate to the runner and journey-template skills. ARM64 may build, test, compile Bicep, and run what-if, but the documented publish phase moves to an approved x64 host. Do not silently install privileged emulation or make local Docker a prerequisite.
+- **Fix:** Added architecture-aware recovery to the runner and journey-template skills. ARM64 is not rejected automatically because Windows 11 on ARM can emulate many x64 applications. After the exact publisher architecture error, the learner may use the approved temporary x64 Azure publisher with secure token handling and verified deletion, or continue from an approved x64 host. Do not silently install privileged emulation or make local Docker a prerequisite.
 - **Verification:** The runner used a temporary scoped x64 Azure publisher for this validation only, deleted it, then passed the checked-in HTTP/assets verifier and the full Playwright deployed-behavior verifier.
 - **Status:** Upstream limitation documented; runner behavior corrected.

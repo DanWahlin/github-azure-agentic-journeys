@@ -175,6 +175,12 @@ Don't run `--with-deps` silently. Use Playwright's bundled `chromium`, not the b
 
 The standard Microsoft SQL Server Linux container is AMD64-only. On Apple Silicon, Windows ARM64, or Linux ARM64, prefer the deployed Azure SQL database unless Docker's AMD64 emulation has already been enabled and verified. The journey runner must not install privileged QEMU/binfmt handlers automatically.
 
+## ARM64 hosts and Azure Static Web Apps
+
+Run `node -e "console.log(process.platform, process.arch)"` before deployment and record the result. Do not reject ARM64 automatically. Windows 11 on ARM can run many x64 applications through emulation.
+
+If `azd up` provisions the Static Web App and then reports `Exec format error`, `cannot execute binary file`, or raw ELF output, use the expandable **ARM64** recovery in the WeatherView [Troubleshooting section](../journeys/weather-view/README.md#troubleshooting). The recovery uses an approved temporary x64 Azure Container Instance and verifies its deletion. If policy prohibits that temporary resource, continue the same azd environment from an approved x64 host. Do not install privileged emulation or add Docker as a host prerequisite.
+
 ## ARM64 hosts and Azure Container Apps
 
 Azure Container Apps expects Linux AMD64 images. On any ARM64 host, including Apple Silicon, Windows ARM64, and Linux ARM64:

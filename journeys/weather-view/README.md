@@ -23,7 +23,7 @@ You'll build WeatherView from a shared spec using vanilla HTML, CSS, and JavaScr
 
 ## Prerequisites
 
-This journey supports Windows PowerShell, Command Prompt, Mac, and Linux on x64. Local development and Bicep validation also work on ARM64, but the current Static Web Apps deployment client is x86-64-only; use an x64 host for the final publish phase.
+This journey supports Windows PowerShell, Command Prompt, Mac, and Linux on x64 and ARM64. The Static Web Apps deployment client is x86-64-only on some platforms. Windows 11 on ARM can run many x64 applications through emulation, so do not reject an ARM64 host before deployment. If the publisher reports an architecture error, use the ARM64 recovery in [Troubleshooting](#troubleshooting).
 
 | Host tool | Requirement | Purpose | Validation |
 |---|---|---|---|
@@ -52,7 +52,7 @@ Check the host architecture before creating Azure resources:
 node -e "console.log(process.platform, process.arch)"
 ```
 
-For the documented Static Web Apps publish path, `process.arch` must report `x64`. The upstream SWA CLI has open ARM64 support issues and currently downloads an x86-64 deployment client on Linux ARM64. On ARM64, complete the app, tests, and Bicep review here, then move the isolated workspace to an x64 host for `azd up`. Do not install privileged emulation or silently introduce Docker.
+Record the result for troubleshooting. On ARM64, continue normally through `azd up`. Use the ARM64 recovery only if the Microsoft publisher reports `Exec format error`, `cannot execute binary file`, or raw ELF output. Do not install privileged emulation or silently introduce Docker.
 
 > [!NOTE]
 > GitHub Copilot CLI is the documented and validated path. You can adapt the prompts for the GitHub Copilot app, an IDE agent, or another agentic coding tool. For another tool, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
@@ -499,11 +499,11 @@ Use the agent for prerequisite preparation rather than copying values through a 
   the names of environment keys set, but redact the subscription ID.
 ```
 
-This is the only provider required by WeatherView. Do not register unrelated Container Apps, SQL, Kubernetes, AI, or monitoring providers.
+`Microsoft.Web` is the only provider required on the normal WeatherView path. Do not register unrelated Container Apps, SQL, Kubernetes, AI, or monitoring providers. The optional ARM64 recovery registers `Microsoft.ContainerInstance` only after the exact publisher architecture failure and explicit approval.
 
 #### Step 4: Run the deployment yourself
 
-Run `node -e "console.log(process.platform, process.arch)"` once more. Stop before provisioning if the result is ARM64 and move this phase to an x64 host or approved x64 runner.
+Run `node -e "console.log(process.platform, process.arch)"` once more and record the result. ARM64 is not an automatic stop condition. If the publish step fails with an architecture error after provisioning, use the expandable ARM64 recovery in Troubleshooting.
 
 Run the one command that matters from `journeys/weather-view`:
 
@@ -665,11 +665,52 @@ This journey is free under normal lab usage, but cleanup still matters: it prove
 
 **Fix:** Restore the fallback to `/index.html`, excluding actual static assets so missing JavaScript and CSS still return real 404 responses rather than HTML.
 
-### StaticSitesClient fails with `Exec format error` or ELF output
+### ARM64: StaticSitesClient fails with `Exec format error` or ELF output
 
-**Cause:** The deployment is running on an ARM64 host, but the current Static Web Apps deployment client is x86-64-only.
+**Cause:** The Bicep provisioning phase completed, but the Static Web Apps publish phase downloaded a deployment client that the host cannot execute. This can occur on ARM64 when x64 emulation is unavailable or does not handle the downloaded client. Do not assume that every ARM64 host fails; Windows 11 on ARM can run many x64 applications through emulation.
 
-**Fix:** Do not install privileged emulation or add a local Docker requirement. Move the isolated workspace and selected azd environment inputs to an x64 Windows, macOS, or Linux host, then rerun `azd up`. The application build, tests, and Bicep remain portable; this is a publish-client limitation.
+<details>
+<summary><strong>ARM64 workaround: publish through a temporary x64 Azure container</strong></summary>
+
+Use this recovery only after `azd up` creates the Static Web App and then fails with an architecture error. The temporary publisher requires `Microsoft.ContainerInstance`, creates one short-lived Azure Container Instance in the journey resource group, and deletes it after the upload. Azure Container Instances is billable while the publisher runs. It does not change the application architecture or make Docker a host prerequisite.
+
+Paste this prompt into the existing GitHub Copilot CLI session:
+
+```text
+The WeatherView azd deployment provisioned the Static Web App, but its publish
+step failed because StaticSitesClient cannot execute on this ARM64 host. Use the
+Azure Skills plugin and the existing selected azd environment to complete only
+the static-content upload through a temporary x64 Azure Container Instance.
+
+Requirements:
+- Do not change Bicep, azure.yaml, the Static Web App, or application behavior.
+- Run npm run build and verify dist contains only the six expected site assets.
+- Read RESOURCE_GROUP_NAME and STATIC_WEB_APP_NAME from azd. Stop if either is
+  missing or if the resource group does not belong to the selected environment.
+- Explain that Microsoft.ContainerInstance will be registered and one temporary
+  container group will be created. Wait for my approval before registering the
+  provider or creating the container group.
+- Retrieve the Static Web Apps deployment token only in process memory. Never
+  print it, write it to disk, put it in a command argument, or include it in logs.
+- Pass the token to the container as a secure environment value. Use a pinned
+  Microsoft-hosted x64 image and a pinned Static Web Apps CLI version.
+- Upload only dist. Wait for the publisher to terminate with exit code 0.
+- In a finally block, delete the temporary container group and verify that the
+  exact container group no longer exists, including after a failed upload.
+- Run ../../.github/scripts/verify-weather-view.mjs after publishing.
+- Report the deployed URL, verifier result, temporary resource name, and deletion
+  result. Redact tokens, credentials, and subscription identifiers.
+```
+
+After the agent explains the planned resource and receives approval, let it run the recovery. Require these observable results:
+
+1. The temporary publisher exits with code `0`.
+2. `node ../../.github/scripts/verify-weather-view.mjs` prints its PASS result.
+3. Querying the exact temporary container-group name returns no resource.
+
+If policy does not permit a temporary container, move the isolated workspace and its selected azd environment values to an approved x64 host. Authenticate there and rerun `azd up` with the same environment name.
+
+</details>
 
 ### Browser verification fails on geolocation
 

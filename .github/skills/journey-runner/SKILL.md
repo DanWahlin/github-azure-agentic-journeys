@@ -80,7 +80,7 @@ Journey-specific minimums:
 | Superset | Node.js 24 LTS or later | Playwright for screenshots; local `kubectl` and Helm only for optional direct cluster work |
 | AIMarket | Node.js 24 LTS or later, GitHub CLI | Playwright; Docker only for optional local container work |
 | SmartTodo | Node.js 24 LTS or later, Azure Functions Core Tools v4, `sqlcmd` | Project-local Azurite for local execution; Docker for alternate stacks or local SQL; Xcode 16+ only for Mac iOS execution |
-| WeatherView | Node.js 24 LTS or later; x64 host for Static Web Apps publish | Project-local Playwright and bundled Chromium for browser tests/screenshots; ARM64 can build/test/validate but must move publish to an approved x64 runner |
+| WeatherView | Node.js 24 LTS or later | Project-local Playwright and bundled Chromium; ARM64 may require the documented temporary x64 Azure publisher or an approved x64 host if the SWA client returns an architecture error |
 
 ### Authentication preflight
 
@@ -165,9 +165,9 @@ For Superset, a clean environment may not contain `SUPERSET_SECRET_KEY` or `SUPE
 
 For SmartTodo, resolve and persist `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` before `azd up`; handle interactive users and service principals separately and fail before provisioning if any value is unavailable. If raw Foundry resources are generated, put the model child in a nested Bicep module that runs after account creation. Name the Azure-services SQL firewall rule `AllowAzureServices` or another neutral name, never one containing the reserved word `WINDOWS`.
 
-For WeatherView, require only `Microsoft.Web`, use Azure Static Web Apps Free with `provider: Custom`, map `azure.yaml` service `web` to `azd-service-name: web`, and normalize unsupported Static Web Apps locations to `eastus2`. Do not accept a generated backend, deployment token, GitHub workflow, storage account, container, local Docker requirement, or unrelated provider registration.
+For WeatherView, require only `Microsoft.Web` on the normal path, use Azure Static Web Apps Free with `provider: Custom`, map `azure.yaml` service `web` to `azd-service-name: web`, and normalize unsupported Static Web Apps locations to `eastus2`. Do not accept a generated application backend, deployment token file, GitHub workflow, storage account, persistent application container, local Docker requirement, or unrelated provider registration. The documented ARM64 recovery is a conditional exception for one approved temporary publisher.
 
-Before provisioning WeatherView, gate on `process.arch`. The current Static Web Apps deployment client is x86-64-only and upstream ARM64 support remains open. On ARM64, finish generation, local verification, Bicep build, and what-if, then stop before `azd up` unless the operator has approved a specific x64 runner. Never install privileged emulation silently.
+Before deploying WeatherView, record `process.platform` and `process.arch`, but do not reject ARM64 automatically. Windows 11 on ARM can run many x64 applications through emulation. Use the README recovery only after the SWA publish phase returns the documented architecture error. A temporary x64 Azure publisher requires explicit approval, secure in-memory token handling, deletion in `finally`, and an exact absence check. Never install privileged emulation silently.
 
 For development servers:
 

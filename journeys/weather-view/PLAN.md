@@ -245,7 +245,7 @@ The generated `scripts/verify-app.mjs` must start or connect to the local server
 
 Deploy the static site to **Azure Static Web Apps Free tier** using Bicep and `azd`. No local Docker, backend service, API key, storage account, or GitHub Actions workflow is required.
 
-**Publish architecture gate:** The Static Web Apps deployment client downloaded by azd is currently an x86-64 Linux binary, and the upstream SWA CLI still has open ARM64 support issues. Windows, macOS, and Linux on x64 can complete the documented publish path. On an ARM64 host, complete build, tests, Bicep validation, and provisioning, but run the publish phase from an x64 host or approved x64 runner. Detect architecture before provisioning; do not discover this after resources exist, install privileged emulation, or silently add Docker.
+**Publish architecture recovery:** Record the host platform and architecture before deployment, but do not reject ARM64 automatically. Windows 11 on ARM can run many x64 applications through emulation. If azd provisions the Static Web App and the publish phase then fails with `Exec format error`, `cannot execute binary file`, or raw ELF output, use the learner-facing Troubleshooting recovery. The recovery may use one approved temporary x64 Azure Container Instance, must keep the deployment token only in process memory and secure environment values, and must delete and verify deletion of the exact container group in a `finally` path. If policy prohibits that temporary resource, continue from an approved x64 host. Never install privileged emulation or make local Docker a prerequisite.
 
 ### Azure Skills Plugin
 
@@ -319,7 +319,7 @@ Create `staticwebapp.config.json` with:
 ### Deployment Flow
 
 1. Use GitHub Copilot and the Azure Skills plugin to validate prerequisites, register `Microsoft.Web` only if needed, read the current subscription ID, and set `AZURE_SUBSCRIPTION_ID` as a literal `azd` environment value.
-2. Confirm the deployment host is x64 (`x64`/`amd64`). Stop and move the publish phase to an x64 host when it is ARM64.
+2. Record the deployment host platform and architecture. Continue on ARM64 unless the publisher returns the documented architecture error.
 3. Run `azd up` from the generated `journeys/weather-view` workspace directory.
 4. Wait for infrastructure provisioning and the `web` service deployment to finish successfully.
 5. Read `WEB_URL` through `azd env get-value WEB_URL`.

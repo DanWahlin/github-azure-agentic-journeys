@@ -457,8 +457,8 @@ services:
 - Static Web Apps has a narrower region list than resource groups. Normalize an unsupported request to a documented supported location such as `eastus2`.
 - Use `staticwebapp.config.json` for navigation fallback and security headers.
 - Azure Developer CLI rejects a Static Web App whose source and output folder both resolve to `.`. Generate a portable Node.js build script that recreates `dist/`, copies only deployable assets, add an npm `build` script, set `dist: dist`, and inspect the exact output before deployment.
-- Gate the publish phase on host architecture. The current Static Web Apps deployment client is x86-64-only; document that ARM64 can build/test/validate but must use an approved x64 host for publish. Do not normalize privileged emulation or local Docker as the workaround.
-- Do not add a backend, storage account, container, local Docker, or unrelated provider registration to a static-only journey.
+- Record host platform and architecture before Static Web Apps deployment, but do not reject ARM64 automatically. If the SWA publisher returns an architecture error, provide an expandable Troubleshooting recovery. A temporary x64 Azure publisher must require approval, keep the deployment token out of files, logs, and command arguments, delete its exact temporary resource in `finally`, and verify absence. Also offer an approved x64 host when policy prohibits temporary resources. Do not normalize privileged emulation or local Docker.
+- Do not add a backend, storage account, persistent application container, local Docker requirement, or unrelated provider registration to a static-only journey. A documented, approved, and verified-deleted temporary ARM64 publisher is a recovery mechanism, not part of the application architecture.
 
 ### Dockerfile Patterns
 
