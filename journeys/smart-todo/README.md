@@ -54,7 +54,7 @@ Before Phase 3, also run `sqlcmd --version`. Run `docker version` only when you 
 
 Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, Node.js is version 24 or later, and Functions Core Tools reports major version 4. Stop and fix the prerequisite if a required check fails. The [cross-platform installation guide](../../docs/tool-installation.md) provides Windows, Mac, and Linux installation options.
 
-Before Phase 3, resolve the complete `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` group. Use `User` for an interactive account and `ServicePrincipal` for automation.
+Before Phase 3, `azd` needs the complete `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` group, which the Azure SQL Entra admin assignment depends on. [Phase 3, Step 2](#step-2-deploy) has GitHub Copilot resolve and set these for you; the type is `User` for an interactive account and `ServicePrincipal` for automation.
 
 > [!IMPORTANT]
 > **Platform gate:** The full journey, including Phase 2 simulator testing, requires Mac and Xcode. On Windows or Linux, generate and statically verify the SwiftUI source, then complete Phase 1 and Phase 3 and verify the deployed API with HTTP calls. That completes the Azure path.
@@ -135,7 +135,7 @@ graph TB
 
 ## The Spec
 
-SmartTodo is driven by [`PLAN.md`](./PLAN.md), the spec in this journey folder. It defines the data models, API contracts, AI prompt design, and seed data. Skim it before you start so you know what the finished app should do; GitHub Copilot will use the details as implementation context.
+SmartTodo is driven by [`PLAN.md`](./PLAN.md), the spec in this journey folder. It defines the data models, API contracts, AI prompt design, and seed data. Open the document and explore it before you start so you know what the finished app should do. GitHub Copilot will use the details as implementation context.
 
 **Core data model (the parts you'll build):**
 
@@ -159,11 +159,15 @@ SmartTodo is driven by [`PLAN.md`](./PLAN.md), the spec in this journey folder. 
 
 ## The Journey
 
-SmartTodo is built in three phases that map directly to `PLAN.md`. Phase 1 builds the API and AI integration with Azure SQL. Phase 2 adds the SwiftUI app on Mac. Phase 3 deploys the backend to Azure. Keep [`PLAN.md`](./PLAN.md) open as the shared spec throughout.
+SmartTodo is built in three phases, each backed by a section of `PLAN.md`. Phase 1 builds the API and AI integration with Azure SQL using the spec's "API" section. Phase 2 adds the SwiftUI app on Mac from the "iOS Client" section. Phase 3 deploys the backend using the "Azure Deployment" section. Keep [`PLAN.md`](./PLAN.md) open as the shared spec throughout.
 
 **How this journey works:** You won't paste one giant prompt and hope for a finished app. You'll work incrementally. Ask GitHub Copilot for one piece, inspect what it generated, test it, fix what needs attention, and then continue. The loop is simple: generate → inspect → test → refine.
 
-> **💡 Tip: Track issues as you go.** Add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed"* to your prompt. This keeps generation and deployment problems in one place while you iterate.
+**What AI model should I choose?**
+
+Use a capable frontier model for architecture decisions, changes spanning several files, and difficult debugging because it will generally follow the specification more reliably and produce more complete results, though it may take longer and consume more premium requests or incur higher usage costs. Smaller models are often sufficient for focused coding, test updates, and clearly identified fixes. If a smaller model misses requirements or struggles to connect `PLAN.md`, API, and iOS client details, switch to a frontier model; choose based on task complexity rather than a specific model name.
+
+> **💡 Tip: Track issues as you go.** Add *"If you encounter any issues, log them to issues.md so they can be tracked and fixed"* to your prompt. GitHub Copilot creates `issues.md` at `journeys/smart-todo/issues.md` in your workspace the first time it has something to record. This keeps generation and deployment problems in one place while you iterate.
 
 > [!IMPORTANT]
 > **When something fails**
@@ -174,7 +178,7 @@ SmartTodo is built in three phases that map directly to `PLAN.md`. Phase 1 build
 > 3. Include your operating system, shell, current phase, and last successful step.
 > 4. Remove passwords, tokens, connection strings, keys, cookies, and `.env` values before pasting.
 > 5. Ask the agent to inspect the relevant application and Azure logs, explain the root cause, make the smallest safe fix, rerun the failed step, and run the journey verifier.
-> 6. Record the problem and resolution in `issues.md`.
+> 6. Record the problem and resolution in `issues.md` in the SmartTodo workspace.
 >
 > Use this prompt:
 >
@@ -212,13 +216,43 @@ You'll build the API in stages, not all at once. Each step teaches a different a
 
 #### Step 1: Set up the project
 
-From the repository root, change to the existing journey directory so GitHub Copilot can access the skills and agent definitions in `.github/`:
+Keep this README open, but generate the application in a separate workspace so the journeys repository stays clean and the application can become its own GitHub repository.
+
+From the journeys repository root, start GitHub Copilot CLI:
 
 ```text
-cd journeys/smart-todo
+copilot
 ```
 
-Configure `azd` to reuse the signed-in Azure CLI session:
+Then run the following prompt. If you have a specific folder where you'd like to create the `smart-todo-workspace`, adjust the prompt accordingly.
+
+```
+> Create a standalone SmartTodo workspace in a sibling directory named
+  smart-todo-workspace next to this repository. Stop and ask before changing
+  anything if that directory already exists and is not empty.
+  Preserve the existing folder structure by copying these directories into
+  the workspace:
+  - journeys/smart-todo
+  - .github/agents
+  - .github/skills
+  - .github/scripts
+  - docs
+  Initialize a Git repository at the workspace root and add a root .gitignore that
+  excludes secrets and generated files, including .env and .env.* while
+  allowing .env.example, plus .azure/, local.settings.json, node_modules/,
+  dist/, build/, coverage/, and Xcode artifacts such as *.xcuserstate,
+  xcuserdata/, and DerivedData/.
+  Do not modify the source journeys repository. When finished, show the
+  workspace path and the files copied.
+```
+
+End that Copilot session, then change to the new workspace:
+
+```text
+cd ../smart-todo-workspace/journeys/smart-todo
+```
+
+Now configure `azd` to reuse the signed-in Azure CLI session:
 
 ```text
 azd config set auth.useAzCliAuth true
@@ -226,7 +260,7 @@ azd config set auth.useAzCliAuth true
 
 The command must exit successfully.
 
-Start the [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started):
+Start a new [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started) session or your chosen agentic coding tool from the `journeys/smart-todo` directory.
 
 ```text
 copilot
@@ -251,12 +285,12 @@ Start with the data models and repository pattern, not the full API. This lets y
   (or my chosen stack if I say otherwise). Initialize 
   with host.json, local.settings.json, and language-appropriate config.
   Then create:
-  1. Data models for Todo and ActionStep from the Phase 1 spec
+  1. Data models for Todo and ActionStep from the "Data Models" section
      (status values: pending | in_progress | completed)
   2. Repository interfaces (TodoRepository, ActionStepRepository) 
   3. Azure SQL implementation using the appropriate SQL driver for my language
   4. A factory that returns the Azure SQL DataStore
-  5. Seed data from the PLAN.md tables with exact IDs
+  5. Seed data from the "Seed Data" section with exact IDs
   Log issues to issues.md.
 ```
 
@@ -308,11 +342,12 @@ If anything's off, tell GitHub Copilot:
 Now add the Azure Functions HTTP triggers that use the repository interfaces.
 
 ```
-> Read the API Endpoints section in PLAN.md. Create HTTP-triggered functions 
+> Read the "API Endpoints" section in PLAN.md. Create HTTP-triggered functions
   in src/api/src/functions/ for each endpoint: getTodos, createTodo, 
   updateTodo, deleteTodo, generateSteps, and updateStep. Each function 
   should get a DataStore from the factory — never import the database 
-  directly. Follow the request/response formats from the spec. For now, 
+  directly. Follow the request/response formats in the "API Endpoints" and
+  "Error Response Format" sections. For now,
   stub generateSteps to return a 501 — we'll add AI in the next step.
 ```
 
@@ -341,9 +376,10 @@ Check the step update function:
 Now wire up the real AI call to replace the stub.
 
 ```
-> Read the AI Task Decomposition section in PLAN.md (end of Phase 1). 
+> Read the "AI Task Decomposition" section in PLAN.md.
   Implement the generateSteps function to call gpt-5-mini via the openai SDK for
-  my language. Use the exact system prompt from the spec. The client 
+  my language. Use the exact system prompt from the "AI Task Decomposition"
+  section. The client 
   connects to Microsoft Foundry using the AZURE_AI_ENDPOINT (with 
   /openai/v1/ path) and AZURE_AI_KEY env vars. Parse the AI response 
   as a JSON array, validate each item has title and description, assign
@@ -366,12 +402,55 @@ Now wire up the real AI call to replace the stub.
 
 Don't ask GitHub Copilot to test. Run these yourself and understand what each one verifies.
 
+First, confirm the Functions port is available. This command works from PowerShell, Command Prompt, Mac, and Linux:
+
+```text
+node -e "const net=require('node:net');const s=net.createServer();s.once('error',()=>{console.error('Port 7071 is in use');process.exit(1)});s.once('listening',()=>s.close(()=>console.log('Port 7071 is available')));s.listen(7071,'127.0.0.1')"
+```
+
+If the port is already in use, select another port with `func start --port <port>` and use that port in the commands below.
+
 Change to `src/api`, start Azurite when using development storage, then run the selected stack's install, seed, build, and `func start` commands as separate processes. Don't chain required steps with shell-specific operators.
 
 > **⚠️ Node.js note:** If Functions fails to find any functions, check that `"main"` in `package.json` is `"dist/functions/*.js"` (not `"dist/src/functions/*.js"`). Since `tsconfig.json` sets `rootDir: "src"`, the `src/` prefix is stripped from the output path.
 > For `azd` remote builds, do not exclude `src/` or `tsconfig.json` in `.funcignore`; Azure needs them to compile TypeScript.
 
-Generate `scripts/verify-api.mjs`, point it at the selected local port, and run `node scripts/verify-api.mjs`. This generated local verifier is separate from the checked-in deployment verifier used in Phase 3. It must verify seed reads, create, status update, AI step generation when credentials are configured, step completion, delete, cascade behavior, and final absence. Temporary records must be removed in `finally`, and any failed status or assertion must exit nonzero.
+In a second terminal, call the API directly to confirm it responds before running the full verifier.
+
+**Mac, Linux, or Git Bash:**
+
+```bash
+curl --fail "http://localhost:7071/api/todos?userId=user-1"
+```
+
+**PowerShell:**
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:7071/api/todos?userId=user-1"
+```
+
+The response must contain the seeded todos. If the request fails, paste the exact start command, terminal error, and HTTP response into GitHub Copilot:
+
+```
+> I started the SmartTodo API with this command:
+  [paste start command]
+  Calling http://localhost:7071/api/todos?userId=user-1 failed with:
+  [paste exact error or response]
+  Diagnose the cause, make the smallest fix, restart the API, and retry the request.
+```
+
+Next, have GitHub Copilot generate a local verifier. Run this prompt in the same Copilot session you've been using, which is rooted at `journeys/smart-todo` inside your `smart-todo-workspace` copy, so the file lands at `journeys/smart-todo/scripts/verify-api.mjs`:
+
+```
+> Create scripts/verify-api.mjs in this journey directory, pointed at the
+  local port the API is running on. It must verify seed reads, create,
+  status update, AI step generation when credentials are configured, step
+  completion, delete, cascade behavior, and final absence. Remove temporary
+  records in a finally block, and exit nonzero on any failed status or
+  assertion. Then run it with node scripts/verify-api.mjs.
+```
+
+This generated local verifier is separate from the checked-in deployment verifier (`.github/scripts/verify-smart-todo.mjs`) used in Phase 3. It exists only in your workspace copy and is not part of this repository.
 
 If any test fails, describe the failure to GitHub Copilot and let it fix it:
 
@@ -390,13 +469,16 @@ If any test fails, describe the failure to GitHub Copilot and let it fix it:
   <img src="./images/phase2-ios.webp" alt="Phase 2: SwiftUI App" width="800" />
 </p>
 
-> **New to Swift?** SwiftUI uses `Codable` for JSON serialization (similar to TypeScript interfaces), `async/await` for network calls (same concept as JavaScript/Python), and `#if DEBUG` for compile-time feature flags. The `.xcodeproj` file is Xcode's project format. GitHub Copilot generates the Swift source files, but you'll open the project in Xcode to build and run it.
+> **New to Swift?** SwiftUI uses `Codable` for JSON serialization (similar to TypeScript interfaces), `async/await` for network calls (same concept as JavaScript/Python), and `#if DEBUG` for compile-time feature flags. The `.xcodeproj` file is Xcode's project format. GitHub Copilot generates both the Swift source files and the `.xcodeproj` that references them, but you'll open the project in Xcode to build and run it.
 
 #### Step 1: Generate the SwiftUI project
 
 ```
-> Read the Phase 2 section in PLAN.md. Create a SwiftUI iOS app in 
+> Read the "iOS Client" section in PLAN.md. Create a SwiftUI iOS app in
   src/ios/SmartTodo/. Include:
+  - An Xcode project at src/ios/SmartTodo/SmartTodo.xcodeproj that references
+    every generated Swift file, targets iOS 17 or later, and builds for the
+    iPhone simulator
   - Models matching the API types (Todo, ActionStep) using Codable
   - An APIClient using URLSession with async/await
   - A Config.swift with #if DEBUG for localhost vs production URL
@@ -404,6 +486,7 @@ If any test fails, describe the failure to GitHub Copilot and let it fix it:
     TodoDetailView (with Generate Steps button), ActionStepsView 
     (ordered checkable list with progress bar)
   Use the exact model fields and view descriptions from the spec.
+  Confirm the project opens and builds before you finish.
 ```
 
 **🔍 Inspect what was generated:**
@@ -457,6 +540,39 @@ If the app can't reach the API, check that:
 
 If the Simulator says `Application failed preflight checks` or `SBMainWorkspace Busy`, uninstall the app from that simulator, reboot the simulator, then clean build and run again.
 
+#### Step 3: Push to GitHub
+
+You'll need a GitHub repo if you choose the cloud agent deployment path in Phase 3, and it's a good checkpoint either way. Run:
+
+```
+> Prepare this Git repository for the cloud-agent workflow. Run Git operations
+  from the repository root so .github and journeys/smart-todo are included.
+  Before staging files, inspect .gitignore and the working tree. Ensure secrets,
+  .env files, local.settings.json, .azure, node_modules, build output, coverage,
+  and Xcode user data will not be committed; stop and tell me what needs to be
+  fixed if any sensitive or generated files are included. Stage the project,
+  commit it with the message "SmartTodo: API + SwiftUI client", create a
+  private GitHub repository named smart-todo with GitHub CLI, and push the
+  current branch. When finished, show me the repository URL and final git
+  status.
+```
+
+Continue working from `journeys/smart-todo` for the rest of the journey.
+
+#### Step 4: Review the completed application
+
+Before generating deployment infrastructure, review the complete SmartTodo implementation.
+
+```text
+> /review Review the completed SmartTodo implementation against PLAN.md.
+  Identify missing or incorrectly implemented requirements and correctness,
+  security, or reliability issues.
+```
+
+Address any high-confidence correctness, security, or reliability findings before continuing.
+
+> **💡 Get multiple perspectives:** Run `/rubber-duck` with the same review request against multiple models. Compare their findings and act on issues that are specific, reproducible, and relevant to the requirements in `PLAN.md`.
+
 ---
 
 ### Phase 3: Deploy to Azure (~45–75 min first time)
@@ -470,7 +586,7 @@ If the Simulator says `Application failed preflight checks` or `SBMainWorkspace 
 ##### Step 1: Generate infrastructure
 
 ```
-> Read the Phase 3 (Deploy to Azure) section in PLAN.md. Create Bicep infrastructure
+> Read the "Azure Deployment" section in PLAN.md. Create Bicep infrastructure
   in an infra/ directory. Prefer Azure Verified Modules (AVM), but use raw
   Microsoft.* Bicep for any resource where AVM parameter drift blocks deployment:
   - Azure Flex Functions with br/public:avm/res/web/site (kind: functionapp,linux)
@@ -495,21 +611,88 @@ If the Simulator says `Application failed preflight checks` or `SBMainWorkspace 
   and language ts (or my chosen stack). Log issues to issues.md.
 ```
 
-**🔍 Before deploying, review these critical details:**
+**🔍 Before deploying, run a read-only review:**
 
-1. Open `infra/main.bicep`. Does the Function App have `tags: { 'azd-service-name': 'api' }`? Without this, `azd deploy` can't find the app.
-2. Are resources AVM where practical, with raw `Microsoft.*` only where AVM blocks deployment?
-3. Does the SQL server have a firewall rule allowing Azure services (`0.0.0.0` start/end IP)?
-4. Does `AZURE_SQL_SERVER` use the full SQL FQDN output, not just the short server name?
-5. Are outputs in SCREAMING_SNAKE_CASE? (`API_URL`, not `apiUrl`)
-6. Are `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` all populated before `azd up`?
-7. If Foundry uses raw resources, is the model deployment in a nested module that runs after the parent account?
+If you're asked any questions after submitting the prompt, accept the recommended answers.
+
+After generation completes, run this pre-deployment review prompt:
+
+```
+> Perform a read-only pre-deployment review of the generated SmartTodo
+  infrastructure and azd configuration. Do not modify files or deploy.
+  Check these areas against the "Azure Deployment" section in PLAN.md,
+  including its "Azure Resources," "azure.yaml," "Flex Consumption
+  Configuration," "Bicep Requirements," "Post-Provision: Managed Identity SQL
+  Access," "Database Schema Initialization," and "Known Deployment Gotchas"
+  subsections:
+  - The Function App carries tags: { 'azd-service-name': 'api' } and a
+    system-assigned managed identity.
+  - Resources use AVM modules where practical, with raw Microsoft.* only where
+    AVM parameter drift blocks deployment. If Foundry uses raw resources, the
+    model deployment runs in a nested module after the parent account reaches a
+    terminal state.
+  - The App Service Plan uses the Flex Consumption SKU (FC1) and the Function App
+    is kind functionapp,linux.
+  - Azure SQL sets the Entra admin to the deploying principal and has a firewall
+    rule allowing Azure services (0.0.0.0 start/end IP) with a neutral name such
+    as AllowAzureServices, not a reserved word.
+  - AZURE_SQL_SERVER uses the full SQL FQDN output, not the short server name,
+    and AZURE_AI_ENDPOINT, AZURE_AI_DEPLOYMENT, AZURE_AI_KEY, and
+    AZURE_SQL_DATABASE are all present as app settings.
+  - Bicep module parameters derived from uniqueString have explicit
+    @minLength/@maxLength constraints so the build emits no BCP334 warnings.
+  - All outputs use SCREAMING_SNAKE_CASE (API_URL, SQL_SERVER_NAME).
+  - azure.yaml declares a single 'api' service with host: function and the
+    correct language, and wires hooks.postprovision to
+    infra/hooks/postprovision.js without shell: sh.
+  - postprovision.js runs sqlcmd through Node.js with argument arrays, opens only
+    the current client IP, and restores the firewall rule and original connection
+    policy in a finally block. It must be idempotent and must not print secrets.
+  - .funcignore does not exclude src/ or tsconfig.json, which the remote Oryx
+    build needs to compile TypeScript.
+  Run any existing read-only Bicep or azd validation commands that do not create
+  resources. Return:
+  1. PRE-DEPLOYMENT STATUS: READY or NOT READY
+  2. A table with each check, PASS or FAIL, and file/line evidence
+  3. Every blocking issue and the smallest exact fix
+  Do not report READY while any required check is unresolved.
+```
+
+Step 2 sets `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` for you. Confirm all three are populated before you run `azd up`.
 
 **💡 What you're learning:** Managed identity lets the Function App authenticate to Azure SQL without passwords. The AI call uses the plain `openai` SDK with an OpenAI-compatible `/openai/v1/` base URL and an app setting for `AZURE_AI_KEY`.
 
 ##### Step 2: Deploy
 
-Azure requires each resource type to be registered in your subscription before first use. Run these once per subscription:
+Before provisioning, Azure needs each resource provider registered in your subscription, and `azd` needs your subscription ID plus the full Entra administrator contract (`AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, `AZURE_PRINCIPAL_TYPE`) that the SQL admin assignment depends on. Rather than reading three values out of the CLI and pasting them back in, let GitHub Copilot resolve and set them:
+
+```
+> Prepare this azd environment for deployment. Do not run azd up and do not
+  create any Azure resources.
+  1. Register the Microsoft.Web, Microsoft.Sql, Microsoft.CognitiveServices,
+     and Microsoft.OperationalInsights providers in the current subscription.
+     Registration is idempotent, so skip any that already report Registered.
+  2. Resolve the current subscription ID, and the signed-in principal's login
+     and object ID. Use az account show and az ad signed-in-user show for an
+     interactive user. If the session is a service principal, resolve the
+     service-principal login and object ID instead and use principal type
+     ServicePrincipal rather than User.
+  3. Set AZURE_SUBSCRIPTION_ID, AZURE_PRINCIPAL_LOGIN, AZURE_PRINCIPAL_ID, and
+     AZURE_PRINCIPAL_TYPE in the selected azd environment with azd env set.
+  Read each value and pass it as a literal argument. Do not use shell command
+  substitution, so this works in PowerShell, Command Prompt, bash, and zsh.
+  Stop and tell me which values are unavailable rather than guessing or
+  setting a placeholder. When finished, show every key you set with the
+  values unredacted except for anything secret, and confirm all four are
+  present.
+```
+
+Do not continue until all four values are confirmed present. If the agent reports a missing value, fix that Azure permission or sign-in problem before provisioning.
+
+<details>
+<summary>Manual fallback: set the environment values yourself</summary>
+
+Register the providers once per subscription:
 
 ```text
 az provider register --namespace Microsoft.Web
@@ -517,8 +700,6 @@ az provider register --namespace Microsoft.Sql
 az provider register --namespace Microsoft.CognitiveServices
 az provider register --namespace Microsoft.OperationalInsights
 ```
-
-Set subscription and deploy:
 
 Read the subscription ID, account login, and object ID for an interactive user:
 
@@ -539,11 +720,15 @@ azd env set AZURE_PRINCIPAL_TYPE User
 
 For automation, use the service-principal login and object ID, and set `AZURE_PRINCIPAL_TYPE` to `ServicePrincipal`. Stop before provisioning if any required value is unavailable.
 
-Start the deployment from the SmartTodo journey directory:
+</details>
+
+Now start the deployment yourself from the `journeys/smart-todo` directory. Run this one rather than delegating it, because `azd up` prompts for the environment name and location and streams the provisioning output you'll want to watch:
 
 ```text
 azd up
 ```
+
+You may be asked if you'd like to check your Azure development tools. If you're asked and choose `Yes`, the command will list all recommended tools and their versions. If you know all of the required tools are installed, you can choose `No` to skip the check.
 
 Do not continue until `azd up` and the post-provision hook exit successfully.
 
@@ -552,13 +737,13 @@ Do not continue until `azd up` and the post-provision hook exit successfully.
 >
 > 1. Watch your resources appear in real-time. Open the [Azure Portal](https://portal.azure.com) → search for your resource group, or run `az resource list --resource-group rg-<env-name> --output table` in a separate terminal.
 > 2. Re-read your `infra/main.bicep`. Can you trace how SQL access, AI settings, and deployment outputs flow into the Function App?
-> 3. Preview what's next: open `PLAN.md` and read the Phase 2 section (iOS client). What SwiftUI components will you need?
+> 3. Preview what's next: open `PLAN.md` and re-read the "Known Deployment Gotchas" section. Which ones did your generated infrastructure already avoid?
 > 4. Ask the agent: *"/btw Explain which parts of this deployment use managed identity and which parts use app settings."*
 
 Deployment may take several minutes. If it fails, ask GitHub Copilot to help diagnose:
 
 ```
-> azd up failed with this error: [paste the error]. What's wrong?
+> azd up failed with this error: [paste the error]. What's wrong and what can be done to fix it?
 ```
 
 ##### Step 3: Confirm the post-provision SQL setup
@@ -575,7 +760,7 @@ Do not reproduce the setup as ad hoc shell commands. The portable hook owns iden
 
 ##### Step 4: Verify the live deployment
 
-Run the checked-in verifier from the SmartTodo journey directory on the host machine:
+Run the checked-in verifier from the `journeys/smart-todo` directory on the host machine:
 
 ```text
 node ../../.github/scripts/verify-smart-todo.mjs
@@ -613,7 +798,7 @@ Create a GitHub issue and assign it to GitHub Copilot:
     Azure SQL, Microsoft Foundry (gpt-5-mini), and monitoring
   - Create azure.yaml with a single 'api' service (host: function)
   - Use managed identity for SQL and the plain openai SDK with AZURE_AI_KEY for AI
-  - Follow the Phase 3 (Deploy to Azure) spec in PLAN.md, including the
+  - Follow the "Azure Deployment" section in PLAN.md, including the
     postprovision hook it specifies
   Assign the issue to Copilot.
 ```
@@ -696,7 +881,15 @@ If logs show `getaddrinfo ENOTFOUND <sql-name>`, set `AZURE_SQL_SERVER` to the f
 
 **Fix:** Check that `generateSteps` strips markdown wrapping before parsing. Verify the AI config:
 
-Generate `scripts/diagnose-smart-todo.mjs`. It must read the Function App and resource group through `azd`, inspect only the names and presence of required app settings through Azure CLI argument arrays, and redact all setting values. Run it with `node scripts/diagnose-smart-todo.mjs`.
+Ask GitHub Copilot to generate a diagnostic script in your workspace copy at `journeys/smart-todo/scripts/diagnose-smart-todo.mjs`:
+
+```
+> Create scripts/diagnose-smart-todo.mjs in this journey directory. It must
+  read the Function App name and resource group through azd, inspect only
+  the names and presence of the required app settings through Azure CLI
+  argument arrays, and redact all setting values. Then run it with
+  node scripts/diagnose-smart-todo.mjs.
+```
 
 When using the plain `openai` SDK, normalize the endpoint to include `/openai/v1/` before creating the client.
 
@@ -763,7 +956,7 @@ Make sure the URL uses `https://` and includes no trailing slash.
 
 ## Verification Checklist
 
-Run the checked-in verifier from the SmartTodo journey directory:
+Run the checked-in verifier from the `journeys/smart-todo` directory:
 
 ```text
 node ../../.github/scripts/verify-smart-todo.mjs
@@ -804,7 +997,7 @@ Read and save the generated resource group name:
 azd env get-value RESOURCE_GROUP_NAME
 ```
 
-Run the cleanup from the SmartTodo journey directory:
+Run the cleanup from the `journeys/smart-todo` directory:
 
 ```text
 azd down --force --purge

@@ -218,6 +218,7 @@ Then run the following prompt. If you have a specific folder where you'd like to
   - .github/agents
   - .github/skills
   - .github/scripts
+  - docs
   Initialize a Git repository at the workspace root and add a root .gitignore that
   excludes secrets and generated files, including .env and .env.* while
   allowing .env.example, plus .azure/, aimarket.db, node_modules/, dist/,

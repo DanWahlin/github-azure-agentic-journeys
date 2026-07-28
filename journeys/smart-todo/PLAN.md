@@ -2,6 +2,8 @@
 
 SmartTodo turns vague goals into actionable plans. Enter "Prepare conference talk," and the AI returns concrete steps you can check off. GitHub Copilot uses this document as the implementation spec.
 
+README prompts use the exact section names in this document as stable references. If a section is renamed, update its README references in the same change.
+
 **Out of scope:** No user authentication (anonymous for now), no push notifications, no collaboration/sharing, no offline sync, no recurring todos, no image attachments.
 
 ---
@@ -55,9 +57,9 @@ The API must follow the **repository pattern** (interfaces/contracts → impleme
 
 ---
 
-## Phase 1: API
+## API
 
-Build the API with Azure SQL Database. Use an existing Azure SQL instance during local development; Phase 3 provisions the instance used by the deployed app.
+Build the API with Azure SQL Database. Use an existing Azure SQL instance during local development; the Azure Deployment section provisions the instance used by the deployed app.
 
 ### Data Access Layer
 
@@ -285,6 +287,8 @@ Use short actionable descriptions for each seed step.
 
 **Client setup:** Normalize `AZURE_AI_ENDPOINT` so it ends with `/openai/v1/`, pass `AZURE_AI_KEY` as the API key, and pass `AZURE_AI_DEPLOYMENT` as the model/deployment name when calling chat completions.
 
+Do **not** use a dated `api-version` and do **not** use an Azure-specific client that requires one. The dated GA version (`2024-10-21`) rejects newer parameters such as `reasoning_effort`, and the versionless `/openai/v1` API has been GA since August 2025. There is deliberately no `AZURE_AI_API_VERSION` variable — do not add one to the app or to the Function App settings.
+
 **System prompt:**
 
 ```
@@ -334,11 +338,11 @@ Respond with ONLY a valid JSON array. No markdown, no code fences, no explanatio
 | AZURE_AI_DEPLOYMENT | `gpt-5-mini` | Set by Bicep output |
 | AZURE_AI_KEY | API key from portal | Set by Bicep output |
 
-Local dev and production both use API key auth via the plain `openai` package. Normalize the endpoint to include `/openai/v1/` before creating the client; Bicep may output the raw resource endpoint without that suffix.
+Local dev and production both use API key auth via the plain `openai` package. Normalize the endpoint to include `/openai/v1/` before creating the client; Bicep may output the raw resource endpoint without that suffix. No api-version setting is required or wanted.
 
 ---
 
-## Phase 2: iOS Client
+## iOS Client
 
 ### Platform Requirements
 
@@ -433,7 +437,7 @@ All methods use `URLSession.shared.data(for:)` with `async throws`. On non-2xx r
 
 ---
 
-## Phase 3: Deploy to Azure
+## Azure Deployment
 
 Deploy the API to Azure Functions **Flex Consumption** plan — a serverless, scale-to-zero hosting plan with per-function scaling, virtual network support, and configurable instance memory sizes. See [Flex Consumption plan docs](https://learn.microsoft.com/en-us/azure/azure-functions/flex-consumption-plan) for details.
 
