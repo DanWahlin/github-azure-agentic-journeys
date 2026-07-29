@@ -1,6 +1,6 @@
 # WeatherView - Five-Day Forecast on Azure
 
-> ✨ **Turn a small product plan into a polished, accessible weather app and ship it globally without reaching for a frontend framework.**
+> ✨ **Turn a small product plan into a polished, accessible weather app and ship it globally using Azure Static Web Apps.**
 
 <p align="center">
   <img src="./images/weather-view-hero.webp" alt="WeatherView five-day forecast running on Azure Static Web Apps" width="800" />
