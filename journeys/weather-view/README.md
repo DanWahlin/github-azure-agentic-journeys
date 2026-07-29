@@ -406,28 +406,19 @@ Use the Playwright network mock to return five dates but only four maximum tempe
 
 #### Step 1: Generate Bicep and azd configuration with Azure Skills
 
-Before submitting the generation prompt, confirm `azure@azure-skills` is active. The agent should use Azure schema and deployment guidance rather than relying solely on remembered Static Web Apps properties.
+Before submitting the generation prompt, confirm the `azure@azure-skills` plugin is active (you can run `/plugins ls` with Copilot CLI or check the plugins list in your environment). The agent should use Azure schema and deployment guidance rather than relying solely on remembered Static Web Apps properties.
+
+The prompt stays short on purpose: the complete deployment contract including Bicep scope and module choices, SKU, tags, outputs, the `dist` build flow, and the `staticwebapp.config.json` requirements, lives in the "Azure Deployment" section of `PLAN.md`.
 
 ```
-> Read "Azure Deployment" in PLAN.md. Use the installed Azure Skills plugin,
-  including current Bicep schema and azd infrastructure guidance, to create the
-  WeatherView deployment:
-  - subscription-scope infra/main.bicep that creates an environment resource group
-  - resource-group-scoped Static Web App module
-  - prefer br/public:avm/res/web/static-site, but use raw
-    Microsoft.Web/staticSites@2023-12-01 if current AVM inputs block deployment
-  - Free SKU, provider Custom, allowConfigFileUpdates true
-  - normalize unsupported Static Web Apps locations to eastus2
-  - azd-env-name and azd-service-name: web tags
-  - WEB_URL, STATIC_WEB_APP_NAME, and RESOURCE_GROUP_NAME outputs
-  - main.parameters.json using azd environment values
-  - azure.yaml with one web service using host: staticwebapp and language: js
-  - scripts/build-static.mjs plus an npm build script that recreates dist/ and
-    copies only the six deployable site files; azure.yaml must set dist: dist
-  - staticwebapp.config.json with navigation fallback and the security headers
-    required by PLAN.md, including Open-Meteo connect-src origins
-  Do not create a backend, API key, deployment token, storage account, container,
-  GitHub Actions workflow, or local-Docker requirement. Log real generation or
+> Read the "Azure Deployment" section in PLAN.md. Use the installed Azure
+  Skills plugin, including current Bicep schema and azd infrastructure
+  guidance, to create everything that section specifies for the WeatherView
+  deployment: the Bicep in infra/, main.parameters.json, azure.yaml,
+  scripts/build-static.mjs with its npm build script, and
+  staticwebapp.config.json. Follow the section's "Bicep Requirements,"
+  "azure.yaml," and "Static Web Apps Configuration" contracts exactly, and do
+  not create anything the section prohibits. Log real generation or
   validation issues to issues.md.
 ```
 
@@ -437,35 +428,21 @@ If GitHub Copilot asks questions, accept answers consistent with `PLAN.md`: Stat
 
 ```
 > Use Azure Skills to perform a read-only pre-deployment review of WeatherView.
-  Do not modify files and do not create Azure resources. Check PLAN.md's
-  "Azure Deployment" contract and return:
+  Do not modify files and do not create Azure resources. Check every
+  requirement in PLAN.md's "Azure Deployment" section, including "Bicep
+  Requirements," "azure.yaml," "Static Web Apps Configuration," and every
+  prohibition it states, and confirm that tests and local verification still
+  pass. Run Azure Skills validation plus any existing read-only azd/Bicep
+  validation that does not create resources. Return:
   1. PRE-DEPLOYMENT STATUS: READY or NOT READY
-  2. a table with PASS or FAIL plus file/line evidence for every check
+  2. a table with PASS or FAIL plus file/line evidence for every requirement
   3. each blocking issue and its smallest exact fix
-
-  Verify that:
-  - main.bicep is subscription scoped and resource-group resources are in a
-    resource-group-scoped module
-  - the Static Web App uses Free SKU, provider Custom, config updates enabled,
-    supported-location normalization, azd-env-name, and azd-service-name: web
-  - outputs are WEB_URL, STATIC_WEB_APP_NAME, and RESOURCE_GROUP_NAME
-  - azure.yaml has exactly one web service with project ., language js, and
-    host staticwebapp, plus dist: dist
-  - scripts/build-static.mjs recreates dist/ with only index.html, styles.css,
-    app.js, weather-api.js, weather-maps.js, and staticwebapp.config.json
-  - no secret, deployment token, backend, storage account, container, workflow,
-    or local Docker dependency was added
-  - staticwebapp.config.json has a safe navigation fallback and permits only
-    self plus Open-Meteo forecast/geocoding origins in connect-src
-  - tests and local verification still pass
-  Run Azure Skills validation plus any existing read-only azd/Bicep validation
-  that does not create resources. Do not report READY while a required check
-  is unresolved.
+  Do not report READY while a required check is unresolved.
 ```
 
 If the status is `NOT READY`, ask GitHub Copilot to fix only the failed checks, then rerun the same read-only review.
 
-**💡 What you're learning:** A deployment can be structurally valid but still target the wrong resource. The `azd-service-name: web` tag is the bridge between Bicep and the `web` service in `azure.yaml`.
+**💡 What you're learning:** A deployment can be structurally valid but still target the wrong resource. The `azd-service-name: web` tag is the bridge between Bicep and the `web` service in `azure.yaml`. Notice also that neither prompt enumerated the requirements. `PLAN.md` is the contract, and the review binds to it. When you discover a new deployment gotcha, record it in the plan, not in an ever-longer prompt.
 
 #### Step 3: Let GitHub Copilot prepare the azd environment
 

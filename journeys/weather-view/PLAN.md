@@ -285,8 +285,9 @@ Azure Static Web Apps supports only selected deployment locations. Normalize the
 3. Names are deterministic, lowercase where required, and include an environment token.
 4. Apply standard `azd-env-name` tagging and `azd-service-name: web` to the Static Web App.
 5. Output `WEB_URL`, `STATIC_WEB_APP_NAME`, and `RESOURCE_GROUP_NAME` in SCREAMING_SNAKE_CASE.
-6. Do not create a deployment token, GitHub workflow, managed function, backend, or secret.
+6. Do not create a deployment token, GitHub workflow, managed function, backend, API key, storage account, container, or secret, and do not introduce a local Docker requirement.
 7. Prefer the Static Web App AVM module, but use raw `Microsoft.Web/staticSites` when current AVM parameter drift blocks a working deployment; document the reason in `issues.md`.
+8. Generate `infra/main.parameters.json` that maps the Bicep parameters to azd environment values (`${AZURE_ENV_NAME}`, `${AZURE_LOCATION}`).
 
 ### azure.yaml
 
@@ -306,7 +307,7 @@ infra:
   path: ./infra
 ```
 
-Azure Developer CLI cannot publish a Static Web App when both its service source and output folder resolve to the project root. Generate `scripts/build-static.mjs`, set `dist: dist`, and add an npm `build` script. The build script must recreate `dist/` and copy only `index.html`, `styles.css`, `app.js`, `weather-api.js`, `weather-maps.js`, and `staticwebapp.config.json`. It must not copy tests, scripts, dependencies, `.azure`, documentation, package files, or infrastructure. Add `dist/` to `.gitignore`, run the build before deployment, and inspect the exact output list.
+Declare exactly one azd service, named `web`, as shown. Azure Developer CLI cannot publish a Static Web App when both its service source and output folder resolve to the project root. Generate `scripts/build-static.mjs`, set `dist: dist`, and add an npm `build` script. The build script must recreate `dist/` and copy only `index.html`, `styles.css`, `app.js`, `weather-api.js`, `weather-maps.js`, and `staticwebapp.config.json`. It must not copy tests, scripts, dependencies, `.azure`, documentation, package files, or infrastructure. Add `dist/` to `.gitignore`, run the build before deployment, and inspect the exact output list.
 
 ### Static Web Apps Configuration
 

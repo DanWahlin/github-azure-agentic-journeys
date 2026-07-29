@@ -147,6 +147,10 @@ export async function getProducts() {
 In dev: `VITE_API_URL` is unset → falls back to `/api` → Vite proxy handles it.
 In prod: `VITE_API_URL` is `https://ca-api-xxx.azurecontainerapps.io/api` → calls API directly.
 
+## .dockerignore Requirements
+
+Every build context sent to ACR needs a `.dockerignore` that excludes dependency directories (`node_modules/`), build output, local database files, `.env` files, and Git metadata (`.git/`). Keep the files the in-container build itself needs — for the default Node.js stack, do not exclude `tsconfig.json` or `package*.json`, or the container's TypeScript build fails. An unfiltered context can also overwhelm the ACR build upload.
+
 ## ARM64 Host Cross-Compilation
 
 Azure Container Apps runs Linux AMD64. This applies to Apple Silicon, Windows ARM64, and Linux ARM64 hosts.

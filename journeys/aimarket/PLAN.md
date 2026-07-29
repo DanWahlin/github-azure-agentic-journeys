@@ -627,9 +627,9 @@ The Azure Skills plugin for GitHub Copilot provides MCP tools and plugin skills 
 
 ### Containerization
 
-- **API Dockerfile:** Multi-stage build for your language. Builder stage compiles, final stage runs production artifacts only. Include `.dockerignore` to exclude dependency directories and db files.
+- **API Dockerfile:** Multi-stage build for your language. Builder stage compiles, final stage runs production artifacts only. Include the native build toolchain in the builder stage when a dependency compiles native modules (for example, SQLite drivers). Include `.dockerignore` to exclude dependency directories and db files while keeping build configuration files the container build needs (for example, `tsconfig.json`).
 - **Client Dockerfile:** Multi-stage `node:24-alpine` → `nginx:alpine`. Azure Container Registry builds the image as `linux/amd64`, so the Dockerfile must not require host-specific Buildx variables. Accept `VITE_API_URL` before `npm run build`. Serve with `nginx.conf` using `try_files` for SPA routing. **No `/api/` proxy block** — the frontend calls the API directly via `VITE_API_URL`.
-- **`.dockerignore`:** Both directories must exclude dependency dirs, build output, and `.env`.
+- **`.dockerignore`:** Both directories must exclude dependency dirs, build output, `.env`, and Git metadata (`.git/`).
 
 ### Azure Resources
 

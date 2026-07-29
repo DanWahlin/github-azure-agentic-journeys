@@ -447,6 +447,15 @@ Prefer AVM modules for consistency. If an AVM module blocks deployment because o
 
 Required resources: Function App on Flex Consumption, App Service Plan (`FC1`), Azure SQL Server + Database, Microsoft Foundry/Azure OpenAI with `gpt-5-mini`, Storage Account, Log Analytics, and Application Insights.
 
+| Resource | Module / Approach |
+|----------|-------------------|
+| Function App | `br/public:avm/res/web/site` (`kind: functionapp,linux`) |
+| App Service Plan | `br/public:avm/res/web/serverfarm` (Flex Consumption SKU: `FC1`) |
+| Azure SQL Server | `br/public:avm/res/sql/server`; database as a child resource (Basic, `zoneRedundant: false`, `maxSizeBytes` 2 GB) |
+| Microsoft Foundry | `br/public:avm/ptn/ai-ml/ai-foundry` (gpt-5-mini deployment) |
+| Monitoring | `br/public:avm/ptn/azd/monitoring` |
+| Storage Account | `br/public:avm/res/storage/storage-account` |
+
 ### azure.yaml
 
 The `language` field should match the learner's chosen stack:
@@ -490,6 +499,7 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 - If AVM parameter drift requires raw `Microsoft.CognitiveServices` resources, create the account first and deploy the model from a separate nested Bicep module that receives the created account name. Do not issue the account and model child operations concurrently; Azure can reject the child with `RequestConflict` while the parent is non-terminal.
 - **AI model version is region-specific** — use `az cognitiveservices model list --location <region> --query "[?model.name=='gpt-5-mini']"` to find the correct version before generating Bicep. For example, `westus` requires `2025-08-07` (not `2025-02-27`).
 - Outputs in SCREAMING_SNAKE_CASE: `API_URL`, `SQL_SERVER_NAME`, `SQL_DATABASE_NAME`, `FUNCTION_APP_NAME`, `AZURE_AI_ENDPOINT`, `AZURE_AI_DEPLOYMENT`, `RESOURCE_GROUP_NAME`
+- Module parameters derived from `uniqueString()` must declare explicit `@minLength(13)`/`@maxLength(13)` constraints so the build emits no BCP334 warnings
 - `azd-service-name: 'api'` tag on the Function App
 - Function App settings: `AZURE_AI_ENDPOINT`, `AZURE_AI_DEPLOYMENT`, `AZURE_AI_KEY`, `AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`. `AZURE_SQL_SERVER` must be the SQL FQDN, not just the short server name.
 - **Do NOT include `FUNCTIONS_WORKER_RUNTIME` in app settings** — Flex Consumption sets this via `functionAppConfig.runtime`, and having it in app settings causes a deployment error
@@ -504,7 +514,7 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 
 ### Post-Provision: Managed Identity SQL Access
 
-Azure SQL requires a post-provision step to add the Function App's managed identity as a database user. Generate `infra/hooks/postprovision.js` and reference it directly from `azure.yaml`. This repository requires Node.js LTS or later, `azd` 1.28.0+, Azure CLI, and the current Go-based `sqlcmd`; Windows, Mac, and Linux installation options are in [`../../docs/tool-installation.md`](../../docs/tool-installation.md).
+Azure SQL requires a post-provision step to add the Function App's managed identity as a database user. Generate `infra/hooks/postprovision.js` and reference it directly as `hooks.postprovision` in `azure.yaml` without `shell: sh`. This repository requires Node.js LTS or later, `azd` 1.28.0+, Azure CLI, and the current Go-based `sqlcmd`; Windows, Mac, and Linux installation options are in [`../../docs/tool-installation.md`](../../docs/tool-installation.md).
 
 Before provisioning, resolve and set the complete Entra administrator contract: `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE`. Interactive accounts use type `User`; non-interactive automation uses `ServicePrincipal`. Stop before Azure changes and report all missing values together.
 
@@ -520,7 +530,7 @@ The JavaScript hook must use argument arrays, not interpolated shell commands. O
 8. In `finally`, delete the temporary firewall rule and restore the original SQL connection policy even if schema creation fails.
 9. Print `Post-provision SQL setup complete.` only after every required step succeeds.
 
-Do not use shell traps, command substitution, `curl`, `grep`, or OS-specific path syntax in the generated hook.
+The hook must be idempotent and must never print secrets, connection strings, or firewall rule contents. Do not use shell traps, command substitution, `curl`, `grep`, or OS-specific path syntax in the generated hook.
 
 ### Database Schema Initialization
 

@@ -583,30 +583,17 @@ Address any high-confidence correctness, security, or reliability findings befor
 
 ##### Step 1: Generate infrastructure
 
+The prompt stays short on purpose: the complete deployment contract including AVM module choices, Flex Consumption settings, SQL and firewall rules, app settings, outputs, and both post-provision hooks, lives in the "Azure Deployment" section of `PLAN.md`.
+
 ```
-> Read the "Azure Deployment" section in PLAN.md. Create Bicep infrastructure
-  in an infra/ directory. Prefer Azure Verified Modules (AVM), but use raw
-  Microsoft.* Bicep for any resource where AVM parameter drift blocks deployment:
-  - Azure Flex Functions with br/public:avm/res/web/site (kind: functionapp,linux)
-  - App Service Plan with br/public:avm/res/web/serverfarm (Flex Consumption SKU: FC1)
-  - Azure SQL Server with br/public:avm/res/sql/server
-  - Azure SQL Database as a child resource (Basic, zoneRedundant: false, maxSizeBytes 2GB)
-  - Microsoft Foundry with br/public:avm/ptn/ai-ml/ai-foundry (gpt-5-mini deployment)
-  - If raw Microsoft.CognitiveServices resources are required, deploy the model from a nested Bicep module after the parent account reaches a terminal state
-  - Monitoring with br/public:avm/ptn/azd/monitoring
-  - Storage Account with br/public:avm/res/storage/storage-account
-  - System-assigned managed identity on the Function App
-  - Azure SQL: Entra admin = deploying user; firewall allow Azure services with a neutral rule name such as AllowAzureServices (do not use reserved words such as WINDOWS)
-  - Function app settings for AZURE_AI_ENDPOINT, AZURE_AI_DEPLOYMENT, AZURE_AI_KEY,
-    AZURE_SQL_SERVER (full FQDN), AZURE_SQL_DATABASE
-  - Outputs in SCREAMING_SNAKE_CASE: API_URL, SQL_SERVER_NAME, etc.
-  - azd-service-name: 'api' tag on the Function App
-  - cross-platform postprovision hook: generate infra/hooks/postprovision.js and
-    infra/hooks/postprovision-schema.sql exactly as specified in the
-    Post-Provision and Database Schema Initialization sections of PLAN.md,
-    referenced directly as hooks.postprovision in azure.yaml without shell: sh
-  Also create an azure.yaml with a single 'api' service using host: function
-  and language ts (or my chosen stack). Log issues to issues.md.
+> Read the "Azure Deployment" section in PLAN.md. Create everything it
+  specifies: the Bicep in infra/ from its "Azure Resources," "Flex Consumption
+  Configuration," and "Bicep Requirements" subsections, azure.yaml exactly as
+  its "azure.yaml" subsection shows with language ts (or my chosen stack), and
+  infra/hooks/postprovision.js plus infra/hooks/postprovision-schema.sql
+  exactly as its "Post-Provision: Managed Identity SQL Access" and "Database
+  Schema Initialization" subsections specify. Honor every item in "Known
+  Deployment Gotchas." Log issues to issues.md.
 ```
 
 **🔍 Before deploying, run a read-only review:**
@@ -618,47 +605,21 @@ After generation completes, run this pre-deployment review prompt:
 ```
 > Perform a read-only pre-deployment review of the generated SmartTodo
   infrastructure and azd configuration. Do not modify files or deploy.
-  Check these areas against the "Azure Deployment" section in PLAN.md,
+  Check every requirement in the "Azure Deployment" section of PLAN.md,
   including its "Azure Resources," "azure.yaml," "Flex Consumption
   Configuration," "Bicep Requirements," "Post-Provision: Managed Identity SQL
   Access," "Database Schema Initialization," and "Known Deployment Gotchas"
-  subsections:
-  - The Function App carries tags: { 'azd-service-name': 'api' } and a
-    system-assigned managed identity.
-  - Resources use AVM modules where practical, with raw Microsoft.* only where
-    AVM parameter drift blocks deployment. If Foundry uses raw resources, the
-    model deployment runs in a nested module after the parent account reaches a
-    terminal state.
-  - The App Service Plan uses the Flex Consumption SKU (FC1) and the Function App
-    is kind functionapp,linux.
-  - Azure SQL sets the Entra admin to the deploying principal and has a firewall
-    rule allowing Azure services (0.0.0.0 start/end IP) with a neutral name such
-    as AllowAzureServices, not a reserved word.
-  - AZURE_SQL_SERVER uses the full SQL FQDN output, not the short server name,
-    and AZURE_AI_ENDPOINT, AZURE_AI_DEPLOYMENT, AZURE_AI_KEY, and
-    AZURE_SQL_DATABASE are all present as app settings.
-  - Bicep module parameters derived from uniqueString have explicit
-    @minLength/@maxLength constraints so the build emits no BCP334 warnings.
-  - All outputs use SCREAMING_SNAKE_CASE (API_URL, SQL_SERVER_NAME).
-  - azure.yaml declares a single 'api' service with host: function and the
-    correct language, and wires hooks.postprovision to
-    infra/hooks/postprovision.js without shell: sh.
-  - postprovision.js runs sqlcmd through Node.js with argument arrays, opens only
-    the current client IP, and restores the firewall rule and original connection
-    policy in a finally block. It must be idempotent and must not print secrets.
-  - .funcignore does not exclude src/ or tsconfig.json, which the remote Oryx
-    build needs to compile TypeScript.
-  Run any existing read-only Bicep or azd validation commands that do not create
-  resources. Return:
+  subsections. Run any existing read-only Bicep or azd validation commands
+  that do not create resources. Return:
   1. PRE-DEPLOYMENT STATUS: READY or NOT READY
-  2. A table with each check, PASS or FAIL, and file/line evidence
+  2. A table with each requirement, PASS or FAIL, and file/line evidence
   3. Every blocking issue and the smallest exact fix
   Do not report READY while any required check is unresolved.
 ```
 
 Step 2 sets `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` for you. Confirm all three are populated before you run `azd up`.
 
-**💡 What you're learning:** Managed identity lets the Function App authenticate to Azure SQL without passwords. The AI call uses the plain `openai` SDK with an OpenAI-compatible `/openai/v1/` base URL and an app setting for `AZURE_AI_KEY`.
+**💡 What you're learning:** Managed identity lets the Function App authenticate to Azure SQL without passwords. The AI call uses the plain `openai` SDK with an OpenAI-compatible `/openai/v1/` base URL and an app setting for `AZURE_AI_KEY`. Notice also that neither prompt enumerated the infrastructure requirements. `PLAN.md`'s "Azure Deployment" section is the contract, and both the generation and the review bind to it. When a deployment teaches you a new gotcha, record it in the plan not in an ever-longer prompt.
 
 ##### Step 2: Deploy
 

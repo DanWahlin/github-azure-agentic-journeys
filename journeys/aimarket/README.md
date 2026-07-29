@@ -744,15 +744,12 @@ The command must list at least one supported model. Stop before provisioning if 
 The "Azure Deployment" section in PLAN.md and the `container-apps-deployment` skill contain the infrastructure requirements used in this journey, including resources, Dockerfiles, and the postdeploy hook. That context keeps the deployment prompt short:
 
 ```
-> Read the "Azure Deployment" section in PLAN.md and the container-apps-deployment skill
-  at ../../.github/skills/container-apps-deployment/SKILL.md. Following the
-  Containerization, Azure Resources, Bicep Requirements, and Deployment
-  sections exactly, create everything needed to deploy AIMarket to Azure
-  Container Apps: Bicep in infra/, Dockerfiles with .dockerignore files for
-  api/ and client/, azure.yaml with API remoteBuild: true, and the required
-  postdeploy ACR build hook wired into azure.yaml. Default stack: Node.js API
-  + React client. Do not require local Docker or Buildx.
-  Set the location to westus. Log issues to issues.md.
+> Read the "Azure Deployment" section in PLAN.md and the container-apps-deployment
+  skill. Create everything those two sources specify to deploy AIMarket to Azure Container
+  Apps: Bicep in infra/, Dockerfiles and .dockerignore files for api/ and
+  client/, azure.yaml, and the required postdeploy hook wired into azure.yaml.
+  Default stack: Node.js API + React client. Set the location to westus.
+  Log issues to issues.md.
 ```
 
 If you're asked any questions after submitting the prompt, accept the recommended answers.
@@ -762,36 +759,18 @@ After generation completes, run this pre-deployment review prompt:
 ```
 > Perform a read-only pre-deployment review of the generated AIMarket
   infrastructure and container configuration. Do not modify files or deploy.
-  Check these areas against the "Azure Deployment" section in PLAN.md and the
-  container-apps-deployment skill:
-  - Bicep creates ACR plus API and web Container Apps with the correct
-    azd-service-name tags, system-assigned identities, AcrPull assignments,
-    and registry entries using identity: system.
-  - Bicep implements ACR access as separate deployment phases? Each bootstrap 
-    Container App must use a public placeholder and system-assigned identity with 
-    no ACR registry entry. After `AcrPull`  is assigned to that identity, a later 
-    module must update the same app with the ACR login server and `identity: system`. 
-    A single module that declares both the new identity and registry is not a two-phase deployment.
-  - The API Dockerfile uses the correct runtime and includes native build tools
-    when required; its .dockerignore keeps required build configuration files.
-  - The frontend Dockerfile supports an ACR linux/amd64 build and applies
-    VITE_API_URL before npm run build; nginx.conf contains SPA routing without
-    an /api proxy; client/.dockerignore excludes dependencies and Git metadata.
-  - azure.yaml configures the API for remote linux/amd64 builds, does not
-    declare the web app as an azd service, and wires hooks.postdeploy to
-    infra/hooks/postdeploy.js without shell: sh.
-  - The postdeploy hook reads deployment values through azd, rebuilds the
-    frontend with API_URL + "/api", and updates the web Container App without
-    requiring local Docker.
-  Run any existing read-only Bicep or azd validation commands that do not create
-  resources. Return:
+  Check every requirement in the "Azure Deployment" section of PLAN.md
+  (Containerization, Azure Resources, Bicep Requirements, and Deployment) and
+  in the container-apps-deployment skill, including its two-phase ACR access
+  pattern and postdeploy hook contract. Run any existing read-only Bicep or
+  azd validation commands that do not create resources. Return:
   1. PRE-DEPLOYMENT STATUS: READY or NOT READY
-  2. A table with each check, PASS or FAIL, and file/line evidence
+  2. A table with each requirement, PASS or FAIL, and file/line evidence
   3. Every blocking issue and the smallest exact fix
   Do not report READY while any required check is unresolved.
 ```
 
-**💡 What you're learning:** Small deployment details can fail in very different ways. A missing API service tag prevents azd from mapping the API, while a missing web tag prevents the hook from finding the storefront. An incomplete `.dockerignore` can overwhelm the build context, and the wrong nginx configuration can stop the container. The postdeploy hook solves a separate timing problem: Vite needs `VITE_API_URL` at build time, but the API FQDN isn't known until after provisioning.
+**💡 What you're learning:** Small deployment details can fail in very different ways. A missing API service tag prevents azd from mapping the API, while a missing web tag prevents the hook from finding the storefront. An incomplete `.dockerignore` can overwhelm the build context, and the wrong nginx configuration can stop the container. The postdeploy hook solves a separate timing problem: Vite needs `VITE_API_URL` at build time, but the API FQDN isn't known until after provisioning. Notice that neither prompt listed these requirements. They live in `PLAN.md` and the `container-apps-deployment` skill, and the prompts just point at them. That's the same pattern your own team can use: when a deployment teaches you a new gotcha, record it in the spec or a skill, not in an ever-longer prompt.
 
 #### Step 2: Deploy
 
