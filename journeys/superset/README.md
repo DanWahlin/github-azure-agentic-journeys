@@ -18,8 +18,6 @@
 - Use `azure_deploy_plan` with `target=AKS` for Kubernetes deployment planning
 - Debug AKS-specific issues: init container failures, CrashLoopBackOff (a Kubernetes state where a container keeps crashing and restarting), SQLite fallback
 
-> ⏱️ **Estimated Time**: ~30–45 minutes first run (AKS creation takes most of that time)
->
 > 💰 **Estimated Cost**: ~$200–215/month while the resources exist (AKS nodes are the main cost; see [Cost Breakdown](#cost-breakdown)). Complete the [Cleanup](#cleanup) procedure immediately after the journey.
 
 ## Prerequisites

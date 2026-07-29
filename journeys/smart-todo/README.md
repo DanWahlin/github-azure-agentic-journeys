@@ -17,8 +17,6 @@ You'll build SmartTodo, an iPhone app that turns a todo such as "Prepare confere
 - Structure a SwiftUI app that talks to a cloud API with async/await networking
 - Deploy the backend to Azure Functions Flex Consumption with `azd` and point the iOS app at the live URL
 
-> ⏱️ **Estimated Time**: **3–5 hours for a first run** (about 2.5 hours if you're familiar with Azure Functions and SQL). This includes the build, test, deployment, and post-provision SQL steps.
->
 > 💰 **Estimated Cost**: ~$10–30/month while the resources exist (Functions Flex, SQL Basic, and AI usage; see [Cost Breakdown](#cost-breakdown)). Complete the [Cleanup](#cleanup) procedure when you finish the journey.
 
 ## Prerequisites
@@ -198,17 +196,17 @@ Use a capable frontier model for architecture decisions, changes spanning severa
 
 > **Note on the iOS app:** The SwiftUI app runs on your Mac (Simulator) or iPhone. It is NOT deployed by `azd`. Only the Azure backend is. The app points at the deployed API URL via a `Config.swift` file.
 
-### Phase 1: Build the API (~60–90 min first time)
+### Phase 1: Build the API
 
 <p align="center">
   <img src="./images/phase1-api.webp" alt="Phase 1: Building the API" width="800" />
 </p>
 
 > **📋 Local database setup:** This API uses Azure SQL. For local development, you have two options:
-> 1. **Use a local SQL Server**: This container is AMD64-only. Use it only when Docker's AMD64 emulation is already working; don't install privileged emulation as part of the journey. Set `AZURE_SQL_SERVER=localhost`, `AZURE_SQL_USER=sa`, and a locally generated password in `local.settings.json`.
-> 2. **Use Azure SQL directly**: Create a free-tier Azure SQL database in the portal and use its connection details in `local.settings.json`.
+> 1. **Use Azure SQL directly (simplest):** Create a free-tier Azure SQL database in the portal and put its connection details in `local.settings.json`. This works on any computer.
+> 2. **Run SQL Server locally in Docker:** Set `AZURE_SQL_SERVER=localhost`, `AZURE_SQL_USER=sa`, and a password you generate in `local.settings.json`. The SQL Server container doesn't run on every machine, so if it won't start, use option 1 instead of troubleshooting it.
 >
-> On Apple Silicon, Windows ARM64, and Linux ARM64, prefer Azure SQL unless AMD64 container execution has already passed preflight. Phase 3 creates the production Azure SQL instance automatically.
+> Either way, Phase 3 creates the production Azure SQL database for you.
 
 Because the default settings use `AzureWebJobsStorage=UseDevelopmentStorage=true`, start Azurite before `func start`. Install and verify it using the [cross-platform tool guide](../../docs/tool-installation.md#azurite).
 
@@ -463,7 +461,7 @@ If any test fails, describe the failure to GitHub Copilot and let it fix it:
 
 ---
 
-### Phase 2: Build the iOS App (~45–60 min, Mac only)
+### Phase 2: Build the iOS App (Mac only)
 
 <p align="center">
   <img src="./images/phase2-ios.webp" alt="Phase 2: SwiftUI App" width="800" />
@@ -575,7 +573,7 @@ Address any high-confidence correctness, security, or reliability findings befor
 
 ---
 
-### Phase 3: Deploy to Azure (~45–75 min first time)
+### Phase 3: Deploy to Azure
 
 <p align="center">
   <img src="./images/phase3-deploy.webp" alt="Phase 3: Deploy to Azure" width="800" />
@@ -748,7 +746,7 @@ Deployment may take several minutes. If it fails, ask GitHub Copilot to help dia
 
 ##### Step 3: Confirm the post-provision SQL setup
 
-Bicep creates the Function App identity, but Azure SQL needs a separate database user and schema step. The generated `infra/hooks/postprovision.js` runs automatically after provisioning and works on Windows, Mac, and Linux. It invokes `sqlcmd` through Node.js, temporarily opens only the current client IP, handles Azure SQL Redirect/Proxy connectivity, applies the schema and seed data, and restores the firewall rule and original connection policy in `finally`.
+Bicep creates the Function App identity, but Azure SQL needs a separate database user and schema step. The generated `infra/hooks/postprovision.js` runs automatically after provisioning and works on Windows, Mac, and Linux. It runs `sqlcmd` through Node.js, opens the firewall to your IP address only for as long as it needs, creates the tables and seed data, then closes the firewall and restores the original settings, even if something fails partway through.
 
 Check `azd up` for `Post-provision SQL setup complete.` If the hook reports a missing prerequisite, use the [cross-platform installation guide](../../docs/tool-installation.md), verify `node --version` and `sqlcmd --version`, then rerun:
 
@@ -756,7 +754,7 @@ Check `azd up` for `Post-provision SQL setup complete.` If the hook reports a mi
 node infra/hooks/postprovision.js
 ```
 
-Do not reproduce the setup as ad hoc shell commands. The portable hook owns identifier escaping, argument quoting, temporary firewall cleanup, and connection-policy restoration. If it fails, fix the reported prerequisite or Azure permission and rerun the same idempotent hook.
+Run the hook rather than typing the equivalent SQL and Azure CLI commands by hand. It handles the quoting, firewall cleanup, and settings restore that are easy to get wrong. If it fails, fix the prerequisite or Azure permission it reports and run it again. Running it more than once is safe.
 
 ##### Step 4: Verify the live deployment
 
@@ -871,7 +869,7 @@ Functions and Microsoft Foundry scale to zero when idle, so you pay almost nothi
 
 **Cause:** Managed identity not granted access to Azure SQL. The identity needs to be added as a database user with the right roles.
 
-**Fix:** Run `node infra/hooks/postprovision.js` while authenticated as the configured Microsoft Entra administrator. The idempotent hook handles the managed-identity user, roles, temporary firewall rule, Proxy/Redirect policy, and cleanup.
+**Fix:** Run `node infra/hooks/postprovision.js` while signed in as the Microsoft Entra administrator you configured. The hook creates the database user, grants its roles, and cleans up after itself. It's safe to run again.
 
 If logs show `getaddrinfo ENOTFOUND <sql-name>`, set `AZURE_SQL_SERVER` to the full FQDN: `<sql-name>.database.windows.net`.
 

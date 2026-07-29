@@ -6,7 +6,7 @@
   <img src="./images/n8n-workflow-automation.webp" alt="n8n: Workflow Automation on Azure" width="800" />
 </p>
 
-In this journey, you'll deploy [n8n](https://n8n.io), an open-source, self-hosted workflow automation tool, to Azure Container Apps with PostgreSQL. An AI agent generates the Bicep infrastructure, configures the health probes, and runs the deployment. Plan on 20–30 minutes for the first run.
+In this journey, you'll deploy [n8n](https://n8n.io), an open-source, self-hosted workflow automation tool, to Azure Container Apps with PostgreSQL. An AI agent generates the Bicep infrastructure, configures the health probes, and runs the deployment.
 
 ## Learning Objectives
 
@@ -16,8 +16,6 @@ In this journey, you'll deploy [n8n](https://n8n.io), an open-source, self-hoste
 - Configure health probes for slow-starting containers
 - Troubleshoot common deployment issues using Azure MCP (Model Context Protocol) tools and container logs
 
-> ⏱️ **Estimated Time**: ~20–30 minutes first run (PostgreSQL provisioning takes most of that time)
->
 > 💰 **Estimated Cost**: ~$25–35/month while the resources exist (see [Cost Breakdown](#cost-breakdown)). Complete the [Cleanup](#cleanup) procedure when you finish the journey.
 
 ## Prerequisites
@@ -351,13 +349,13 @@ The agent uses `azure_deploy_app_logs` to pull logs and identify the issue.
 
 **Cause:** The Container App FQDN isn't available until after deployment.
 
-**Fix:** Run the idempotent post-provision hook from the repository root on the host machine:
+**Fix:** Run the post-provision hook from the repository root. It's safe to run more than once:
 
 ```text
 node infra-n8n/hooks/postprovision.js
 ```
 
-The hook must exit successfully after `/healthz` and `/` return HTTP 200 for six consecutive probes over 30 seconds. If it exits nonzero, use the **When something fails** procedure in [Deploy with the Agent](#deploy-with-the-agent).
+The hook checks `/healthz` and `/` six times over 30 seconds and only succeeds if every check returns HTTP 200. If it reports a failure, use the **When something fails** procedure in [Deploy with the Agent](#deploy-with-the-agent).
 
 ### Resource Provider 409 Conflicts
 

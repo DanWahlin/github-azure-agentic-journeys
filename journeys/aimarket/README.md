@@ -17,8 +17,6 @@ In this journey, you'll build AIMarket, a lightweight marketplace with semantic 
 - Build an AI shopping assistant with Microsoft Foundry
 - Deploy the full stack to Azure Container Apps using `azd`
 
-> ⏱️ **Estimated Time**: **3–5 hours for a first run** (about 2–3 hours if you've completed an OSS journey and already know Container Apps). The phase estimates below cover hands-on work; the total also includes time to test, debug, and revise.
->
 > 💰 **Estimated Cost**: ~$100–115/month while the resources exist (AI Search Basic is approximately $75 of that cost; see [Cost Breakdown](#cost-breakdown)). Complete the [Cleanup](#cleanup) procedure when you finish the journey.
 
 ## Prerequisites
@@ -188,7 +186,7 @@ Use a capable frontier model for architecture decisions, changes spanning severa
 > verifier. Record the issue and resolution in issues.md. Do not print secrets.
 > ```
 
-### Phase 1: Build the API from the Spec (~25 min)
+### Phase 1: Build the API from the Spec
 
 <p align="center">
   <img src="./images/spec-to-code.webp" alt="Phase 1: Spec to Code" width="800" />
@@ -427,7 +425,7 @@ Once the API is running and the endpoints respond correctly, stop the API with C
 
 ---
 
-### Phase 2: Build the Storefront (~20 min)
+### Phase 2: Build the Storefront
 
 <p align="center">
   <img src="./images/react-storefront.webp" alt="Phase 2: React Storefront" width="800" />
@@ -538,7 +536,7 @@ Continue working from `journeys/aimarket` for the rest of the journey.
 
 ---
 
-### Phase 3: Add AI Features (~30–45 min)
+### Phase 3: Add AI Features
 
 <p align="center">
   <img src="./images/ai-search-and-chat.webp" alt="Phase 3: AI Features" width="800" />
@@ -727,7 +725,7 @@ Address any high-confidence correctness, security, or reliability findings befor
 
 ---
 
-### Phase 4: Deploy to Azure (~30–45 min first time)
+### Phase 4: Deploy to Azure
 
 <p align="center">
   <img src="./images/azure-deployment.webp" alt="Phase 4: Deploy to Azure" width="800" />

@@ -16,8 +16,6 @@ You'll deploy [Grafana OSS](https://grafana.com/oss/grafana/), an open-source ob
 - Use `/api/health` for reliable health probes
 - Handle scale-to-zero cold starts gracefully
 
-> ⏱️ **Estimated Time**: ~15–20 minutes first run
->
 > 💰 **Estimated Cost**: ~$10–20/month while the resources exist (see [Cost Breakdown](#cost-breakdown)). Complete the [Cleanup](#cleanup) procedure when you finish the journey.
 
 ## Prerequisites

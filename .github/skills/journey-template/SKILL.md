@@ -36,7 +36,6 @@ Update root `README.md` learning path + journey table when adding a journey.
 | **What the learner does** | Builds an app from scratch with GitHub Copilot | Deploys an existing OSS app via `@oss-to-azure-deployer` agent |
 | **Files generated** | README.md + PLAN.md | README.md + app-specific skill in `.github/skills/` |
 | **README structure** | "The Journey" with 3-5 phases (adapt to app complexity) | "Deploy with the Agent" with 3 steps (Setup → Deploy → Verify) |
-| **Time** | 3–5 hours first run (say 2–3 only if re-run) | 15–45 minutes first run |
 | **Images** | 4-6 (one per phase boundary) | 2 (hero + deployment) |
 | **Unique sections** | "The Spec", "How Agentic AI is Used", one-line default stack at first prompt | "Configuration Reference", "Key Learnings", skip rules if expensive |
 | **Compute target** | Container Apps, App Service, Functions, Static Web Apps, AKS | Container Apps, AKS, App Service |
@@ -117,8 +116,6 @@ Every journey README MUST follow this exact structure. Reference `journeys/aimar
 
 - <Concrete outcomes: "you'll know how to X" not "use X">
 
-> ⏱️ **Estimated Time**: ~NN minutes
->
 > 💰 **Estimated Cost**: ~$X-Y/month (<main cost driver> — see [Cost Breakdown](#cost-breakdown)). **Clean up with `azd down` when done!**
 
 ## Prerequisites
@@ -315,7 +312,7 @@ For mobile frontends (iOS/Android), note in the README:
 For AKS deployments (e.g., Superset), add:
 - **"Why AKS Instead of Container Apps?"** section after Architecture with architectural justification
 - **AKS run-command verification** through `az aks command invoke`, not a local `kubectl` dependency
-- **Complexity note** in the opening if deploy time exceeds 15 minutes
+- **Complexity note** in the opening when the deployment is long-running or multi-step
 
 For API-only journeys (no frontend):
 - Omit Phase 2 entirely — journey goes straight from API/Backend to Deploy
@@ -330,7 +327,6 @@ Use consistently throughout all journeys:
 | Emoji | Usage |
 |-------|-------|
 | ✨ | Tagline hook (one per journey) |
-| ⏱️ | Time estimate |
 | 💰 | Cost estimate |
 | 📋 | Prerequisites |
 | 🔍 | Inspect what was generated (full-stack only) |
@@ -717,14 +713,19 @@ Immediately before this command, the journey must include the exact prompt that 
 - Good: "Want Y on Azure without writing Bicep? Tell an agent what you want and it deploys it in 20 minutes."
 
 ### Time Estimates
-- Be honest about **first run** (include fix loops)
-- OSS deployments: 15–45 minutes first run
-- Full-stack builds: 3–5 hours first run
+- Do not include time estimates anywhere in a journey (no header estimate, no per-phase estimate, no "N hours" claims). Learners work at different speeds and hit different issues.
+- Durations that describe Azure behavior (for example "PostgreSQL provisioning takes several minutes") are fine — they describe the platform, not the learner.
 
 ### Cost Callouts
 - Always show cost in the prereqs box as **if left running**, plus same-day teardown
 - For expensive journeys ($100+/month or AKS ~$200), bold skip/budget guidance
 - Use human-readable SKU names (not "PerGB2018")
+
+### Plain Language
+- Write learner-facing prose in the simplest words that keep the technical meaning. Save precise jargon for prompts and reference tables, where an agent or a returning reader needs it.
+- Explain a term the first time it appears, or replace it: "Intel or AMD chip" instead of "x86-64 host", "safe to run again" instead of "idempotent", "same result every run" instead of "deterministic".
+- Never put a rare edge case in Prerequisites. If it affects a small subset of machines, move it to Troubleshooting and open with who it applies to and who can skip it.
+- In Troubleshooting, lead with what happened in plain terms, then what to do. Give a simpler alternative when one exists.
 
 ### Tone
 - Conversational and direct, like a senior dev pair-programming with you
@@ -749,7 +750,7 @@ Immediately before this command, the journey must include the exact prompt that 
 
 After creating a new journey, update these files:
 
-1. **Root `README.md`** — Agentic journeys table (what you'll do, cost — no time column; time estimates live in the journey README header only)
+1. **Root `README.md`** — Agentic journeys table (what you'll do, cost — no time column; journeys carry no time estimates at all)
 
 2. **`AGENTS.md`** — project structure and skills table
 
@@ -775,7 +776,9 @@ Before considering a journey complete:
 ### Content & Quality
 
 - [ ] Opening hook passes the "does a developer care yet?" test
-- [ ] Time estimate is honest first-run (tested)
+- [ ] No learner time estimates anywhere (header, phases, or prose)
+- [ ] Prose uses plain language; jargon is explained on first use or moved into prompts and reference tables
+- [ ] Rare host or platform edge cases live in Troubleshooting, not Prerequisites
 - [ ] Cost "if left running" + same-day teardown called out
 - [ ] No journey-sequence/path numbering; numbered phases and steps inside the journey are clear and bounded
 - [ ] Done when checklist + verify script where applicable

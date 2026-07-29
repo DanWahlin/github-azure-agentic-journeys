@@ -13,17 +13,15 @@ You'll build WeatherView from a shared spec using vanilla HTML, CSS, and JavaScr
 - Turn a product plan into small, reviewable implementation prompts
 - Build modular browser code around live Open-Meteo forecast and geocoding APIs
 - Review generated UI code for accessibility, resilience, and performance
-- Create deterministic local and deployed verification instead of trusting a successful build
+- Write tests that give the same result every run, so you verify the app works instead of trusting that it built
 - Use the Azure Skills plugin to generate and validate Bicep for Azure Static Web Apps
 - Deploy a static app with `azd up`, verify it in a browser, and remove only the resources created by the journey
 
-> ⏱️ **Estimated Time**: **2–3 hours for a first run**. This includes generation, browser testing, infrastructure review, deployment, and one fix loop.
->
 > 💰 **Estimated Cost**: **$0/month for the Azure Static Web Apps Free tier within its quotas**. Complete [Cleanup](#cleanup) the same day anyway so the journey leaves no resources behind.
 
 ## Prerequisites
 
-This journey supports Windows PowerShell, Command Prompt, Mac, and Linux on x64 and ARM64. The Static Web Apps deployment client is x86-64-only on some platforms. Windows 11 on ARM can run many x64 applications through emulation, so do not reject an ARM64 host before deployment. If the publisher reports an architecture error, use the ARM64 recovery in [Troubleshooting](#troubleshooting).
+This journey supports Windows PowerShell, Command Prompt, Mac, and Linux.
 
 | Host tool | Requirement | Purpose | Validation |
 |---|---|---|---|
@@ -45,14 +43,6 @@ git --version
 ```
 
 Confirm that `az account show` identifies the subscription you intend to use, `azd` is version 1.28.0 or later, and Node.js is a currently supported LTS release. Stop and fix a failed prerequisite before asking GitHub Copilot to generate code. See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, Mac, and Linux installation options.
-
-Check the host architecture before creating Azure resources:
-
-```text
-node -e "console.log(process.platform, process.arch)"
-```
-
-Record the result for troubleshooting. On ARM64, continue normally through `azd up`. Use the ARM64 recovery only if the Microsoft publisher reports `Exec format error`, `cannot execute binary file`, or raw ELF output. Do not install privileged emulation or silently introduce Docker.
 
 > [!NOTE]
 > GitHub Copilot CLI is the documented and validated path. You can adapt the prompts for the GitHub Copilot app, an IDE agent, or another agentic coding tool. For another tool, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**
@@ -167,7 +157,7 @@ WeatherView is built in three phases. You'll first create the product experience
 > verifier. Record the issue and resolution in issues.md. Do not print secrets.
 > ```
 
-### Phase 1: Build the Weather Experience (~45–60 min)
+### Phase 1: Build the Weather Experience
 
 <p align="center">
   <img src="./images/weather-view-build.webp" alt="Building WeatherView from the shared specification" width="800" />
@@ -324,7 +314,7 @@ Run the app and check the local acceptance criteria manually. Search for your ci
 
 ---
 
-### Phase 2: Test, Verify, and Refine (~35–50 min)
+### Phase 2: Test, Verify, and Refine
 
 <p align="center">
   <img src="./images/weather-view-verify.webp" alt="Testing WeatherView accessibility, resilience, and forecast behavior on a mobile viewport" width="360" />
@@ -345,7 +335,7 @@ Run the app and check the local acceptance criteria manually. Search for your ci
   install command. Do not weaken application behavior to make tests pass.
 ```
 
-Run the generated tests yourself. If Playwright Chromium is not installed, run the documented project-local installation command. Installing browser operating-system dependencies is an administrator action; do not run `--with-deps` unless you understand and approve the system changes.
+Run the generated tests yourself. If Playwright's Chromium browser isn't installed yet, run the install command the agent documented in the project. Skip the `--with-deps` flag: it installs system-level packages and needs administrator rights, which this journey doesn't require.
 
 **🔍 Inspect the tests:**
 
@@ -408,7 +398,7 @@ Use the Playwright network mock to return five dates but only four maximum tempe
 
 ---
 
-### Phase 3: Deploy to Azure Static Web Apps (~25–40 min)
+### Phase 3: Deploy to Azure Static Web Apps
 
 <p align="center">
   <img src="./images/weather-view-azure.webp" alt="WeatherView deployed to Azure Static Web Apps with Bicep and azd" width="800" />
@@ -499,11 +489,9 @@ Use the agent for prerequisite preparation rather than copying values through a 
   the names of environment keys set, but redact the subscription ID.
 ```
 
-`Microsoft.Web` is the only provider required on the normal WeatherView path. Do not register unrelated Container Apps, SQL, Kubernetes, AI, or monitoring providers. The optional ARM64 recovery registers `Microsoft.ContainerInstance` only after the exact publisher architecture failure and explicit approval.
+`Microsoft.Web` is the only provider this journey needs. Do not register unrelated Container Apps, SQL, Kubernetes, AI, or monitoring providers.
 
 #### Step 4: Run the deployment yourself
-
-Run `node -e "console.log(process.platform, process.arch)"` once more and record the result. ARM64 is not an automatic stop condition. If the publish step fails with an architecture error after provisioning, use the expandable ARM64 recovery in Troubleshooting.
 
 Run the one command that matters from `journeys/weather-view`:
 
@@ -669,14 +657,18 @@ This journey is free under normal lab usage, but cleanup still matters: it prove
 
 **Fix:** Restore the fallback to `/index.html`, excluding actual static assets so missing JavaScript and CSS still return real 404 responses rather than HTML.
 
-### ARM64: StaticSitesClient fails with `Exec format error` or ELF output
+### Deployment fails with `Exec format error` or `cannot execute binary file`
 
-**Cause:** The Bicep provisioning phase completed, but the Static Web Apps publish phase downloaded a deployment client that the host cannot execute. This can occur on ARM64 when x64 emulation is unavailable or does not handle the downloaded client. Do not assume that every ARM64 host fails; Windows 11 on ARM can run many x64 applications through emulation.
+Most people never see this. It only shows up on some ARM64 machines, such as certain Windows on ARM or Linux ARM laptops. If your deployment succeeded, skip this section.
+
+**What happened:** `azd up` has two parts. It created the Static Web App in Azure successfully, then it downloaded a small Microsoft upload tool to copy your site files up. That tool doesn't have a build for your machine's chip, so it couldn't run.
+
+**What to do:** Expand the workaround below to have GitHub Copilot upload your files from a temporary machine in Azure instead. If you have access to another computer with an Intel or AMD chip, you can also just rerun `azd up` there with the same environment name.
 
 <details>
-<summary><strong>ARM64 workaround: publish through a temporary x64 Azure container</strong></summary>
+<summary><strong>Workaround: upload from a temporary machine in Azure</strong></summary>
 
-Use this recovery only after `azd up` creates the Static Web App and then fails with an architecture error. The temporary publisher requires `Microsoft.ContainerInstance`, creates one short-lived Azure Container Instance in the journey resource group, and deletes it after the upload. Azure Container Instances is billable while the publisher runs. It does not change the application architecture or make Docker a host prerequisite.
+Use this only after `azd up` creates the Static Web App and then fails with the error above. The workaround starts one short-lived container in Azure, uses it to upload your files, then deletes it. That container costs a small amount while it runs, and it isn't part of your app. You don't need Docker on your own machine.
 
 Paste this prompt into the existing GitHub Copilot CLI session:
 
@@ -706,13 +698,13 @@ Requirements:
   result. Redact tokens, credentials, and subscription identifiers.
 ```
 
-After the agent explains the planned resource and receives approval, let it run the recovery. Require these observable results:
+The agent explains what it plans to create and waits for your approval. Once it finishes, confirm all three:
 
-1. The temporary publisher exits with code `0`.
-2. `node ../../.github/scripts/verify-weather-view.mjs` prints its PASS result.
-3. Querying the exact temporary container-group name returns no resource.
+1. The upload finished successfully.
+2. `node ../../.github/scripts/verify-weather-view.mjs` prints PASS.
+3. The temporary container is gone.
 
-If policy does not permit a temporary container, move the isolated workspace and its selected azd environment values to an approved x64 host. Authenticate there and rerun `azd up` with the same environment name.
+If you can't create temporary resources, copy the workspace to a computer with an Intel or AMD chip, sign in there, and rerun `azd up` with the same environment name.
 
 </details>
 
