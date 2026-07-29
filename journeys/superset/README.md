@@ -30,7 +30,7 @@ This journey supports Windows PowerShell, Mac, and Linux.
 | --- | --- | --- | --- |
 | [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) | Required | Authenticate and manage Azure resources | `az version` |
 | [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
-| [Node.js](https://nodejs.org/en/download) 24 LTS or later | Required | Run the post-provision hook and verifier | `node --version` |
+| [Node.js](https://nodejs.org/en/download) LTS or later | Required | Run the post-provision hook and verifier | `node --version` |
 | [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started) | Required for the documented CLI path | Run the deployment agent | `copilot --version` |
 
 The signed-in Azure account must have permission to create AKS, PostgreSQL Flexible Server, Load Balancer, managed identity, and Log Analytics resources and to invoke AKS run commands. The target region must have quota for at least four vCPUs.
@@ -46,7 +46,7 @@ node --version
 copilot --version
 ```
 
-Confirm that `az account show` identifies the intended subscription, the target region has at least four available vCPUs, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix the prerequisite if any check fails. The host does not need `kubectl` or Helm because the hook runs both tools inside Azure through AKS run command. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
+Confirm that `az account show` identifies the intended subscription, the target region has at least four available vCPUs, `azd` is version 1.28.0 or later, and Node.js is a currently supported LTS release. Stop and fix the prerequisite if any check fails. The host does not need `kubectl` or Helm because the hook runs both tools inside Azure through AKS run command. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
 
 > [!NOTE]
 > GitHub Copilot CLI is the documented and validated command-line path. You may adapt the deployment prompt for another agentic coding tool. For another tool, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**

@@ -15,7 +15,7 @@ Grafana is an open-source observability platform for metrics, logs, and traces v
 
 ## Prerequisites and Portability
 
-Require Azure CLI, Azure Developer CLI 1.28.0 or later, and Node.js 24 LTS or later for portable verification. Don't require OpenSSL, Bash command substitution, or host-specific shell scripts. See `../../../docs/tool-installation.md`.
+Require Azure CLI, Azure Developer CLI 1.28.0 or later, and Node.js LTS or later for portable verification. Don't require OpenSSL, Bash command substitution, or host-specific shell scripts. See `../../../docs/tool-installation.md`.
 
 ## Critical: Infrastructure Generation
 

@@ -29,7 +29,7 @@ This journey supports Windows PowerShell, Command Prompt, Mac, and Linux on x64 
 |---|---|---|---|
 | [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) | Required | Authenticate, inspect the selected subscription, and register the Static Web Apps provider | `az version` |
 | [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) 1.28.0 or later | Required | Provision, deploy, and remove the application | `azd version` |
-| [Node.js](https://nodejs.org/en/download) 24 LTS or later | Required | Run the local server, tests, verifier, and browser tooling | `node --version` |
+| [Node.js](https://nodejs.org/en/download) LTS or later | Required | Run the local server, tests, verifier, and browser tooling | `node --version` |
 | [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started) | Required for the documented CLI path | Run the coding agent and Azure Skills plugin | `copilot --version` |
 | Git | Required | Create the isolated application workspace and inspect changes | `git --version` |
 
@@ -44,7 +44,7 @@ copilot --version
 git --version
 ```
 
-Confirm that `az account show` identifies the subscription you intend to use, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix a failed prerequisite before asking GitHub Copilot to generate code. See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, Mac, and Linux installation options.
+Confirm that `az account show` identifies the subscription you intend to use, `azd` is version 1.28.0 or later, and Node.js is a currently supported LTS release. Stop and fix a failed prerequisite before asking GitHub Copilot to generate code. See the [cross-platform installation guide](../../docs/tool-installation.md) for Windows, Mac, and Linux installation options.
 
 Check the host architecture before creating Azure resources:
 
@@ -364,7 +364,7 @@ The journey will ask you to run `scripts/verify-app.mjs`, so create it first. Th
 ```
 > Create scripts/verify-app.mjs in this journey directory as specified in
   "Local Tooling and Tests" in PLAN.md. It must work on Windows, Mac, and Linux
-  with Node.js 24 or later. It must:
+  with Node.js LTS or later. It must:
   1. accept --base-url and default to the documented local URL
   2. request index.html, styles.css, app.js, weather-api.js, and weather-maps.js
   3. fail on any non-2xx response or missing required app-shell marker

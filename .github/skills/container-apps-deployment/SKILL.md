@@ -50,7 +50,7 @@ Declare each service whose image azd owns this way. AIMarket declares only `api`
 
 ### Cross-platform hooks
 
-This repository requires `azd` 1.28.0 or later and Node.js 24 LTS or later. Use JavaScript or TypeScript hooks referenced directly from `azure.yaml`; `azd` detects the language from the extension. Do not generate Bash-only `.sh` or PowerShell-only `.ps1` lifecycle hooks.
+This repository requires `azd` 1.28.0 or later and Node.js LTS or later. Use JavaScript or TypeScript hooks referenced directly from `azure.yaml`; `azd` detects the language from the extension. Do not generate Bash-only `.sh` or PowerShell-only `.ps1` lifecycle hooks.
 
 ```yaml
 hooks:

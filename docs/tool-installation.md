@@ -6,9 +6,9 @@ The journeys support Windows, Mac, and Linux. Install only the tools listed in t
 
 ## Standard tools
 
-### Node.js 24 LTS or later
+### Node.js LTS or later
 
-Node.js 20 reached end of life in April 2026. Install a currently supported Long-Term Support release, preferably Node.js 24, from the [official Node.js downloads](https://nodejs.org/en/download). Check the [release lifecycle](https://nodejs.org/en/about/previous-releases) before pinning a new journey.
+Install a currently supported Long-Term Support (LTS) release from the [official Node.js downloads](https://nodejs.org/en/download). Check the [release lifecycle](https://nodejs.org/en/about/previous-releases) to confirm your version is still supported.
 
 ```text
 node --version

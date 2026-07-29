@@ -29,7 +29,7 @@ This journey supports Mac, Linux, and Windows.
 | --- | --- | --- | --- |
 | [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) | Required | Authenticate and manage Azure resources | `az version` |
 | [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
-| [Node.js](https://nodejs.org/en/download) 24 LTS or later | Required | Build the frontend, run hooks, and provide the default API runtime | `node --version` |
+| [Node.js](https://nodejs.org/en/download) LTS or later | Required | Build the frontend, run hooks, and provide the default API runtime | `node --version` |
 | [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started) | Required for the documented CLI path | Run the coding agent | `copilot --version` |
 | [GitHub CLI (`gh`)](https://cli.github.com/) | Required only for the cloud-agent issue and pull-request path | Create issues and manage pull requests | `gh auth status` |
 | [Python](https://www.python.org/downloads/) 3.10+, [.NET](https://dotnet.microsoft.com/download) 8+, or [Eclipse Temurin JDK](https://adoptium.net/temurin/releases/?version=25) 25 LTS or later | Required only when selected instead of the default Node.js API | Run the selected API stack | `python --version`, `dotnet --version`, or `java --version` |
@@ -44,7 +44,7 @@ node --version
 copilot --version
 ```
 
-Run `gh auth status` before the cloud-agent path. Run the validation command for the selected alternative API runtime before generating that API. Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, and Node.js is version 24 or later. Stop and fix the prerequisite if a required check fails. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
+Run `gh auth status` before the cloud-agent path. Run the validation command for the selected alternative API runtime before generating that API. Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, and Node.js is a currently supported LTS release. Stop and fix the prerequisite if a required check fails. See the [cross-platform installation guide](../../docs/tool-installation.md) for installation instructions.
 
 > [!NOTE]
 > GitHub Copilot CLI is the documented and validated command-line path. You may adapt the prompts for another agentic coding tool. For another tool, run: **"Copy or adapt this repository's `.github/skills` into your supported skills or instructions location, preserving their behavior and reporting anything unsupported."**

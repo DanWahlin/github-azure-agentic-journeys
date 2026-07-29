@@ -40,7 +40,7 @@ Before starting, ensure you have:
 - **Azure subscription** - [Create account](https://azure.microsoft.com/pricing/purchase-options/azure-account)
 - **Azure CLI** (`az`) - [Install](https://learn.microsoft.com/cli/azure/install-azure-cli)
 - **Azure Developer CLI** (`azd`) 1.28.0 or later - [Install](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
-- **Node.js 24 LTS or later** - [Install](https://nodejs.org/en/download)
+- **Node.js LTS or later** - [Install](https://nodejs.org/en/download)
 
   ```text
   # Verify installations

@@ -14,7 +14,7 @@ README prompts use the exact section names in this document as stable references
 
 ## Choose Your Stack
 
-**Happy path (required for this journey):** vanilla HTML5 + CSS + modern JavaScript ES modules, Node.js 24 LTS or later for local tooling and verification, Azure Static Web Apps Free tier, Bicep, and Azure Developer CLI (`azd`).
+**Happy path (required for this journey):** vanilla HTML5 + CSS + modern JavaScript ES modules, Node.js LTS or later for local tooling and verification, Azure Static Web Apps Free tier, Bicep, and Azure Developer CLI (`azd`).
 
 Do not replace the frontend with React, Vue, Angular, a CSS framework, or a component library. The point is to practice planning, modular browser code, accessibility, testing, and Azure deployment without framework abstraction.
 
@@ -215,7 +215,7 @@ Use one `aria-live="polite"` status region. Do not move keyboard focus unexpecte
 
 ## Local Tooling and Tests
 
-Create a minimal `package.json` with Node.js 24 or later and scripts:
+Create a minimal `package.json` with Node.js LTS or later and scripts:
 
 - `start`: serve the project locally on a configurable port without requiring a global package
 - `build`: recreate `dist/` and copy only deployable site assets

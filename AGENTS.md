@@ -128,7 +128,7 @@ az provider register --namespace Microsoft.Web               # Functions and Sta
 
 ### Cross-platform verification helpers
 
-The repository smoke checks are Node.js scripts and require Node.js 24 LTS or later. Select the correct `azd` environment before running one:
+The repository smoke checks are Node.js scripts and require Node.js LTS or later. Select the correct `azd` environment before running one:
 
 ```text
 node .github/scripts/verify-grafana.mjs

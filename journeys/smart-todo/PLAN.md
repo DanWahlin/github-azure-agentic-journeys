@@ -504,7 +504,7 @@ Single service only — no `web` service. The iOS app runs on device, not in Azu
 
 ### Post-Provision: Managed Identity SQL Access
 
-Azure SQL requires a post-provision step to add the Function App's managed identity as a database user. Generate `infra/hooks/postprovision.js` and reference it directly from `azure.yaml`. This repository requires Node.js 24 LTS or later, `azd` 1.28.0+, Azure CLI, and the current Go-based `sqlcmd`; Windows, Mac, and Linux installation options are in [`../../docs/tool-installation.md`](../../docs/tool-installation.md).
+Azure SQL requires a post-provision step to add the Function App's managed identity as a database user. Generate `infra/hooks/postprovision.js` and reference it directly from `azure.yaml`. This repository requires Node.js LTS or later, `azd` 1.28.0+, Azure CLI, and the current Go-based `sqlcmd`; Windows, Mac, and Linux installation options are in [`../../docs/tool-installation.md`](../../docs/tool-installation.md).
 
 Before provisioning, resolve and set the complete Entra administrator contract: `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE`. Interactive accounts use type `User`; non-interactive automation uses `ServicePrincipal`. Stop before Azure changes and report all missing values together.
 

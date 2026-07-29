@@ -14,7 +14,7 @@ Run a journey like a learner would, but with strict preflight, isolated state, e
 
 The runner itself requires:
 
-- Node.js 24 LTS or later
+- Node.js LTS or later
 - Azure CLI
 - Azure Developer CLI (`azd`) 1.28.0 or later
 - GitHub Copilot CLI
@@ -76,11 +76,11 @@ Journey-specific minimums:
 | Journey | Additional required tools | Optional or platform-gated tools |
 |---|---|---|
 | Grafana | None | Playwright for screenshots |
-| n8n | Node.js 24 LTS or later | Playwright for screenshots |
-| Superset | Node.js 24 LTS or later | Playwright for screenshots; local `kubectl` and Helm only for optional direct cluster work |
-| AIMarket | Node.js 24 LTS or later, GitHub CLI | Playwright; Docker only for optional local container work |
-| SmartTodo | Node.js 24 LTS or later, Azure Functions Core Tools v4, `sqlcmd` | Project-local Azurite for local execution; Docker for alternate stacks or local SQL; Xcode 16+ only for Mac iOS execution |
-| WeatherView | Node.js 24 LTS or later | Project-local Playwright and bundled Chromium; ARM64 may require the documented temporary x64 Azure publisher or an approved x64 host if the SWA client returns an architecture error |
+| n8n | Node.js LTS or later | Playwright for screenshots |
+| Superset | Node.js LTS or later | Playwright for screenshots; local `kubectl` and Helm only for optional direct cluster work |
+| AIMarket | Node.js LTS or later, GitHub CLI | Playwright; Docker only for optional local container work |
+| SmartTodo | Node.js LTS or later, Azure Functions Core Tools v4, `sqlcmd` | Project-local Azurite for local execution; Docker for alternate stacks or local SQL; Xcode 16+ only for Mac iOS execution |
+| WeatherView | Node.js LTS or later | Project-local Playwright and bundled Chromium; ARM64 may require the documented temporary x64 Azure publisher or an approved x64 host if the SWA client returns an architecture error |
 
 ### Authentication preflight
 

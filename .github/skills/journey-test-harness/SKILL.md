@@ -41,11 +41,11 @@ Load `journey-runner` and run its cross-platform preflight before creating any w
 
 The union of selected-journey requirements may include:
 
-- Node.js 24 LTS or later
+- Node.js LTS or later
 - Azure CLI and valid authentication
 - `azd` 1.28.0 or later with `auth.useAzCliAuth=true`
 - GitHub Copilot CLI
-- Node.js 24 LTS or later for hooks, tests, and verifiers
+- Node.js LTS or later for hooks, tests, and verifiers
 - Azure Functions Core Tools v4, Azurite, and Go-based `sqlcmd` for SmartTodo
 - The pinned Playwright package and bundled Chromium for web screenshots
 - Xcode 16+ only when SmartTodo iOS execution is requested on Mac

@@ -29,7 +29,7 @@ The backend phases support Windows PowerShell, Mac, and Linux. Phase 2 simulator
 | --- | --- | --- | --- |
 | [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) | Required | Authenticate and manage Azure resources | `az version` |
 | [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) 1.28.0 or later | Required | Provision and remove the deployment | `azd version` |
-| [Node.js](https://nodejs.org/en/download) 24 LTS or later | Required | Run hooks, the verifier, and the default API stack | `node --version` |
+| [Node.js](https://nodejs.org/en/download) LTS or later | Required | Run hooks, the verifier, and the default API stack | `node --version` |
 | [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools) v4 | Required for local API execution | Run the Functions host | `func --version` |
 | [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite#install-azurite) | Required when local settings use `UseDevelopmentStorage=true` | Emulate Functions storage locally | `npx azurite --version` |
 | Go-based [`sqlcmd`](https://learn.microsoft.com/sql/tools/sqlcmd/sqlcmd-download-install) | Required for Phase 3 | Configure managed-identity database access and apply the schema | `sqlcmd --version` |
@@ -52,7 +52,7 @@ copilot --version
 
 Before Phase 3, also run `sqlcmd --version`. Run `docker version` only when you select local SQL Server. Run the validation command for the selected alternative API runtime before generating that API. On Mac, run `xcodebuild -version` before Phase 2.
 
-Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, Node.js is version 24 or later, and Functions Core Tools reports major version 4. Stop and fix the prerequisite if a required check fails. The [cross-platform installation guide](../../docs/tool-installation.md) provides Windows, Mac, and Linux installation options.
+Confirm that `az account show` identifies the intended subscription, `azd` is version 1.28.0 or later, Node.js is a currently supported LTS release, and Functions Core Tools reports major version 4. Stop and fix the prerequisite if a required check fails. The [cross-platform installation guide](../../docs/tool-installation.md) provides Windows, Mac, and Linux installation options.
 
 Before Phase 3, `azd` needs the complete `AZURE_PRINCIPAL_ID`, `AZURE_PRINCIPAL_LOGIN`, and `AZURE_PRINCIPAL_TYPE` group, which the Azure SQL Entra admin assignment depends on. [Phase 3, Step 2](#step-2-deploy) has GitHub Copilot resolve and set these for you; the type is `User` for an interactive account and `ServicePrincipal` for automation.
 
